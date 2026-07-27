@@ -1,0 +1,270 @@
+{
+  "fill" : {
+    "automatic-gradient" : "display-p3:0.28628,0.64673,1.00000,1.00000"
+  },
+  "groups" : [
+    {
+      "hidden" : false,
+      "layers" : [
+        {
+          "blend-mode" : "lighten",
+          "hidden" : true,
+          "image-name" : "Image.svg",
+          "name" : "Image",
+          "position-specializations" : [
+            {
+              "idiom" : "square",
+              "value" : {
+                "scale" : 1.2,
+                "translation-in-points" : [
+                  181.5641367346941,
+                  290.683162403927
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "blend-mode" : "lighten",
+          "fill" : {
+            "solid" : "extended-gray:1.00000,1.00000"
+          },
+          "glass" : true,
+          "hidden" : false,
+          "image-name" : "custom.magnifyingglass 2.svg",
+          "name" : "custom.magnifyingglass 2",
+          "position-specializations" : [
+            {
+              "idiom" : "square",
+              "value" : {
+                "scale" : 11,
+                "translation-in-points" : [
+                  181.564136734694,
+                  267.5137000000001
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "blend-mode" : "darken",
+          "fill" : {
+            "solid" : "display-p3:0.20536,0.51425,0.75071,0.62370"
+          },
+          "glass" : true,
+          "hidden-specializations" : [
+            {
+              "idiom" : "square",
+              "value" : false
+            }
+          ],
+          "image-name" : "circle.fill.svg",
+          "name" : "circle.fill",
+          "position-specializations" : [
+            {
+              "idiom" : "square",
+              "value" : {
+                "scale" : 9,
+                "translation-in-points" : [
+                  160.37558701915907,
+                  243.947766602618
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "hidden" : true,
+          "image-name" : "Image 3.svg",
+          "name" : "Image 3",
+          "position-specializations" : [
+            {
+              "value" : {
+                "scale" : 1,
+                "translation-in-points" : [
+                  189.856812303624,
+                  290.683162403927
+                ]
+              }
+            },
+            {
+              "idiom" : "square",
+              "value" : {
+                "scale" : 1.4,
+                "translation-in-points" : [
+                  192.62403701915912,
+                  300.3023624039271
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "fill" : {
+            "solid" : "extended-gray:1.00000,0.80000"
+          },
+          "hidden" : false,
+          "image-name" : "custom.book.pages.fill.svg",
+          "name" : "custom.book.pages.fill",
+          "position-specializations" : [
+            {
+              "idiom" : "square",
+              "value" : {
+                "scale" : 26,
+                "translation-in-points" : [
+                  0,
+                  0
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.6
+      },
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.2
+      }
+    },
+    {
+      "hidden" : true,
+      "layers" : [
+        {
+          "blend-mode" : "normal",
+          "fill" : {
+            "solid" : "extended-gray:0.25000,1.00000"
+          },
+          "glass" : true,
+          "hidden" : false,
+          "image-name" : "custom.magnifyingglass 2.svg",
+          "name" : "custom.magnifyingglass 2",
+          "position-specializations" : [
+            {
+              "idiom" : "square",
+              "value" : {
+                "scale" : 10,
+                "translation-in-points" : [
+                  148.276862019159,
+                  248.38009580130904
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "blend-mode" : "darken",
+          "fill" : {
+            "automatic-gradient" : "extended-gray:1.00000,0.90000",
+            "orientation" : {
+              "start" : {
+                "x" : 0.5,
+                "y" : 0
+              },
+              "stop" : {
+                "x" : 0.5000000000000003,
+                "y" : 0.9177011330574418
+              }
+            }
+          },
+          "glass" : true,
+          "hidden-specializations" : [
+            {
+              "idiom" : "square",
+              "value" : false
+            }
+          ],
+          "image-name" : "circle.fill.svg",
+          "name" : "circle.fill",
+          "position-specializations" : [
+            {
+              "idiom" : "square",
+              "value" : {
+                "scale" : 8.5,
+                "translation-in-points" : [
+                  127.0883123036241,
+                  224.81416240392696
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "fill" : {
+            "solid" : "extended-gray:1.00000,0.80000"
+          },
+          "hidden" : false,
+          "image-name" : "custom.book.pages.fill.svg",
+          "name" : "custom.book.pages.fill",
+          "position-specializations" : [
+            {
+              "idiom" : "square",
+              "value" : {
+                "scale" : 24,
+                "translation-in-points" : [
+                  0,
+                  0
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.6
+      },
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.2
+      }
+    },
+    {
+      "blur-material" : null,
+      "hidden" : true,
+      "layers" : [
+        {
+          "blend-mode" : "overlay",
+          "fill" : {
+            "solid" : "extended-gray:1.00000,0.69191"
+          },
+          "hidden" : false,
+          "image-name" : "book.pages 2.svg",
+          "name" : "book.pages",
+          "position-specializations" : [
+            {
+              "idiom" : "square",
+              "value" : {
+                "scale" : 24,
+                "translation-in-points" : [
+                  0,
+                  0
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "image-name" : "Image 2.svg",
+          "name" : "Image 2"
+        }
+      ],
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.6
+      },
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.2
+      }
+    }
+  ],
+  "supported-platforms" : {
+    "circles" : [
+      "watchOS"
+    ],
+    "squares" : "shared"
+  }
+}
