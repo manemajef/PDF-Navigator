@@ -7,13 +7,13 @@
 	objects = {
 
 /* Begin PBXFileReference section */
-		FB1A58763016B57D00128AF8 /* PDF Navigator.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "PDF Navigator.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		FB1A58763016B57D00128AF8 /* PDFNavigator.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PDFNavigator.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		FB1A58783016B57D00128AF8 /* PDF Navigator */ = {
+		FB1A58783016B57D00128AF8 /* PDFNavigator */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = "PDF Navigator";
+			path = PDFNavigator;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -30,7 +30,7 @@
 		FB1A586D3016B57D00128AF8 = {
 			isa = PBXGroup;
 			children = (
-				FB1A58783016B57D00128AF8 /* PDF Navigator */,
+				FB1A58783016B57D00128AF8 /* PDFNavigator */,
 				FB1A58773016B57D00128AF8 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -38,7 +38,7 @@
 		FB1A58773016B57D00128AF8 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				FB1A58763016B57D00128AF8 /* PDF Navigator.app */,
+				FB1A58763016B57D00128AF8 /* PDFNavigator.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -46,9 +46,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		FB1A58753016B57D00128AF8 /* PDF Navigator */ = {
+		FB1A58753016B57D00128AF8 /* PDFNavigator */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = FB1A58813016B57E00128AF8 /* Build configuration list for PBXNativeTarget "PDF Navigator" */;
+			buildConfigurationList = FB1A58813016B57E00128AF8 /* Build configuration list for PBXNativeTarget "PDFNavigator" */;
 			buildPhases = (
 				FB1A58723016B57D00128AF8 /* Sources */,
 				FB1A58733016B57D00128AF8 /* Frameworks */,
@@ -57,11 +57,11 @@
 			buildRules = (
 			);
 			fileSystemSynchronizedGroups = (
-				FB1A58783016B57D00128AF8 /* PDF Navigator */,
+				FB1A58783016B57D00128AF8 /* PDFNavigator */,
 			);
-			name = "PDF Navigator";
+			name = PDFNavigator;
 			productName = "PDF Navigator";
-			productReference = FB1A58763016B57D00128AF8 /* PDF Navigator.app */;
+			productReference = FB1A58763016B57D00128AF8 /* PDFNavigator.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -79,7 +79,7 @@
 					};
 				};
 			};
-			buildConfigurationList = FB1A58713016B57D00128AF8 /* Build configuration list for PBXProject "PDF Navigator" */;
+			buildConfigurationList = FB1A58713016B57D00128AF8 /* Build configuration list for PBXProject "PDFNavigator" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -93,7 +93,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				FB1A58753016B57D00128AF8 /* PDF Navigator */,
+				FB1A58753016B57D00128AF8 /* PDFNavigator */,
 			);
 		};
 /* End PBXProject section */
@@ -115,7 +115,7 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */
-		FB1A587F3016B57E00128AF8 /* Debug configuration for PBXProject "PDF Navigator" */ = {
+		FB1A587F3016B57E00128AF8 /* Debug configuration for PBXProject "PDFNavigator" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -178,7 +178,7 @@
 			};
 			name = Debug;
 		};
-		FB1A58803016B57E00128AF8 /* Release configuration for PBXProject "PDF Navigator" */ = {
+		FB1A58803016B57E00128AF8 /* Release configuration for PBXProject "PDFNavigator" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -233,15 +233,16 @@
 			};
 			name = Release;
 		};
-		FB1A58823016B57E00128AF8 /* Debug configuration for PBXNativeTarget "PDF Navigator" */ = {
+		FB1A58823016B57E00128AF8 /* Debug configuration for PBXNativeTarget "PDFNavigator" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
-				ENABLE_APP_SANDBOX = YES;
+				ENABLE_APP_SANDBOX = NO;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -250,6 +251,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
+				MACOSX_DEPLOYMENT_TARGET = 27.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "manemajef.PDF-Navigator";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -263,11 +265,12 @@
 			};
 			name = Debug;
 		};
-		FB1A58833016B57E00128AF8 /* Release configuration for PBXNativeTarget "PDF Navigator" */ = {
+		FB1A58833016B57E00128AF8 /* Release configuration for PBXNativeTarget "PDFNavigator" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
@@ -280,6 +283,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
+				MACOSX_DEPLOYMENT_TARGET = 27.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "manemajef.PDF-Navigator";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -296,19 +300,19 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		FB1A58713016B57D00128AF8 /* Build configuration list for PBXProject "PDF Navigator" */ = {
+		FB1A58713016B57D00128AF8 /* Build configuration list for PBXProject "PDFNavigator" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				FB1A587F3016B57E00128AF8 /* Debug configuration for PBXProject "PDF Navigator" */,
-				FB1A58803016B57E00128AF8 /* Release configuration for PBXProject "PDF Navigator" */,
+				FB1A587F3016B57E00128AF8 /* Debug configuration for PBXProject "PDFNavigator" */,
+				FB1A58803016B57E00128AF8 /* Release configuration for PBXProject "PDFNavigator" */,
 			);
 			defaultConfigurationName = Release;
 		};
-		FB1A58813016B57E00128AF8 /* Build configuration list for PBXNativeTarget "PDF Navigator" */ = {
+		FB1A58813016B57E00128AF8 /* Build configuration list for PBXNativeTarget "PDFNavigator" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				FB1A58823016B57E00128AF8 /* Debug configuration for PBXNativeTarget "PDF Navigator" */,
-				FB1A58833016B57E00128AF8 /* Release configuration for PBXNativeTarget "PDF Navigator" */,
+				FB1A58823016B57E00128AF8 /* Debug configuration for PBXNativeTarget "PDFNavigator" */,
+				FB1A58833016B57E00128AF8 /* Release configuration for PBXNativeTarget "PDFNavigator" */,
 			);
 			defaultConfigurationName = Release;
 		};
