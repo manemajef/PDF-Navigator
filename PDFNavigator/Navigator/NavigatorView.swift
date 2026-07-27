@@ -30,10 +30,7 @@ struct NavigatorView: View {
             }
             .listStyle(.sidebar)
             .controlSize(.small)
-            .environment(
-                \.defaultMinListRowHeight,
-                18
-            )
+            .scrollContentBackground(.hidden)
 
             Divider()
 

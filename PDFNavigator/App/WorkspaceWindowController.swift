@@ -31,6 +31,7 @@ final class WorkspaceWindowController: ObservableObject {
         }
 
         window.titlebarSeparatorStyle = .none
+        window.styleMask.insert(.fullSizeContentView)
         observeToolbarVisibility(in: window)
         installTabCommandResponder(
             in: window,

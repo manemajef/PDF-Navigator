@@ -42,6 +42,7 @@ struct WorkspaceView: View {
             sidebar
         } detail: {
             reader
+                .ignoresSafeArea(.container, edges: .top)
         }
         .toolbar {
             workspaceToolbar

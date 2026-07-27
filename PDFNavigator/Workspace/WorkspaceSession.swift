@@ -1,7 +1,5 @@
-//
 //  PDF Library.swift
 //  PDF Navigator
-//
 //  Created by Rotem Semah on 27/07/2026.
 
 import Foundation
@@ -35,17 +33,11 @@ final class WorkspaceSession: ObservableObject {
         }
     }
 
-    var canGoBack: Bool {
-        navigationHistory.canGoBack
-    }
+    var canGoBack: Bool {navigationHistory.canGoBack}
 
-    var canGoForward: Bool {
-        navigationHistory.canGoForward
-    }
+    var canGoForward: Bool {navigationHistory.canGoForward}
 
-    var workspaceURL: URL? {
-        folderURL
-    }
+    var workspaceURL: URL? {folderURL}
 
     var folderName: String {
         folderURL?.lastPathComponent ?? "PDF's"
