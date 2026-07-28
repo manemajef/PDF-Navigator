@@ -1,12 +1,12 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-struct WorkspaceView: View {
+struct WorkspaceSplitView: View {
     @Environment(\.openWindow) private var openWindow
 
     @StateObject private var session: WorkspaceSession
-    @StateObject private var windowController:
-        WorkspaceWindowController
+    @StateObject private var windowCoordinator:
+        WorkspaceWindowCoordinator
     @StateObject private var readerController =
         PDFReaderController()
 
@@ -22,7 +22,7 @@ struct WorkspaceView: View {
         initialPDF: URL? = nil,
         initialWorkspace: URL? = nil,
         lastSelectedPDF: URL? = nil,
-        sourceWindowNumber: Int? = nil,
+        launchContextID: UUID? = nil,
         presentsWorkspacePicker: Bool = false,
         startsAtWelcome: Bool = false
     ) {
@@ -36,9 +36,9 @@ struct WorkspaceView: View {
                 selectsInitialPDF: !startsAtWelcome
             )
         )
-        _windowController = StateObject(
-            wrappedValue: WorkspaceWindowController(
-                sourceWindowNumber: sourceWindowNumber
+        _windowCoordinator = StateObject(
+            wrappedValue: WorkspaceWindowCoordinator(
+                launchContextID: launchContextID
             )
         )
         _isShowingWelcome = State(
@@ -57,8 +57,7 @@ struct WorkspaceView: View {
                     WorkspaceToolbar(
                         actions: workspaceActions,
                         showsPrimaryNewTabAction:
-                            !windowController.isInTabGroup,
-                        // Change to true to show tab actions.
+                            !windowCoordinator.isInTabGroup,
                         showsTabActions: false
                     )
                 }
@@ -67,11 +66,10 @@ struct WorkspaceView: View {
                     placement: .toolbar,
                     prompt: "Search Current PDF"
                 )
-                .searchToolbarBehavior(.automatic)
         }
         .workspaceToolbarAppearance(
             isToolbarHidden:
-                !windowController.isToolbarVisible
+                !windowCoordinator.isToolbarVisible
         )
         .fileImporter(
             isPresented: $showingWorkspacePicker,
@@ -82,17 +80,16 @@ struct WorkspaceView: View {
         }
         .alert(
             "Couldn’t Open Workspace",
-            isPresented: $session.showingError
-        ) {
-            Button("OK") {
-                session.showingError = false
-            }
-        } message: {
-            Text(session.errorMessage)
+            isPresented: errorPresentation,
+            presenting: session.presentedError
+        ) { _ in
+            Button("OK", action: session.dismissError)
+        } message: { message in
+            Text(message)
         }
         .background {
-            WindowAccessor { window in
-                windowController.resolve(
+            WorkspaceWindowReader { window in
+                windowCoordinator.resolve(
                     window,
                     onCreateWorkspaceTab: createWorkspaceTab
                 )
@@ -103,10 +100,10 @@ struct WorkspaceView: View {
             workspaceActions
         )
         .onChange(
-            of: windowController.windowNumber,
+            of: windowCoordinator.hasWindow,
             initial: true
-        ) { _, windowNumber in
-            guard windowNumber != nil else {
+        ) { _, hasWindow in
+            guard hasWindow else {
                 return
             }
 
@@ -124,12 +121,27 @@ struct WorkspaceView: View {
             goBack: session.goBack,
             goForward: session.goForward,
             createWorkspaceTab: createWorkspaceTab,
-            duplicateTab: duplicateCurrentTab
+            duplicateTab: duplicateCurrentTab,
+            reader: PDFReaderActions(
+                capabilities:
+                    readerController.capabilities,
+                goToPreviousPage:
+                    readerController.goToPreviousPage,
+                goToNextPage:
+                    readerController.goToNextPage,
+                goBack: readerController.goBack,
+                goForward: readerController.goForward,
+                zoomIn: readerController.zoomIn,
+                zoomOut: readerController.zoomOut,
+                showActualSize:
+                    readerController.showActualSize,
+                zoomToFit: readerController.zoomToFit
+            )
         )
     }
 
     private var canCreateWorkspaceTab: Bool {
-        windowController.windowNumber != nil
+        windowCoordinator.hasWindow
     }
 
     private var canDuplicateTab: Bool {
@@ -139,9 +151,10 @@ struct WorkspaceView: View {
     }
 
     private var sidebar: some View {
-        NavigatorView(
+        SidebarView(
             nodes: session.navigatorNodes,
             selectedPDF: session.selectedPDF,
+            showsFooter: false,
             canCreateWorkspaceTab: canCreateWorkspaceTab,
             canDuplicateTab: canDuplicateTab,
             onCreateWorkspaceTab: createWorkspaceTab,
@@ -152,7 +165,8 @@ struct WorkspaceView: View {
             },
             onOpenPDFInNewTab: { pdf in
                 openPDFInNewTab(pdf)
-            }
+            },
+            onExpandDirectory: session.expand
         )
         .navigationTitle(session.folderName)
         .navigationSplitViewColumnWidth(
@@ -174,51 +188,64 @@ struct WorkspaceView: View {
                     showingWorkspacePicker = true
                 }
             )
-        } else if let selectedPDF = session.selectedPDF {
-            PDFReaderView(
-                url: selectedPDF,
-                searchText: searchText,
-                controller: readerController
-            )
-                .navigationTitle(selectedPDF.lastPathComponent)
         } else {
-            VStack(spacing: 16) {
-                Image(systemName: "doc.text.magnifyingglass")
-                    .font(.system(size: 54))
-                    .foregroundStyle(.secondary)
-
-                Text("No Workspace Open")
-                    .font(.title2)
-
-                Text("Choose a folder or PDF to begin.")
-                    .foregroundStyle(.secondary)
-
-                Button("Open Workspace") {
+            switch session.state {
+            case .empty:
+                WorkspaceEmptyView {
                     showingWorkspacePicker = true
                 }
-                .buttonStyle(.borderedProminent)
+            case .loading:
+                ProgressView("Loading Workspace…")
+                    .frame(
+                        maxWidth: .infinity,
+                        maxHeight: .infinity
+                    )
+            case .failed(_, let message):
+                ContentUnavailableView(
+                    "Couldn’t Open Workspace",
+                    systemImage: "exclamationmark.triangle",
+                    description: Text(message)
+                )
+            case .active(let workspace):
+                if let selectedPDF = workspace.selectedPDF {
+                    PDFReaderView(
+                        url: selectedPDF,
+                        searchText: searchText,
+                        controller: readerController
+                    )
+                    .navigationTitle(
+                        selectedPDF.lastPathComponent
+                    )
+                } else {
+                    WorkspaceEmptyView {
+                        showingWorkspacePicker = true
+                    }
+                }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 
-    private func createWorkspaceTab() {
-        guard let sourceWindowNumber =
-            windowController.windowNumber
-        else {
-            return
-        }
+    private var errorPresentation: Binding<Bool> {
+        Binding(
+            get: {
+                session.presentedError != nil
+            },
+            set: { isPresented in
+                if !isPresented {
+                    session.dismissError()
+                }
+            }
+        )
+    }
 
+    private func createWorkspaceTab() {
         let configuration =
-            WorkspaceWindowConfiguration.newWorkspaceTab(
+            WorkspaceLaunchContext.newWorkspaceTab(
                 workspaceURL: session.workspaceURL,
-                lastSelectedPDF: session.selectedPDF,
-                sourceWindowNumber: sourceWindowNumber
+                lastSelectedPDF: session.selectedPDF
             )
 
-        openWindow(
-            value: configuration
-        )
+        openAsTab(configuration)
     }
 
     private func duplicateCurrentTab() {
@@ -230,21 +257,28 @@ struct WorkspaceView: View {
     }
 
     private func openPDFInNewTab(_ pdf: URL) {
-        guard
-            let sourceWindowNumber =
-                windowController.windowNumber,
-            let workspaceURL = session.workspaceURL
-        else {
+        guard let workspaceURL = session.workspaceURL else {
             return
         }
 
-        openWindow(
-            value: WorkspaceWindowConfiguration.duplicateTab(
+        openAsTab(
+            WorkspaceLaunchContext.duplicateTab(
                 workspaceURL: workspaceURL,
-                selectedPDF: pdf,
-                sourceWindowNumber: sourceWindowNumber
+                selectedPDF: pdf
             )
         )
+    }
+
+    private func openAsTab(
+        _ configuration: WorkspaceLaunchContext
+    ) {
+        guard windowCoordinator.registerAsTabSource(
+            for: configuration.id
+        ) else {
+            return
+        }
+
+        openWindow(value: configuration)
     }
 
     private func handleWorkspaceSelection(
@@ -267,8 +301,7 @@ struct WorkspaceView: View {
 
             isShowingWelcome = false
         } catch {
-            session.errorMessage = error.localizedDescription
-            session.showingError = true
+            session.report(error)
         }
     }
 
@@ -295,55 +328,8 @@ struct WorkspaceView: View {
     }
 }
 
-private struct WorkspaceWelcomeView: View {
-    let workspaceName: String
-    let lastSelectedPDF: URL?
-    let hasWorkspace: Bool
-    let onOpenLastPDF: () -> Void
-    let onLoadNewWorkspace: () -> Void
-
-    var body: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "plus.square.on.square")
-                .font(.system(size: 54))
-                .foregroundStyle(.secondary)
-
-            Text("New Tab")
-                .font(.title2)
-
-            if hasWorkspace {
-                Text(
-                    "Choose a PDF from \(workspaceName) in the sidebar."
-                )
-                .foregroundStyle(.secondary)
-
-                if let lastSelectedPDF {
-                    Button {
-                        onOpenLastPDF()
-                    } label: {
-                        Label(
-                            "Open \(lastSelectedPDF.lastPathComponent)",
-                            systemImage: "clock.arrow.circlepath"
-                        )
-                    }
-                    .help("Open Last PDF")
-                }
-            } else {
-                Text("Choose a workspace to begin.")
-                    .foregroundStyle(.secondary)
-            }
-
-            Button("Load New Workspace…") {
-                onLoadNewWorkspace()
-            }
-            .buttonStyle(.borderedProminent)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-}
-
 #if DEBUG
 #Preview("Empty Workspace") {
-    WorkspaceView()
+    WorkspaceSplitView()
 }
 #endif

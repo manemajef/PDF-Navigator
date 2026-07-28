@@ -1,36 +1,42 @@
 import AppKit
 import SwiftUI
 
-struct NavigatorView: View {
+struct SidebarView: View {
     let nodes: [PDFTreeNode]
     let selectedPDF: URL?
+    let showsFooter: Bool
     let canCreateWorkspaceTab: Bool
     let canDuplicateTab: Bool
     let onCreateWorkspaceTab: () -> Void
     let onDuplicateTab: () -> Void
     let onSelectPDF: (URL) -> Void
     let onOpenPDFInNewTab: (URL) -> Void
+    let onExpandDirectory: (URL) -> Void
 
-    @State private var focusedNode: PDFTreeNode?
+    @State private var focusedURL: URL?
     @State private var expandedDirectories: Set<URL> = []
 
     var body: some View {
-        List(selection: $focusedNode) {
+        List(selection: $focusedURL) {
             ForEach(nodes) { node in
-                NavigatorTreeNodeView(
+                SidebarTreeNodeView(
                     node: node,
                     expandedDirectories:
                         $expandedDirectories,
                     onOpenPDF: openPDF,
                     onOpenPDFInNewTab:
-                        onOpenPDFInNewTab
+                        onOpenPDFInNewTab,
+                    onExpandDirectory:
+                        onExpandDirectory
                 )
             }
         }
         .listStyle(.sidebar)
         .controlSize(.small)
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            sidebarActions
+            if showsFooter {
+                sidebarFooter
+            }
         }
         .onAppear {
             synchronizeFocus()
@@ -38,9 +44,12 @@ struct NavigatorView: View {
         .onChange(of: selectedPDF) {
             synchronizeFocus()
         }
-        .onChange(of: focusedNode) {
+        .onChange(of: focusedURL) {
             guard
-                let focusedNode,
+                let focusedURL,
+                let focusedNode =
+                    nodes.node(matching: focusedURL),
+                focusedNode.isPDF,
                 case .pdf(let url) = focusedNode,
                 url != selectedPDF
             else {
@@ -51,7 +60,7 @@ struct NavigatorView: View {
         }
     }
 
-    private var sidebarActions: some View {
+    private var sidebarFooter: some View {
         VStack(spacing: 0) {
             Divider()
 
@@ -94,11 +103,12 @@ struct NavigatorView: View {
         if NSEvent.modifierFlags.contains(.command) {
             onOpenPDFInNewTab(url)
 
-            DispatchQueue.main.async {
+            Task {
+                await Task.yield()
                 synchronizeFocus()
             }
         } else {
-            focusedNode = node
+            focusedURL = url
             onSelectPDF(url)
         }
     }
@@ -108,105 +118,62 @@ struct NavigatorView: View {
             return
         }
 
-        focusedNode = findNode(
-            matching: selectedPDF,
-            in: nodes
-        )
+        focusedURL =
+            nodes.node(matching: selectedPDF)?.url
         expandedDirectories.formUnion(
-            directoryAncestors(
-                containing: selectedPDF,
-                in: nodes
+            nodes.directoryAncestors(
+                containing: selectedPDF
             )
         )
     }
-
-    private func findNode(
-        matching url: URL,
-        in nodes: [PDFTreeNode]
-    ) -> PDFTreeNode? {
-        for node in nodes {
-            if node.url == url {
-                return node
-            }
-
-            if
-                let children = node.children,
-                let match = findNode(
-                    matching: url,
-                    in: children
-                )
-            {
-                return match
-            }
-        }
-
-        return nil
-    }
-
-    private func directoryAncestors(
-        containing selectedPDF: URL,
-        in nodes: [PDFTreeNode]
-    ) -> Set<URL> {
-        for node in nodes {
-            switch node {
-            case .pdf(let url):
-                if url == selectedPDF {
-                    return []
-                }
-
-            case .directory(let url, let children):
-                if findNode(
-                    matching: selectedPDF,
-                    in: children
-                ) != nil {
-                    return Set([
-                        url
-                    ]).union(
-                        directoryAncestors(
-                            containing: selectedPDF,
-                            in: children
-                        )
-                    )
-                }
-            }
-        }
-
-        return []
-    }
 }
 
-private struct NavigatorTreeNodeView: View {
+private struct SidebarTreeNodeView: View {
     let node: PDFTreeNode
 
     @Binding var expandedDirectories: Set<URL>
     let onOpenPDF: (PDFTreeNode) -> Void
     let onOpenPDFInNewTab: (URL) -> Void
+    let onExpandDirectory: (URL) -> Void
 
     @ViewBuilder
     var body: some View {
         switch node {
-        case .directory(let url, let children):
+        case .directory(let url, let contents):
             DisclosureGroup(
                 isExpanded: expansionBinding(for: url)
             ) {
-                ForEach(children) { child in
-                    NavigatorTreeNodeView(
-                        node: child,
-                        expandedDirectories:
-                            $expandedDirectories,
-                        onOpenPDF: onOpenPDF,
-                        onOpenPDFInNewTab:
-                            onOpenPDFInNewTab
-                    )
+                switch contents {
+                case .unloaded:
+                    EmptyView()
+                case .loading:
+                    ProgressView()
+                        .controlSize(.small)
+                case .unavailable:
+                    Text("Folder unavailable")
+                        .foregroundStyle(.secondary)
+                case .loaded(let children):
+                    ForEach(children) { child in
+                        SidebarTreeNodeView(
+                            node: child,
+                            expandedDirectories:
+                                $expandedDirectories,
+                            onOpenPDF: onOpenPDF,
+                            onOpenPDFInNewTab:
+                                onOpenPDFInNewTab,
+                            onExpandDirectory:
+                                onExpandDirectory
+                        )
+                    }
                 }
             } label: {
                 FinderNodeLabel(node: node)
             }
-            .tag(node)
+            .tag(url)
 
-        case .pdf:
+        case .pdf(let url):
             FinderNodeLabel(node: node)
-                .tag(node)
+                .tag(url)
                 .onTapGesture {
                     onOpenPDF(node)
                 }
@@ -247,6 +214,7 @@ private struct NavigatorTreeNodeView: View {
                     expandedDirectories.insert(
                         directoryURL
                     )
+                    onExpandDirectory(directoryURL)
                 } else {
                     expandedDirectories.remove(
                         directoryURL

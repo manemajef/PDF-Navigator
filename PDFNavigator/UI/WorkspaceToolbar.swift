@@ -41,7 +41,7 @@ struct WorkspaceToolbar: ToolbarContent {
         }
 
         if showsTabActions {
-            ToolbarItemGroup(placement: .secondaryAction) {
+            ToolbarItemGroup(placement: .primaryAction) {
                 Button(action: actions.createWorkspaceTab) {
                     Label(
                         "New Workspace Tab",
@@ -69,11 +69,16 @@ private struct WorkspaceToolbarAppearanceModifier:
     ViewModifier {
     let isToolbarHidden: Bool
 
+    @ViewBuilder
     func body(content: Content) -> some View {
-        content.scrollEdgeEffectStyle(
-            isToolbarHidden ? .soft : nil,
-            for: .top
-        )
+        if #available(macOS 26.0, *) {
+            content.scrollEdgeEffectStyle(
+                isToolbarHidden ? .soft : nil,
+                for: .top
+            )
+        } else {
+            content
+        }
     }
 }
 

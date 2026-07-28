@@ -22,14 +22,18 @@ PDF Navigator is an early preview and is not yet distributed as an installer.
 The current demo can:
 
 - Open a PDF or folder as a workspace.
-- Display PDFs with a nested directory sidebar.
+- Display PDFs with a lazily loaded directory sidebar.
 - Switch documents without leaving the app.
 - Move backward and forward through document history.
-- Search the current PDF.
+- Search the current PDF incrementally through PDFKit.
 - Open documents in native macOS tabs.
+- Restore each document's last reading position.
+- Reuse recently opened PDF documents for smoother switching.
 - Show a basic welcome page when opening a new tab.
 
 ## Development
+
+PDF Navigator targets macOS 15 or later.
 
 Open `PDFNavigator.xcodeproj` in Xcode, or build and run the debug app from the
 command line:
@@ -37,6 +41,19 @@ command line:
 ```sh
 ./script/build_and_run.sh
 ```
+
+## Architecture
+
+The source root contains the application entry point and the types that
+coordinate one native window/tab: `WorkspaceSplitView`, `WorkspaceSession`,
+focused actions and commands, and the narrow `NSWindow` bridge. Presentation
+components live in `UI/`; non-view filesystem, tree, history, and persistence
+code lives in `Core/`.
+
+Each `WindowGroup` scene owns an independent `WorkspaceSession`. SwiftUI owns
+the scene and split-view state, PDFKit owns page rendering and page navigation,
+and AppKit is used only where SwiftUI cannot explicitly join native window tab
+groups.
 
 ## Roadmap
 
@@ -73,7 +90,7 @@ interaction model develops.
 - [ ] Audit keyboard shortcuts against Preview and native macOS conventions.
 - [ ] Add a search action to the bottom of the sidebar.
 - [ ] Open folders and PDFs dropped onto the app.
-- [ ] Expose additional PDFKit capabilities as commands, even if they are not
+- [x] Expose additional PDFKit capabilities as commands, even if they are not
       yet visible in the toolbar.
 - [ ] Use persisted history to build a useful welcome page:
   - Recently opened PDFs in the current workspace.

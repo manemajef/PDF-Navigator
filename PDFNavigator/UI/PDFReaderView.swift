@@ -21,12 +21,12 @@ struct PDFReaderView: NSViewRepresentable {
         pdfView.displayBox = .cropBox
         pdfView.backgroundColor = .underPageBackgroundColor
 
-        loadPDF(
-            from: url,
-            into: pdfView,
+        displayPDF(
+            at: url,
+            in: pdfView,
             coordinator: context.coordinator
         )
-        controller.attach(pdfView)
+        controller.attach(pdfView, url: url)
         controller.search(for: searchText)
 
         return pdfView
@@ -37,14 +37,17 @@ struct PDFReaderView: NSViewRepresentable {
         context: Context
     ) {
         if context.coordinator.currentURL != url {
-            loadPDF(
-                from: url,
-                into: pdfView,
+            displayPDF(
+                at: url,
+                in: pdfView,
                 coordinator: context.coordinator
             )
         }
 
-        controller.attach(pdfView)
+        controller.attach(
+            pdfView,
+            url: context.coordinator.currentURL ?? url
+        )
         controller.search(for: searchText)
     }
 
@@ -55,36 +58,24 @@ struct PDFReaderView: NSViewRepresentable {
         coordinator.controller.detach(pdfView)
     }
 
-    private func loadPDF(
-        from url: URL,
-        into pdfView: NavigatorPDFView,
+    private func displayPDF(
+        at url: URL,
+        in pdfView: NavigatorPDFView,
         coordinator: Coordinator
     ) {
-        guard let document = PDFDocument(url: url) else {
-            pdfView.display(document: nil)
-            coordinator.currentURL = url
+        controller.willDisplayDocument(at: url)
+
+        guard let document = controller.document(
+            for: url
+        ) else {
             return
         }
 
-        makeFormFieldsReadOnly(in: document)
-
-        pdfView.display(document: document)
-
+        pdfView.display(
+            document: document,
+            position: controller.position(for: url)
+        )
         coordinator.currentURL = url
-    }
-
-    private func makeFormFieldsReadOnly(
-        in document: PDFDocument
-    ) {
-        for pageIndex in 0..<document.pageCount {
-            guard let page = document.page(at: pageIndex) else {
-                continue
-            }
-
-            for annotation in page.annotations {
-                annotation.isReadOnly = true
-            }
-        }
     }
 
     final class Coordinator {
@@ -99,10 +90,15 @@ struct PDFReaderView: NSViewRepresentable {
 
 final class NavigatorPDFView: PDFView {
     private var needsInitialFit = false
+    private var pendingPosition: ReadingPosition?
 
-    func display(document: PDFDocument?) {
+    func display(
+        document: PDFDocument,
+        position: ReadingPosition?
+    ) {
         self.document = document
-        needsInitialFit = document != nil
+        pendingPosition = position
+        needsInitialFit = position == nil
         needsLayout = true
     }
 
@@ -110,7 +106,6 @@ final class NavigatorPDFView: PDFView {
         super.layout()
 
         guard
-            needsInitialFit,
             document != nil,
             bounds.width > 0,
             bounds.height > 0
@@ -118,8 +113,36 @@ final class NavigatorPDFView: PDFView {
             return
         }
 
-        needsInitialFit = false
+        if let pendingPosition {
+            restore(pendingPosition)
+            self.pendingPosition = nil
+        } else if needsInitialFit {
+            needsInitialFit = false
+            autoScales = false
+            scaleFactor = scaleFactorForSizeToFit
+        }
+    }
+
+    private func restore(_ position: ReadingPosition) {
+        guard
+            let document,
+            let page = document.page(
+                at: position.pageIndex
+            )
+        else {
+            needsInitialFit = true
+            return
+        }
+
         autoScales = false
-        scaleFactor = scaleFactorForSizeToFit
+        let destination = PDFDestination(
+            page: page,
+            at: CGPoint(
+                x: position.pointX,
+                y: position.pointY
+            )
+        )
+        destination.zoom = position.scaleFactor
+        go(to: destination)
     }
 }

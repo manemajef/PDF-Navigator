@@ -11,16 +11,16 @@ import SwiftUI
 struct PDFNavigatorApp: App {
     var body: some Scene {
         WindowGroup(
-            for: WorkspaceWindowConfiguration.self
+            for: WorkspaceLaunchContext.self
         ) { $configuration in
-            WorkspaceView(
+            WorkspaceSplitView(
                 initialPDF: initialPDF(for: configuration),
                 initialWorkspace:
                     configuration?.workspaceURL,
                 lastSelectedPDF:
                     configuration?.lastSelectedPDF,
-                sourceWindowNumber:
-                    configuration?.sourceWindowNumber,
+                launchContextID:
+                    configuration?.id,
                 presentsWorkspacePicker:
                     configuration?
                         .presentsWorkspacePicker == true,
@@ -37,7 +37,7 @@ struct PDFNavigatorApp: App {
     }
 
     private func initialPDF(
-        for configuration: WorkspaceWindowConfiguration?
+        for configuration: WorkspaceLaunchContext?
     ) -> URL? {
         if let selectedPDF = configuration?.selectedPDF {
             return selectedPDF
@@ -52,3 +52,17 @@ struct PDFNavigatorApp: App {
         #endif
     }
 }
+
+#if DEBUG
+private enum DevelopmentConfiguration {
+    static let demoPDFURL = repositoryRoot
+        .appendingPathComponent("DEMO_DIR", isDirectory: true)
+        .appendingPathComponent("micro3-sylabus.pdf", isDirectory: false)
+
+    private static let repositoryRoot = URL(
+        fileURLWithPath: #filePath
+    )
+    .deletingLastPathComponent()
+    .deletingLastPathComponent()
+}
+#endif
