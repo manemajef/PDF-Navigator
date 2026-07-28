@@ -61,12 +61,12 @@ struct WorkspaceCommands: Commands {
                 pdfView?.autoScales = false
                 pdfView?.scaleFactor = 1
             }
+            .keyboardShortcut("1", modifiers: .command)
             .disabled(pdfView?.document == nil)
 
             Button("Zoom to Fit") {
                 guard let pdfView else { return }
-                pdfView.autoScales = false
-                pdfView.scaleFactor = pdfView.scaleFactorForSizeToFit
+                pdfView.autoScales = true
             }
             .disabled(pdfView?.document == nil)
         }

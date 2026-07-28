@@ -12,7 +12,7 @@ struct WorkspaceView: View {
     @State private var presentedInitialPicker = false
     @State private var searchText = ""
     @State private var showingWelcome: Bool
-    @State private var columnVisibility: NavigationSplitViewVisibility = .automatic
+    @State private var columnVisibility: NavigationSplitViewVisibility = .detailOnly
 
     private let presentsPicker: Bool
     private let lastSelectedPDF: URL?
@@ -46,28 +46,23 @@ struct WorkspaceView: View {
             )
             .navigationTitle(session.folderName)
             .navigationSplitViewColumnWidth(min: 180, ideal: 240, max: 350)
-            .toolbar{
+            .toolbar {
                 if columnVisibility != .detailOnly && !window.isInTabGroup {
-                          ToolbarItem(placement: .primaryAction) {
-                              Button(action: actions.createTab) {
-                                  Label("New Tab", systemImage: "plus")
-                              }
-                              .help("New Tab")
-                              .disabled(!actions.canCreateTab)
-                          }
-                      }
+                    ToolbarItem(placement: .primaryAction) {
+                        Button(action: actions.createTab) {
+                            Label("New Tab", systemImage: "plus")
+                        }
+                        .help("New Tab")
+                        .disabled(!actions.canCreateTab)
+                    }
                 }
-            
+            }
         } detail: {
             content
                 .ignoresSafeArea(.container, edges: .top)
                 .toolbarRole(.editor)
                 .toolbar {
-                    WorkspaceToolbar(
-                        actions: actions,
-                        showsPrimaryNewTabAction: !window.isInTabGroup,
-                        showsTabActions: false
-                    )
+                    WorkspaceToolbar(actions: actions)
                 }
                 .searchable(
                     text: $searchText,
@@ -195,7 +190,7 @@ struct WorkspaceView: View {
 }
 
 #if DEBUG
-#Preview("Empty Workspace") {
-    WorkspaceView()
+#Preview("Demo PDF") {
+    WorkspaceView(initialPDF: DevelopmentConfiguration.demoPDFURL)
 }
 #endif

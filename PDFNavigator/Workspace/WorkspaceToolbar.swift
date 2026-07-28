@@ -2,21 +2,8 @@ import SwiftUI
 
 struct WorkspaceToolbar: ToolbarContent {
     let actions: WorkspaceActions
-    let showsPrimaryNewTabAction: Bool
-    let showsTabActions: Bool
 
     var body: some ToolbarContent {
-
-//        if showsPrimaryNewTabAction {
-//            ToolbarItem(placement: .primaryAction) {
-//                Button(action: actions.createTab) {
-//                    Label("New Tab", systemImage: "plus")
-//                }
-//                .help("New Tab")
-//                .disabled(!actions.canCreateTab)
-//            }
-//        }
-
         ToolbarItem(placement: .navigation) {
             ControlGroup {
                 Button(action: actions.session.goBack) {
@@ -34,23 +21,6 @@ struct WorkspaceToolbar: ToolbarContent {
             .controlGroupStyle(.navigation)
             .labelStyle(.iconOnly)
         }
-
-//        if showsTabActions {
-//            ToolbarItemGroup(placement: .primaryAction) {
-//                Button(action: actions.createTab) {
-//                    Label("New Workspace Tab", systemImage: "folder.badge.plus")
-//                }
-//                .disabled(!actions.canCreateTab)
-//
-//                Button(action: actions.duplicateTab) {
-//                    Label(
-//                        "Duplicate Current Tab",
-//                        systemImage: "plus.rectangle.on.rectangle"
-//                    )
-//                }
-//                .disabled(!actions.canDuplicateTab)
-//            }
-//        }
     }
 }
 

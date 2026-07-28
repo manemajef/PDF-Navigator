@@ -21,6 +21,7 @@ struct PDFNavigatorApp: App {
             )
         }
         .windowToolbarStyle(.unified)
+        .defaultSize(width: 700, height: 850)
         .commands {
             SidebarCommands()
             WorkspaceCommands()
@@ -46,7 +47,7 @@ struct PDFNavigatorApp: App {
 }
 
 #if DEBUG
-private enum DevelopmentConfiguration {
+enum DevelopmentConfiguration {
     static let demoPDFURL = repositoryRoot
         .appendingPathComponent("DEMO_DIR", isDirectory: true)
         .appendingPathComponent("micro3-sylabus.pdf", isDirectory: false)

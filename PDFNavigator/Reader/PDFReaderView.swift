@@ -10,13 +10,13 @@ struct PDFReaderView: NSViewRepresentable {
         Coordinator()
     }
 
-    func makeNSView(context: Context) -> ReadingPDFView {
-        let view = ReadingPDFView()
+    func makeNSView(context: Context) -> PDFView {
+        let view = PDFView()
         view.displayMode = .singlePageContinuous
         view.displayDirection = .vertical
         view.displaysPageBreaks = true
         view.displayBox = .cropBox
-        view.backgroundColor = .underPageBackgroundColor
+//        view.backgroundColor = .underPageBackgroundColor
 
         display(url, in: view, coordinator: context.coordinator)
         handle.attach(view)
@@ -24,7 +24,7 @@ struct PDFReaderView: NSViewRepresentable {
         return view
     }
 
-    func updateNSView(_ view: ReadingPDFView, context: Context) {
+    func updateNSView(_ view: PDFView, context: Context) {
         if context.coordinator.currentURL != url {
             display(url, in: view, coordinator: context.coordinator)
         }
@@ -33,7 +33,7 @@ struct PDFReaderView: NSViewRepresentable {
     }
 
     static func dismantleNSView(
-        _ view: ReadingPDFView,
+        _ view: PDFView,
         coordinator: Coordinator
     ) {
         coordinator.savePosition(in: view)
@@ -43,7 +43,7 @@ struct PDFReaderView: NSViewRepresentable {
 
     private func display(
         _ url: URL,
-        in view: ReadingPDFView,
+        in view: PDFView,
         coordinator: Coordinator
     ) {
         coordinator.savePosition(in: view)
@@ -51,7 +51,7 @@ struct PDFReaderView: NSViewRepresentable {
         coordinator.handle = handle
 
         guard let document = PDFDocument(url: url) else {
-            view.display(document: nil, position: nil)
+            view.document = nil
             coordinator.currentURL = url
             return
         }
@@ -62,10 +62,20 @@ struct PDFReaderView: NSViewRepresentable {
             }
         }
 
-        view.display(
-            document: document,
-            position: coordinator.positions.position(for: url)
-        )
+        view.autoScales = true
+        view.document = document
+
+        if let position = coordinator.positions.position(for: url),
+           let page = document.page(at: position.pageIndex) {
+            let destination = PDFDestination(
+                page: page,
+                at: CGPoint(x: position.pointX, y: position.pointY)
+            )
+            destination.zoom = position.zoom
+            view.go(to: destination)
+            view.autoScales = true
+        }
+
         coordinator.currentURL = url
     }
 
@@ -113,46 +123,5 @@ final class PDFReaderHandle {
         if self.view === view {
             self.view = nil
         }
-    }
-}
-
-final class ReadingPDFView: PDFView {
-    private var pendingPosition: ReadingPosition?
-    private var needsInitialFit = false
-
-    func display(document: PDFDocument?, position: ReadingPosition?) {
-        self.document = document
-        pendingPosition = position
-        needsInitialFit = document != nil && position == nil
-        needsLayout = true
-    }
-
-    override func layout() {
-        super.layout()
-        guard document != nil, bounds.width > 0, bounds.height > 0 else { return }
-
-        if let pendingPosition {
-            restore(pendingPosition)
-            self.pendingPosition = nil
-        } else if needsInitialFit {
-            needsInitialFit = false
-            autoScales = false
-            scaleFactor = scaleFactorForSizeToFit
-        }
-    }
-
-    private func restore(_ position: ReadingPosition) {
-        guard let document, let page = document.page(at: position.pageIndex) else {
-            needsInitialFit = true
-            return
-        }
-
-        autoScales = false
-        let destination = PDFDestination(
-            page: page,
-            at: CGPoint(x: position.pointX, y: position.pointY)
-        )
-        destination.zoom = position.zoom
-        go(to: destination)
     }
 }
