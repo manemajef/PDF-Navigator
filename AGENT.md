@@ -54,50 +54,52 @@ sidebar, not like a general-purpose file manager.
 
 ## Source organization
 
-The source root contains the types that define or coordinate one application
-scene:
+The source tree follows visible product responsibilities:
 
 ```text
 PDFNavigator/
 ├── PDFNavigatorApp.swift
-├── WorkspaceSplitView.swift
-├── WorkspaceSession.swift
-├── WorkspaceActions.swift
-├── WorkspaceCommands.swift
-├── WorkspaceWindowCoordinator.swift
-├── UI/
-│   ├── SidebarView.swift
-│   ├── PDFReaderView.swift
+├── WorkspaceView.swift
+├── WindowBridge.swift
+├── Workspace/
+│   ├── WorkspaceSession.swift
+│   ├── WorkspaceActions.swift
+│   ├── WorkspaceCommands.swift
 │   ├── WorkspaceToolbar.swift
-│   └── WorkspaceWelcomeView.swift
-└── Core/
-    ├── NavigationHistory.swift
-    ├── PDFDirectoryScanner.swift
-    ├── PDFReaderController.swift
-    ├── PDFTreeNode.swift
-    └── ReadingPositionStore.swift
+│   ├── WorkspaceLaunch.swift
+│   └── NavigationHistory.swift
+├── Navigator/
+│   ├── NavigatorView.swift
+│   ├── NavigatorItem.swift
+│   └── DirectoryScanner.swift
+└── Reader/
+│   ├── PDFReaderView.swift
+│   ├── PDFSearch.swift
+│   └── ReadingPositionStore.swift
 ```
 
-Do not recreate `App/`, `Workspace/`, `Navigator/`, or `Reader/` merely for
-taxonomy. Add another directory only when current responsibilities form a
-real, nameable cluster.
+Keep application entry and the one unavoidable AppKit boundary at the root.
+Add a directory only for a real product responsibility, not to separate
+"core," "UI," protocols, implementations, or other abstract categories.
 
 ### Ownership
 
 - `PDFNavigatorApp` declares scenes and application commands.
-- `WorkspaceSplitView` is the visible `NavigationSplitView` skeleton and wires
-  one scene's session, reader, actions, picker, and window edge.
+- `WorkspaceView` is the visible `NavigationSplitView` skeleton. It composes
+  feature views and wires the picker, focused commands, and tab launch.
 - `WorkspaceSession` owns workspace loading, selected PDF, document history,
-  and lazy tree updates. It contains no SwiftUI view code.
-- `WorkspaceActions` is the focused-scene capability contract shared by menus
-  and toolbar content.
-- `WorkspaceWindowCoordinator` is the only general `NSWindow` escape hatch.
-- `UI/` contains views and narrowly scoped PDFKit/AppKit presentation adapters.
-- `Core/` contains non-view state, PDFKit behavior, filesystem behavior,
-  persistence, and pure tree operations.
+  and loaded directory contents. It contains no view code.
+- `NavigatorView` renders session state and forwards selection or expansion
+  intent. `DirectoryScanner` performs one-level filesystem reads off-main.
+- `PDFReaderView` is the narrow PDFKit bridge. `PDFSearch` and
+  `ReadingPositionStore` hold the two noisy reader behaviors worth separating.
+- `WorkspaceActions` carries the focused session, reader handle, and tab
+  actions to commands and toolbar content without mirroring PDFKit state.
+- `WindowBridge` is the only general `NSWindow` escape hatch.
 
 Views receive state and actions. They should not scan directories, construct
-PDF documents, mutate navigation history, or persist data.
+PDF documents outside the reader bridge, mutate navigation history, or persist
+data.
 
 ## Native framework decisions
 
@@ -117,19 +119,18 @@ PDF documents, mutate navigation history, or persist data.
   `DisclosureGroup` rows.
 - Do not paint a custom sidebar background or simulate system glass.
 - Let macOS choose its version-appropriate sidebar material and shape.
-- SwiftUI hierarchy views render supplied data; they do not lazily discover
-  filesystem children.
-- Scan one directory level on expansion. Never recursively enumerate an
-  unknown workspace such as `~/` on the main actor.
-- The optional footer remains compiled behind `showsFooter: false`. It is
-  reserved for future directory navigation and workspace actions.
+- Show every non-hidden directory and PDF returned for the current level.
+- Scan the root once, then scan one directory level off-main when its
+  disclosure opens. Never recursively enumerate an unknown workspace such as
+  `~/`.
 
 ### Reader
 
 - Keep a single `PDFView` alive while switching documents.
-- `PDFReaderController` owns PDF document creation, a small bounded document
-  cache, incremental PDFKit search, read-only annotation preparation, PDFKit
-  commands, and reading-position persistence.
+- Let `PDFView` and `PDFDocument` own rendering, page navigation, zoom, and
+  document lifetime. Do not add a second document cache without measured need.
+- Search through PDFKit's asynchronous find API.
+- Save page, position, and zoom only when switching or dismantling the reader.
 - PDFKit owns rendered-page caching and page/history/zoom behavior.
 - Copy and Select All remain on the AppKit responder chain.
 
@@ -143,11 +144,10 @@ PDF documents, mutate navigation history, or persist data.
 
 ## State and Swift style
 
-- Model mutually exclusive workspace phases with an enum.
 - Use `guard` for genuine behavior-boundary early exits. Repeated guards in
   views usually indicate that the owning state or action contract is wrong.
-- Derived capabilities such as `canGoBack` or `hasDocument` belong with the
-  state that can answer them.
+- Ask the owning object for derived state; do not mirror PDFKit capabilities in
+  a second observable model.
 - Keep AppKit and PDFKit objects on the main actor unless an API explicitly
   supports another isolation domain.
 - Filesystem enumeration runs through explicit concurrent entrypoints and
@@ -171,8 +171,9 @@ env DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer \
   build
 ```
 
-During a large migration, build once per behaviorally destructive phase rather
-than after every edit. Always run `git diff --check` at the end.
+While this refactor is settling, build once per meaningful milestone rather
+than after every edit. Add tests after Rotem approves the structure. Always run
+`git diff --check` at the end.
 
 Do not use Computer Use or claim visual verification unless Rotem explicitly
 requests it. Rotem performs the final manual checks for sidebar appearance,

@@ -13,14 +13,11 @@ struct WorkspaceWelcomeView: View {
                 .font(.system(size: 54))
                 .foregroundStyle(.secondary)
 
-            Text("New Tab")
-                .font(.title2)
+            Text("New Tab").font(.title2)
 
             if hasWorkspace {
-                Text(
-                    "Choose a PDF from \(workspaceName) in the sidebar."
-                )
-                .foregroundStyle(.secondary)
+                Text("Choose a PDF from \(workspaceName) in the sidebar.")
+                    .foregroundStyle(.secondary)
 
                 if let lastSelectedPDF {
                     Button(action: onOpenLastPDF) {
@@ -29,18 +26,14 @@ struct WorkspaceWelcomeView: View {
                             systemImage: "clock.arrow.circlepath"
                         )
                     }
-                    .help("Open Last PDF")
                 }
             } else {
                 Text("Choose a workspace to begin.")
                     .foregroundStyle(.secondary)
             }
 
-            Button(
-                "Load New Workspace…",
-                action: onLoadNewWorkspace
-            )
-            .buttonStyle(.borderedProminent)
+            Button("Load New Workspace…", action: onLoadNewWorkspace)
+                .buttonStyle(.borderedProminent)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -51,18 +44,12 @@ struct WorkspaceEmptyView: View {
 
     var body: some View {
         ContentUnavailableView {
-            Label(
-                "No Workspace Open",
-                systemImage: "doc.text.magnifyingglass"
-            )
+            Label("No Workspace Open", systemImage: "doc.text.magnifyingglass")
         } description: {
             Text("Choose a folder or PDF to begin.")
         } actions: {
-            Button(
-                "Open Workspace",
-                action: onOpenWorkspace
-            )
-            .buttonStyle(.borderedProminent)
+            Button("Open Workspace", action: onOpenWorkspace)
+                .buttonStyle(.borderedProminent)
         }
     }
 }

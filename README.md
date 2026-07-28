@@ -28,7 +28,6 @@ The current demo can:
 - Search the current PDF incrementally through PDFKit.
 - Open documents in native macOS tabs.
 - Restore each document's last reading position.
-- Reuse recently opened PDF documents for smoother switching.
 - Show a basic welcome page when opening a new tab.
 
 ## Development
@@ -44,16 +43,16 @@ command line:
 
 ## Architecture
 
-The source root contains the application entry point and the types that
-coordinate one native window/tab: `WorkspaceSplitView`, `WorkspaceSession`,
-focused actions and commands, and the narrow `NSWindow` bridge. Presentation
-components live in `UI/`; non-view filesystem, tree, history, and persistence
-code lives in `Core/`.
+`PDFNavigatorApp` creates each native window or tab. `WorkspaceView` is the
+small visual skeleton, and one `WorkspaceSession` owns that scene's directory
+state, selected PDF, and document history. Code is grouped by product
+responsibility under `Workspace/`, `Navigator/`, and `Reader/`.
 
 Each `WindowGroup` scene owns an independent `WorkspaceSession`. SwiftUI owns
 the scene and split-view state, PDFKit owns page rendering and page navigation,
-and AppKit is used only where SwiftUI cannot explicitly join native window tab
-groups.
+and `WindowBridge` uses AppKit only where SwiftUI cannot explicitly join native
+window tab groups. The navigator scans one directory level when it is opened;
+it does not recursively crawl an entire workspace.
 
 ## Roadmap
 

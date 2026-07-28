@@ -10,22 +10,14 @@ import SwiftUI
 @main
 struct PDFNavigatorApp: App {
     var body: some Scene {
-        WindowGroup(
-            for: WorkspaceLaunchContext.self
-        ) { $configuration in
-            WorkspaceSplitView(
-                initialPDF: initialPDF(for: configuration),
-                initialWorkspace:
-                    configuration?.workspaceURL,
-                lastSelectedPDF:
-                    configuration?.lastSelectedPDF,
-                launchContextID:
-                    configuration?.id,
-                presentsWorkspacePicker:
-                    configuration?
-                        .presentsWorkspacePicker == true,
-                startsAtWelcome:
-                    configuration?.startsAtWelcome == true
+        WindowGroup(for: WorkspaceLaunch.self) { $launch in
+            WorkspaceView(
+                initialPDF: initialPDF(for: launch),
+                initialWorkspace: launch?.rootURL,
+                lastSelectedPDF: launch?.lastSelectedPDF,
+                launchID: launch?.id,
+                presentsPicker: launch?.presentsPicker == true,
+                startsAtWelcome: launch?.startsAtWelcome == true
             )
         }
         .windowToolbarStyle(.unified)
@@ -37,14 +29,14 @@ struct PDFNavigatorApp: App {
     }
 
     private func initialPDF(
-        for configuration: WorkspaceLaunchContext?
+        for launch: WorkspaceLaunch?
     ) -> URL? {
-        if let selectedPDF = configuration?.selectedPDF {
+        if let selectedPDF = launch?.selectedPDF {
             return selectedPDF
         }
 
         #if DEBUG
-        return configuration == nil
+        return launch == nil
             ? DevelopmentConfiguration.demoPDFURL
             : nil
         #else
