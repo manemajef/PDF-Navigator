@@ -20,10 +20,14 @@ final class WorkspaceSession: ObservableObject {
 
     init(
         initialPDF: URL? = nil,
-        initialWorkspace: URL? = nil
+        initialWorkspace: URL? = nil,
+        selectsInitialPDF: Bool = true
     ) {
         if let initialWorkspace {
-            open(folder: initialWorkspace)
+            open(
+                folder: initialWorkspace,
+                selectsFirstPDF: selectsInitialPDF
+            )
 
             if let initialPDF {
                 setInitialSelection(to: initialPDF)
@@ -75,6 +79,13 @@ final class WorkspaceSession: ObservableObject {
     }
 
     func open(folder: URL) {
+        open(folder: folder, selectsFirstPDF: true)
+    }
+
+    private func open(
+        folder: URL,
+        selectsFirstPDF: Bool
+    ) {
         stopAccessingCurrentFolder()
         folderURL = folder
 
@@ -86,7 +97,9 @@ final class WorkspaceSession: ObservableObject {
                 directory: folder
             )
 
-            selectedPDF = firstPDF(in: navigatorNodes)
+            selectedPDF = selectsFirstPDF
+                ? firstPDF(in: navigatorNodes)
+                : nil
             navigationHistory.reset(to: selectedPDF)
         } catch {
             navigatorNodes = []

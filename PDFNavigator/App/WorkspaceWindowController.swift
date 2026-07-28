@@ -5,11 +5,13 @@ import Combine
 final class WorkspaceWindowController: ObservableObject {
     @Published private(set) var window: NSWindow?
     @Published private(set) var isToolbarVisible = true
+    @Published private(set) var isInTabGroup = false
 
     private let sourceWindowNumber: Int?
     private var didAttachToSourceWindow = false
     private var toolbarVisibilityObservation:
         AnyCancellable?
+    private var tabGroupObservation: AnyCancellable?
     private let tabCommandResponder =
         WorkspaceTabCommandResponder()
     private weak var originalNextResponder: NSResponder?
@@ -33,6 +35,7 @@ final class WorkspaceWindowController: ObservableObject {
         window.titlebarSeparatorStyle = .none
         window.styleMask.insert(.fullSizeContentView)
         observeToolbarVisibility(in: window)
+        observeTabGroup(in: window)
         installTabCommandResponder(
             in: window,
             onCreateWorkspaceTab: onCreateWorkspaceTab
@@ -51,6 +54,7 @@ final class WorkspaceWindowController: ObservableObject {
 
         didAttachToSourceWindow = true
         sourceWindow.addTabbedWindow(window, ordered: .above)
+        updateTabGroupStatus(for: window)
         window.makeKeyAndOrderFront(nil)
     }
 
@@ -89,6 +93,31 @@ final class WorkspaceWindowController: ObservableObject {
         .sink { [weak self] isVisible in
             self?.isToolbarVisible = isVisible
         }
+    }
+
+    private func observeTabGroup(in window: NSWindow) {
+        updateTabGroupStatus(for: window)
+
+        guard tabGroupObservation == nil else {
+            return
+        }
+
+        tabGroupObservation = NotificationCenter.default
+            .publisher(
+                for: NSWindow.didBecomeKeyNotification,
+                object: window
+            )
+            .sink { [weak self, weak window] _ in
+                guard let self, let window else {
+                    return
+                }
+
+                self.updateTabGroupStatus(for: window)
+            }
+    }
+
+    private func updateTabGroupStatus(for window: NSWindow) {
+        isInTabGroup = (window.tabbedWindows?.count ?? 0) > 1
     }
 }
 

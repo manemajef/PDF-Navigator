@@ -17,17 +17,22 @@ struct PDFNavigatorApp: App {
                 initialPDF: initialPDF(for: configuration),
                 initialWorkspace:
                     configuration?.workspaceURL,
+                lastSelectedPDF:
+                    configuration?.lastSelectedPDF,
                 sourceWindowNumber:
                     configuration?.sourceWindowNumber,
                 presentsWorkspacePicker:
                     configuration?
-                        .presentsWorkspacePicker == true
+                        .presentsWorkspacePicker == true,
+                startsAtWelcome:
+                    configuration?.startsAtWelcome == true
             )
         }
         .windowToolbarStyle(.unified)
         .commands {
-            WorkspaceCommands()
             SidebarCommands()
+            WorkspaceCommands()
+            ToolbarCommands()
         }
     }
 

@@ -15,23 +15,44 @@ struct NavigatorView: View {
     @State private var expandedDirectories: Set<URL> = []
 
     var body: some View {
-        VStack(spacing: 0) {
-            List(selection: $focusedNode) {
-                ForEach(nodes) { node in
-                    NavigatorTreeNodeView(
-                        node: node,
-                        expandedDirectories:
-                            $expandedDirectories,
-                        onOpenPDF: openPDF,
-                        onOpenPDFInNewTab:
-                            onOpenPDFInNewTab
-                    )
-                }
+        List(selection: $focusedNode) {
+            ForEach(nodes) { node in
+                NavigatorTreeNodeView(
+                    node: node,
+                    expandedDirectories:
+                        $expandedDirectories,
+                    onOpenPDF: openPDF,
+                    onOpenPDFInNewTab:
+                        onOpenPDFInNewTab
+                )
             }
-            .listStyle(.sidebar)
-            .controlSize(.small)
-            .scrollContentBackground(.hidden)
+        }
+        .listStyle(.sidebar)
+        .controlSize(.small)
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            sidebarActions
+        }
+        .onAppear {
+            synchronizeFocus()
+        }
+        .onChange(of: selectedPDF) {
+            synchronizeFocus()
+        }
+        .onChange(of: focusedNode) {
+            guard
+                let focusedNode,
+                case .pdf(let url) = focusedNode,
+                url != selectedPDF
+            else {
+                return
+            }
 
+            onSelectPDF(url)
+        }
+    }
+
+    private var sidebarActions: some View {
+        VStack(spacing: 0) {
             Divider()
 
             HStack {
@@ -43,7 +64,7 @@ struct NavigatorView: View {
                 }
                 .labelStyle(.iconOnly)
                 .buttonStyle(.borderless)
-                .help("New Workspace Tab (⌘N)")
+                .help("New Workspace Tab (⌘T)")
                 .disabled(!canCreateWorkspaceTab)
 
                 Button(action: onDuplicateTab) {
@@ -55,19 +76,13 @@ struct NavigatorView: View {
                 }
                 .labelStyle(.iconOnly)
                 .buttonStyle(.borderless)
-                .help("Duplicate Current Tab (⌘T)")
+                .help("Duplicate Current Tab")
                 .disabled(!canDuplicateTab)
 
                 Spacer()
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 5)
-        }
-        .onAppear {
-            synchronizeFocus()
-        }
-        .onChange(of: selectedPDF) {
-            synchronizeFocus()
         }
     }
 

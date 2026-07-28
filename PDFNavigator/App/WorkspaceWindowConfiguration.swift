@@ -4,18 +4,24 @@ struct WorkspaceWindowConfiguration: Codable, Hashable {
     let id: UUID
     let workspaceURL: URL?
     let selectedPDF: URL?
+    let lastSelectedPDF: URL?
     let sourceWindowNumber: Int?
     let presentsWorkspacePicker: Bool?
+    let startsAtWelcome: Bool?
 
     static func newWorkspaceTab(
+        workspaceURL: URL?,
+        lastSelectedPDF: URL?,
         sourceWindowNumber: Int
     ) -> WorkspaceWindowConfiguration {
         WorkspaceWindowConfiguration(
             id: UUID(),
-            workspaceURL: nil,
+            workspaceURL: workspaceURL,
             selectedPDF: nil,
+            lastSelectedPDF: lastSelectedPDF,
             sourceWindowNumber: sourceWindowNumber,
-            presentsWorkspacePicker: true
+            presentsWorkspacePicker: false,
+            startsAtWelcome: true
         )
     }
 
@@ -28,8 +34,10 @@ struct WorkspaceWindowConfiguration: Codable, Hashable {
             id: UUID(),
             workspaceURL: workspaceURL,
             selectedPDF: selectedPDF,
+            lastSelectedPDF: nil,
             sourceWindowNumber: sourceWindowNumber,
-            presentsWorkspacePicker: false
+            presentsWorkspacePicker: false,
+            startsAtWelcome: false
         )
     }
 }

@@ -1,40 +1,67 @@
 import SwiftUI
 
 struct WorkspaceToolbar: ToolbarContent {
-    let canGoBack: Bool
-    let canGoForward: Bool
-
-    let onGoBack: () -> Void
-    let onGoForward: () -> Void
+    let actions: WorkspaceActions
+    let showsPrimaryNewTabAction: Bool
+    let showsTabActions: Bool
 
     var body: some ToolbarContent {
+        if showsPrimaryNewTabAction {
+            ToolbarItem(placement: .primaryAction) {
+                Button(action: actions.createWorkspaceTab) {
+                    Label("New Tab", systemImage: "plus")
+                }
+                .help("New Tab")
+                .disabled(!actions.canCreateWorkspaceTab)
+            }
+        }
+
         ToolbarItem(placement: .navigation) {
             ControlGroup {
-                Button(action: onGoBack) {
+                Button(action: actions.goBack) {
                     Label(
                         "Back",
                         systemImage: "chevron.backward"
                     )
                 }
                 .help("Back")
-                .keyboardShortcut("[", modifiers: .command)
-                .disabled(!canGoBack)
+                .disabled(!actions.canGoBack)
 
-                Button(action: onGoForward) {
+                Button(action: actions.goForward) {
                     Label(
                         "Forward",
                         systemImage: "chevron.forward"
                     )
                 }
                 .help("Forward")
-                .keyboardShortcut("]", modifiers: .command)
-                .disabled(!canGoForward)
+                .disabled(!actions.canGoForward)
             }
             .controlGroupStyle(.navigation)
             .labelStyle(.iconOnly)
         }
 
-        ToolbarSpacer(.fixed, placement: .navigation)
+        if showsTabActions {
+            ToolbarItemGroup(placement: .secondaryAction) {
+                Button(action: actions.createWorkspaceTab) {
+                    Label(
+                        "New Workspace Tab",
+                        systemImage: "folder.badge.plus"
+                    )
+                }
+                .help("New Workspace Tab")
+                .disabled(!actions.canCreateWorkspaceTab)
+
+                Button(action: actions.duplicateTab) {
+                    Label(
+                        "Duplicate Current Tab",
+                        systemImage:
+                            "plus.rectangle.on.rectangle"
+                    )
+                }
+                .help("Duplicate Current Tab")
+                .disabled(!actions.canDuplicateTab)
+            }
+        }
     }
 }
 

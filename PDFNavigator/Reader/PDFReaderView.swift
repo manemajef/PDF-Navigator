@@ -1,5 +1,5 @@
-import SwiftUI
 import PDFKit
+import SwiftUI
 
 struct PDFReaderView: NSViewRepresentable {
     let url: URL
@@ -119,6 +119,7 @@ final class NavigatorPDFView: PDFView {
         }
 
         needsInitialFit = false
-        autoScales = true
+        autoScales = false
+        scaleFactor = scaleFactorForSizeToFit
     }
 }
