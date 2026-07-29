@@ -50,6 +50,14 @@ struct WorkspaceCommands: Commands {
             .keyboardShortcut("s", modifiers: [.command, .shift])
         }
 
+        CommandGroup(replacing: .toolbar) {
+            Button("Toggle Toolbar") {
+                actions?.toggleToolbar()
+            }
+            .keyboardShortcut("t", modifiers: [.command, .option])
+            .disabled(actions == nil)
+        }
+
         CommandGroup(after: .importExport) {
             Button("Share…") {
                 guard let pdf = actions?.session.selectedPDF,

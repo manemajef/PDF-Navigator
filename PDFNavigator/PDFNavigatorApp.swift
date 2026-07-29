@@ -24,10 +24,6 @@ struct PDFNavigatorApp: App {
         .defaultSize(width: 700, height: 850)
         .commands {
             WorkspaceCommands()
-            CommandGroup(replacing: .toolbar) {
-                Button("Toggle Toolbar", action: WindowBridge.toggleKeyWindowToolbar)
-                    .keyboardShortcut("t", modifiers: [.command, .option])
-            }
         }
 
         Settings {

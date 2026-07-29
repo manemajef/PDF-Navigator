@@ -140,7 +140,8 @@ struct WorkspaceView: View {
             hasMultipleTabs: window.isInTabGroup,
             createTab: createWorkspaceTab,
             duplicateTab: duplicateCurrentTab,
-            replaceWorkspace: { showingPicker = true}
+            replaceWorkspace: { showingPicker = true },
+            toggleToolbar: window.toggleToolbar
         )
     }
 

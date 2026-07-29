@@ -5,9 +5,10 @@ import SwiftUI
 @MainActor
 final class WindowBridge: ObservableObject {
     @Published private(set) var window: NSWindow?
+    @Published private(set) var isToolbarVisible = true
     @Published private(set) var isInTabGroup = false
 
-    private static var tabSources: [UUID: WeakWindow] = [:]
+    private static var tabSources: [UUID: TabSource] = [:]
 
     private let launchID: UUID?
     private let tabResponder = TabResponder()
@@ -22,9 +23,9 @@ final class WindowBridge: ObservableObject {
 
     var hasWindow: Bool { window != nil }
 
-    static func toggleKeyWindowToolbar() {
-        let window = NSApp.keyWindow ?? NSApp.mainWindow
-        window?.toolbar?.isVisible.toggle()
+    func toggleToolbar() {
+        isToolbarVisible.toggle()
+        applyToolbarVisibility()
     }
 
     func represent(_ url: URL?, fallbackTitle: String) {
@@ -38,13 +39,17 @@ final class WindowBridge: ObservableObject {
 
     func registerAsTabSource(for id: UUID) -> Bool {
         guard let window else { return false }
-        Self.tabSources[id] = WeakWindow(window)
+        Self.tabSources[id] = TabSource(
+            window: window,
+            isToolbarVisible: isToolbarVisible
+        )
         return true
     }
 
     func resolve(_ window: NSWindow, onNewTab: @escaping () -> Void) {
         if self.window !== window {
             self.window = window
+            isToolbarVisible = window.toolbar?.isVisible ?? true
             window.makeFirstResponder(nil)
             toolbarObservation = nil
             tabObservation = nil
@@ -57,19 +62,21 @@ final class WindowBridge: ObservableObject {
         if !didJoinSource,
            let launchID,
            let source = Self.takeSource(for: launchID),
-           source !== window {
+           let sourceWindow = source.window,
+           sourceWindow !== window {
             didJoinSource = true
-            window.toolbar?.isVisible = source.toolbar?.isVisible ?? true
-            source.addTabbedWindow(window, ordered: .above)
+            isToolbarVisible = source.isToolbarVisible
+            sourceWindow.addTabbedWindow(window, ordered: .above)
             window.makeKeyAndOrderFront(nil)
         }
 
         observeTabs(in: window)
+        applyToolbarVisibility()
     }
 
-    private static func takeSource(for id: UUID) -> NSWindow? {
+    private static func takeSource(for id: UUID) -> TabSource? {
         defer { tabSources[id] = nil }
-        return tabSources[id]?.window
+        return tabSources[id]
     }
 
     private func observeToolbar(in window: NSWindow) {
@@ -88,6 +95,14 @@ final class WindowBridge: ObservableObject {
         let isToolbarVisible = window.toolbar?.isVisible != false
         window.titlebarSeparatorStyle = isToolbarVisible ? .automatic : .none
         window.titlebarAppearsTransparent = !isToolbarVisible && !isInTabGroup
+    }
+
+    private func applyToolbarVisibility() {
+        guard let toolbar = window?.toolbar else { return }
+        if toolbar.isVisible != isToolbarVisible {
+            toolbar.isVisible = isToolbarVisible
+        }
+        applyToolbarAppearance()
     }
 
     private func observeTabs(in window: NSWindow) {
@@ -185,10 +200,12 @@ private final class TabResponder: NSResponder {
     }
 }
 
-private struct WeakWindow {
+private struct TabSource {
     weak var window: NSWindow?
+    let isToolbarVisible: Bool
 
-    init(_ window: NSWindow) {
+    init(window: NSWindow, isToolbarVisible: Bool) {
         self.window = window
+        self.isToolbarVisible = isToolbarVisible
     }
 }
