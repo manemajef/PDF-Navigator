@@ -21,6 +21,7 @@ struct NavigatorView: View {
             }
         }
         .listStyle(.sidebar)
+        .environment(\.sidebarRowSize, .small)
         .onAppear(perform: synchronizeSelection)
         .onChange(of: session.selectedPDF) {
             synchronizeSelection()
@@ -111,6 +112,10 @@ private struct NavigatorRow: View {
                     Button("Open") { onOpenPDF(item.url) }
                     Button("Open in New Tab") { onOpenPDFInNewTab(item.url) }
                     Divider()
+                    Button("Open in Default App") {
+                        NSWorkspace.shared.open(item.url)
+                    }
+                    ShareLink(item: item.url)
                     Button("Show in Finder") {
                         NSWorkspace.shared.activateFileViewerSelecting([item.url])
                     }
@@ -144,6 +149,7 @@ private struct FileLabel: View {
             Text(item.name).lineLimit(1)
             Spacer(minLength: 0)
         }
+        .font(.body)
         .contentShape(Rectangle())
     }
 }

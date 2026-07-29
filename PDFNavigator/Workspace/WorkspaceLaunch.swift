@@ -8,6 +8,17 @@ struct WorkspaceLaunch: Codable, Hashable {
     let presentsPicker: Bool
     let startsAtWelcome: Bool
 
+    static var emptyWindow: WorkspaceLaunch {
+        WorkspaceLaunch(
+            id: UUID(),
+            rootURL: nil,
+            selectedPDF: nil,
+            lastSelectedPDF: nil,
+            presentsPicker: false,
+            startsAtWelcome: true
+        )
+    }
+
     static func newTab(
         rootURL: URL?,
         lastSelectedPDF: URL?

@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -44,7 +45,6 @@ struct WorkspaceView: View {
                 session: session,
                 onOpenPDFInNewTab: openPDFInNewTab
             )
-            .navigationTitle(session.folderName)
             .navigationSplitViewColumnWidth(min: 180, ideal: 240, max: 350)
            
         } detail: {
@@ -59,8 +59,12 @@ struct WorkspaceView: View {
                     placement: .toolbar,
                     prompt: "Search Current PDF"
                 )
+                .onSubmit(of: .search) {
+                    reader.selectSearchMatch(
+                        backward: NSEvent.modifierFlags.contains(.shift)
+                    )
+                }
         }
-        .workspaceToolbarAppearance(isHidden: !window.isToolbarVisible)
         .fileImporter(
             isPresented: $showingPicker,
             allowedContentTypes: [.folder, .pdf],
@@ -90,11 +94,21 @@ struct WorkspaceView: View {
             }
         }
         .focusedSceneValue(\.workspaceActions, actions)
+        .onOpenURL {
+            session.open($0)
+            showingWelcome = false
+        }
         .onChange(of: window.hasWindow, initial: true) {
-            if $1 { presentInitialPicker() }
+            if $1 {
+                window.represent(session.selectedPDF, fallbackTitle: session.folderName)
+                presentInitialPicker()
+            }
         }
         .onChange(of: session.selectedPDF) {
-            if $1 != nil { showingWelcome = false }
+            window.represent($1, fallbackTitle: session.folderName)
+            if $1 != nil {
+                showingWelcome = false
+            }
         }
     }
 
@@ -113,7 +127,6 @@ struct WorkspaceView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if let pdf = session.selectedPDF {
             PDFReaderView(url: pdf, searchText: searchText, handle: reader)
-                .navigationTitle(pdf.lastPathComponent)
         } else {
             WorkspaceEmptyView { showingPicker = true }
         }
@@ -124,8 +137,10 @@ struct WorkspaceView: View {
             session: session,
             reader: reader,
             canCreateTab: window.hasWindow,
+            hasMultipleTabs: window.isInTabGroup,
             createTab: createWorkspaceTab,
-            duplicateTab: duplicateCurrentTab
+            duplicateTab: duplicateCurrentTab,
+            replaceWorkspace: { showingPicker = true}
         )
     }
 

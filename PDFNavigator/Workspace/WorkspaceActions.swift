@@ -4,8 +4,10 @@ struct WorkspaceActions {
     let session: WorkspaceSession
     let reader: PDFReaderHandle
     let canCreateTab: Bool
+    let hasMultipleTabs: Bool 
     let createTab: () -> Void
     let duplicateTab: () -> Void
+    let replaceWorkspace: () -> Void
 
     var canDuplicateTab: Bool {
         canCreateTab && session.rootURL != nil && session.selectedPDF != nil

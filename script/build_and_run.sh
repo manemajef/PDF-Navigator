@@ -3,11 +3,16 @@ set -euo pipefail
 
 MODE="${1:-run}"
 APP_NAME="PDFNavigator"
-BUNDLE_ID="manemajef.PDF-Navigator"
+CONFIGURATION="Debug"
+
+if [[ "$MODE" == "--release" || "$MODE" == "release" ]]; then
+  MODE="run"
+  CONFIGURATION="Release"
+fi
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BUILD_DIR="$ROOT_DIR/.build/xcode"
-APP_BUNDLE="$BUILD_DIR/Build/Products/Debug/$APP_NAME.app"
+APP_BUNDLE="$BUILD_DIR/Build/Products/$CONFIGURATION/$APP_NAME.app"
 APP_BINARY="$APP_BUNDLE/Contents/MacOS/$APP_NAME"
 
 if [[ -d /Applications/Xcode-beta.app ]]; then
@@ -19,7 +24,7 @@ pkill -x "$APP_NAME" >/dev/null 2>&1 || true
 xcodebuild \
   -project "$ROOT_DIR/PDFNavigator.xcodeproj" \
   -scheme "$APP_NAME" \
-  -configuration Debug \
+  -configuration "$CONFIGURATION" \
   -derivedDataPath "$BUILD_DIR" \
   CODE_SIGNING_ALLOWED=NO \
   build
@@ -42,13 +47,6 @@ case "$MODE" in
       --style compact \
       --predicate "process == \"$APP_NAME\""
     ;;
-  --telemetry|telemetry)
-    open_app
-    /usr/bin/log stream \
-      --info \
-      --style compact \
-      --predicate "subsystem == \"$BUNDLE_ID\""
-    ;;
   --verify|verify)
     open_app
     sleep 1
@@ -56,7 +54,7 @@ case "$MODE" in
     ;;
   *)
     echo \
-      "usage: $0 [run|--debug|--logs|--telemetry|--verify]" \
+      "usage: $0 [run|--release|--debug|--logs|--verify]" \
       >&2
     exit 2
     ;;

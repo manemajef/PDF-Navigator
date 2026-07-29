@@ -21,29 +21,13 @@ struct WorkspaceToolbar: ToolbarContent {
             .controlGroupStyle(.navigation)
             .labelStyle(.iconOnly)
         }
-        ToolbarItem(placement: .automatic){
-            Button(action: actions.createTab){
-                Label("New Tab",systemImage: "plus.rectangle.on.rectangle")
+        if !actions.hasMultipleTabs {
+            ToolbarItem(placement: .automatic){
+                Button(action: actions.createTab){
+                    Label("New Tab",systemImage: "plus.rectangle.on.rectangle")
+                }
             }
         }
-    }
-}
-
-private struct WorkspaceToolbarAppearance: ViewModifier {
-    let isHidden: Bool
-
-    @ViewBuilder
-    func body(content: Content) -> some View {
-        if #available(macOS 26.0, *) {
-            content.scrollEdgeEffectStyle(isHidden ? .soft : nil, for: .top)
-        } else {
-            content
-        }
-    }
-}
-
-extension View {
-    func workspaceToolbarAppearance(isHidden: Bool) -> some View {
-        modifier(WorkspaceToolbarAppearance(isHidden: isHidden))
+        
     }
 }

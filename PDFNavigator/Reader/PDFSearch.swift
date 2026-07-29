@@ -40,6 +40,25 @@ final class PDFSearch {
         document.beginFindString(query, withOptions: .caseInsensitive)
     }
 
+    func selectMatch(backward: Bool) {
+        guard let document, let view, !query.isEmpty else { return }
+
+        let options: NSString.CompareOptions = backward ? [.caseInsensitive, .backwards] : .caseInsensitive
+        let selection = document.findString(
+            query,
+            fromSelection: view.currentSelection,
+            withOptions: options
+        ) ?? document.findString(
+            query,
+            fromSelection: nil,
+            withOptions: options
+        )
+        guard let selection else { return }
+
+        view.setCurrentSelection(selection, animate: true)
+        view.scrollSelectionToVisible(nil)
+    }
+
     func clear() {
         document?.cancelFindString()
         observations.removeAll()

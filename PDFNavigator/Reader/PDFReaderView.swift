@@ -21,7 +21,7 @@ struct PDFReaderView: NSViewRepresentable {
 
         display(url, in: view, coordinator: context.coordinator)
         context.coordinator.observeMagnification(in: view)
-        handle.attach(view)
+        handle.attach(view, search: context.coordinator.search)
         context.coordinator.search.update(searchText, in: view)
         return view
     }
@@ -30,7 +30,7 @@ struct PDFReaderView: NSViewRepresentable {
         if context.coordinator.currentURL != url {
             display(url, in: view, coordinator: context.coordinator)
         }
-        handle.attach(view)
+        handle.attach(view, search: context.coordinator.search)
         context.coordinator.search.update(searchText, in: view)
     }
 
@@ -41,7 +41,6 @@ struct PDFReaderView: NSViewRepresentable {
         coordinator.savePosition(in: view)
         coordinator.search.clear()
         coordinator.stopObservingMagnification()
-        coordinator.handle?.detach(view)
     }
 
     private func display(
@@ -51,7 +50,6 @@ struct PDFReaderView: NSViewRepresentable {
     ) {
         coordinator.savePosition(in: view)
         coordinator.search.clear()
-        coordinator.handle = handle
 
         guard let document = PDFDocument(url: url) else {
             view.document = nil
@@ -85,7 +83,6 @@ struct PDFReaderView: NSViewRepresentable {
     final class Coordinator {
         let search = PDFSearch()
         let positions = ReadingPositionStore()
-        weak var handle: PDFReaderHandle?
         var currentURL: URL?
         private var magnificationObserver: NSObjectProtocol?
 
@@ -155,21 +152,36 @@ extension PDFView {
 
         return screen.frame.width / (physicalWidth / 25.4) / 72
     }
+
+    func zoomToCurrentSelection() {
+        guard let selection = currentSelection,
+              let page = selection.pages.first else {
+            return
+        }
+
+        let selectionBounds = convert(selection.bounds(for: page), from: page)
+        guard selectionBounds.width > 0, selectionBounds.height > 0 else { return }
+
+        autoScales = false
+        scaleFactor *= min(
+            bounds.width / selectionBounds.width,
+            bounds.height / selectionBounds.height
+        )
+        go(to: selection)
+    }
 }
 
 @MainActor
 final class PDFReaderHandle {
     private(set) weak var view: PDFView?
+    private weak var search: PDFSearch?
 
-    var hasDocument: Bool { view?.document != nil }
-
-    func attach(_ view: PDFView) {
+    func attach(_ view: PDFView, search: PDFSearch) {
         self.view = view
+        self.search = search
     }
 
-    func detach(_ view: PDFView) {
-        if self.view === view {
-            self.view = nil
-        }
+    func selectSearchMatch(backward: Bool) {
+        search?.selectMatch(backward: backward)
     }
 }

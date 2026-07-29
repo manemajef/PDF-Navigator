@@ -5,7 +5,6 @@ import SwiftUI
 @MainActor
 final class WindowBridge: ObservableObject {
     @Published private(set) var window: NSWindow?
-    @Published private(set) var isToolbarVisible = true
     @Published private(set) var isInTabGroup = false
 
     private static var tabSources: [UUID: WeakWindow] = [:]
@@ -23,6 +22,20 @@ final class WindowBridge: ObservableObject {
 
     var hasWindow: Bool { window != nil }
 
+    static func toggleKeyWindowToolbar() {
+        let window = NSApp.keyWindow ?? NSApp.mainWindow
+        window?.toolbar?.isVisible.toggle()
+    }
+
+    func represent(_ url: URL?, fallbackTitle: String) {
+        guard let window else { return }
+        Task { @MainActor [weak window] in
+            await Task.yield()
+            window?.representedURL = url
+            window?.title = url?.lastPathComponent ?? fallbackTitle
+        }
+    }
+
     func registerAsTabSource(for id: UUID) -> Bool {
         guard let window else { return false }
         Self.tabSources[id] = WeakWindow(window)
@@ -32,6 +45,7 @@ final class WindowBridge: ObservableObject {
     func resolve(_ window: NSWindow, onNewTab: @escaping () -> Void) {
         if self.window !== window {
             self.window = window
+            window.makeFirstResponder(nil)
             toolbarObservation = nil
             tabObservation = nil
             observedTabGroup = nil
@@ -45,6 +59,7 @@ final class WindowBridge: ObservableObject {
            let source = Self.takeSource(for: launchID),
            source !== window {
             didJoinSource = true
+            window.toolbar?.isVisible = source.toolbar?.isVisible ?? true
             source.addTabbedWindow(window, ordered: .above)
             window.makeKeyAndOrderFront(nil)
         }
@@ -63,11 +78,16 @@ final class WindowBridge: ObservableObject {
             for: \.isVisible,
             options: [.initial, .new]
         )
-        .sink { [weak self] isVisible in
-            if self?.isToolbarVisible != isVisible {
-                self?.isToolbarVisible = isVisible
-            }
+        .sink { [weak self] _ in
+            self?.applyToolbarAppearance()
         }
+    }
+
+    private func applyToolbarAppearance() {
+        guard let window else { return }
+        let isToolbarVisible = window.toolbar?.isVisible != false
+        window.titlebarSeparatorStyle = isToolbarVisible ? .automatic : .none
+        window.titlebarAppearsTransparent = !isToolbarVisible && !isInTabGroup
     }
 
     private func observeTabs(in window: NSWindow) {
@@ -77,6 +97,7 @@ final class WindowBridge: ObservableObject {
             if isInTabGroup {
                 isInTabGroup = false
             }
+            applyToolbarAppearance()
             return
         }
 
@@ -91,6 +112,7 @@ final class WindowBridge: ObservableObject {
             if self?.isInTabGroup != isInTabGroup {
                 self?.isInTabGroup = isInTabGroup
             }
+            self?.applyToolbarAppearance()
         }
     }
 
