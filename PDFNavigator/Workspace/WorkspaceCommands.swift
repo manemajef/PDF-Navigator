@@ -51,15 +51,20 @@ struct WorkspaceCommands: Commands {
         }
 
         CommandMenu("PDF") {
-            Button("Zoom In") { pdfView?.zoomIn(nil) }
+            Button("Zoom In") {
+                pdfView?.autoScales = false
+                pdfView?.zoomIn(nil)
+            }
                 .disabled(pdfView?.canZoomIn != true)
 
-            Button("Zoom Out") { pdfView?.zoomOut(nil) }
+            Button("Zoom Out") {
+                pdfView?.autoScales = false
+                pdfView?.zoomOut(nil)
+            }
                 .disabled(pdfView?.canZoomOut != true)
 
             Button("Actual Size") {
-                pdfView?.autoScales = false
-                pdfView?.scaleFactor = 1
+                pdfView?.showPrintSize()
             }
             .keyboardShortcut("1", modifiers: .command)
             .disabled(pdfView?.document == nil)

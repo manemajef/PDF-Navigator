@@ -46,17 +46,7 @@ struct WorkspaceView: View {
             )
             .navigationTitle(session.folderName)
             .navigationSplitViewColumnWidth(min: 180, ideal: 240, max: 350)
-            .toolbar {
-                if columnVisibility != .detailOnly && !window.isInTabGroup {
-                    ToolbarItem(placement: .primaryAction) {
-                        Button(action: actions.createTab) {
-                            Label("New Tab", systemImage: "plus")
-                        }
-                        .help("New Tab")
-                        .disabled(!actions.canCreateTab)
-                    }
-                }
-            }
+           
         } detail: {
             content
                 .ignoresSafeArea(.container, edges: .top)
