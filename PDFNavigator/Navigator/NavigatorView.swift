@@ -3,6 +3,7 @@ import SwiftUI
 
 struct NavigatorView: View {
     @ObservedObject var session: WorkspaceSession
+    let onSelectPDF: (URL) -> Void
     let onOpenPDFInNewTab: (URL) -> Void
 
     @State private var focusedURL: URL?
@@ -30,7 +31,7 @@ struct NavigatorView: View {
             if let focusedURL,
                focusedURL.pathExtension.caseInsensitiveCompare("pdf") == .orderedSame,
                focusedURL != session.selectedPDF {
-                session.select(focusedURL)
+                onSelectPDF(focusedURL)
             }
         }
     }
@@ -44,7 +45,7 @@ struct NavigatorView: View {
             }
         } else {
             focusedURL = url
-            session.select(url)
+            onSelectPDF(url)
         }
     }
 

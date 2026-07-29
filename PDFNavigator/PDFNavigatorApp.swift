@@ -12,6 +12,7 @@ struct PDFNavigatorApp: App {
     var body: some Scene {
         WindowGroup(for: WorkspaceLaunch.self) { $launch in
             WorkspaceView(
+                restoration: $launch,
                 initialPDF: initialPDF(for: launch),
                 initialWorkspace: launch?.rootURL,
                 lastSelectedPDF: launch?.lastSelectedPDF,

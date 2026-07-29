@@ -1,10 +1,12 @@
 import AppKit
+import Combine
 import PDFKit
 import SwiftUI
 
 struct WorkspaceCommands: Commands {
     @Environment(\.openWindow) private var openWindow
     @FocusedValue(\.workspaceActions) private var actions
+    @ObservedObject private var recentDocuments = RecentDocuments.shared
 
     var body: some Commands {
         CommandGroup(replacing: .newItem) {
@@ -23,6 +25,25 @@ struct WorkspaceCommands: Commands {
                 actions?.duplicateTab()
             }
             .disabled(actions?.canDuplicateTab != true)
+
+            Menu("Open Recent") {
+                if recentDocuments.urls.isEmpty {
+                    Button("No Recent Files") {}
+                        .disabled(true)
+                } else {
+                    ForEach(recentDocuments.urls, id: \.self) { url in
+                        Button(url.lastPathComponent) {
+                            openRecent(url)
+                        }
+                    }
+
+                    Divider()
+
+                    Button("Clear Menu") {
+                        recentDocuments.clear()
+                    }
+                }
+            }
 
             Divider()
 
@@ -144,5 +165,40 @@ struct WorkspaceCommands: Commands {
 
     private var pdfView: PDFView? {
         actions?.reader.view
+    }
+
+    private func openRecent(_ url: URL) {
+        recentDocuments.note(url)
+        openWindow(
+            value: WorkspaceLaunch.duplicate(
+                rootURL: url.deletingLastPathComponent(),
+                selectedPDF: url
+            )
+        )
+    }
+}
+
+@MainActor
+final class RecentDocuments: ObservableObject {
+    static let shared = RecentDocuments()
+
+    @Published private(set) var urls: [URL]
+
+    private let controller = NSDocumentController.shared
+
+    private init() {
+        urls = controller.recentDocumentURLs
+    }
+
+    func note(_ url: URL) {
+        guard url.pathExtension.lowercased() == "pdf" else { return }
+
+        controller.noteNewRecentDocumentURL(url.standardizedFileURL)
+        urls = controller.recentDocumentURLs
+    }
+
+    func clear() {
+        controller.clearRecentDocuments(nil)
+        urls = controller.recentDocumentURLs
     }
 }

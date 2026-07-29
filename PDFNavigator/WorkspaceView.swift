@@ -5,20 +5,23 @@ import UniformTypeIdentifiers
 struct WorkspaceView: View {
     @Environment(\.openWindow) private var openWindow
 
+    @Binding private var restoration: WorkspaceLaunch?
     @StateObject private var session: WorkspaceSession
     @StateObject private var window: WindowBridge
     @State private var reader = PDFReaderHandle()
 
+    @SceneStorage("workspaceSidebarVisible") private var isSidebarVisible = false
+    @State private var restorationID: UUID
     @State private var showingPicker = false
     @State private var presentedInitialPicker = false
     @State private var searchText = ""
     @State private var showingWelcome: Bool
-    @State private var columnVisibility: NavigationSplitViewVisibility = .detailOnly
 
     private let presentsPicker: Bool
     private let lastSelectedPDF: URL?
 
     init(
+        restoration: Binding<WorkspaceLaunch?> = .constant(nil),
         initialPDF: URL? = nil,
         initialWorkspace: URL? = nil,
         lastSelectedPDF: URL? = nil,
@@ -26,8 +29,12 @@ struct WorkspaceView: View {
         presentsPicker: Bool = false,
         startsAtWelcome: Bool = false
     ) {
+        _restoration = restoration
         self.presentsPicker = presentsPicker
         self.lastSelectedPDF = lastSelectedPDF
+        _restorationID = State(
+            initialValue: restoration.wrappedValue?.id ?? UUID()
+        )
         _session = StateObject(
             wrappedValue: WorkspaceSession(
                 initialPDF: initialPDF,
@@ -40,9 +47,10 @@ struct WorkspaceView: View {
     }
 
     var body: some View {
-        NavigationSplitView(columnVisibility: $columnVisibility) {
+        NavigationSplitView(columnVisibility: columnVisibility) {
             NavigatorView(
                 session: session,
+                onSelectPDF: selectPDF,
                 onOpenPDFInNewTab: openPDFInNewTab
             )
             .navigationSplitViewColumnWidth(min: 180, ideal: 240, max: 350)
@@ -75,8 +83,7 @@ struct WorkspaceView: View {
         ) { result in
             do {
                 if let url = try result.get().first {
-                    session.open(url)
-                    showingWelcome = false
+                    open(url)
                 }
             } catch {
                 session.report(error)
@@ -98,20 +105,27 @@ struct WorkspaceView: View {
         }
         .focusedSceneValue(\.workspaceActions, actions)
         .onOpenURL {
-            session.open($0)
-            showingWelcome = false
+            open($0)
         }
         .onChange(of: window.hasWindow, initial: true) {
             if $1 {
                 window.represent(session.selectedPDF)
+                saveRestorationState()
                 presentInitialPicker()
             }
+        }
+        .onChange(of: session.rootURL) {
+            saveRestorationState()
         }
         .onChange(of: session.selectedPDF) {
             window.represent($1)
             if $1 != nil {
                 showingWelcome = false
             }
+            saveRestorationState()
+        }
+        .onChange(of: showingWelcome) {
+            saveRestorationState()
         }
     }
 
@@ -148,6 +162,14 @@ struct WorkspaceView: View {
         )
     }
 
+    private var columnVisibility: Binding<NavigationSplitViewVisibility> {
+        Binding {
+            isSidebarVisible ? .all : .detailOnly
+        } set: {
+            isSidebarVisible = $0 != .detailOnly
+        }
+    }
+
     private var errorPresentation: Binding<Bool> {
         Binding {
             session.errorMessage != nil
@@ -173,7 +195,19 @@ struct WorkspaceView: View {
 
     private func openPDFInNewTab(_ pdf: URL) {
         guard let rootURL = session.rootURL else { return }
+        RecentDocuments.shared.note(pdf)
         openAsTab(.duplicate(rootURL: rootURL, selectedPDF: pdf))
+    }
+
+    private func selectPDF(_ pdf: URL) {
+        session.select(pdf)
+        RecentDocuments.shared.note(pdf)
+    }
+
+    private func open(_ url: URL) {
+        session.open(url)
+        RecentDocuments.shared.note(url)
+        showingWelcome = false
     }
 
     private func openAsTab(_ launch: WorkspaceLaunch) {
@@ -193,7 +227,21 @@ struct WorkspaceView: View {
 
     private func openLastPDF() {
         if let lastSelectedPDF {
-            session.select(lastSelectedPDF)
+            selectPDF(lastSelectedPDF)
+        }
+    }
+
+    private func saveRestorationState() {
+        let state = WorkspaceLaunch(
+            id: restorationID,
+            rootURL: session.rootURL,
+            selectedPDF: session.selectedPDF,
+            lastSelectedPDF: showingWelcome ? lastSelectedPDF : nil,
+            presentsPicker: false,
+            startsAtWelcome: showingWelcome
+        )
+        if restoration != state {
+            restoration = state
         }
     }
 }

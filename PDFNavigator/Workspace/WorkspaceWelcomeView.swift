@@ -6,6 +6,8 @@ struct WorkspaceWelcomeView: View {
     let hasWorkspace: Bool
     let onOpenLastPDF: () -> Void
     let onLoadNewWorkspace: () -> Void
+    
+    @ObservedObject private var recentDocuments = RecentDocuments.shared
 
     var body: some View {
         VStack(spacing: 16) {
