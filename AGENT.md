@@ -109,8 +109,8 @@ data.
 - One SwiftUI scene creates one independent `WorkspaceSession`.
 - Native tabs are grouped `NSWindow` instances.
 - AppKit is required only to acquire the backing window, join an explicitly
-  opened scene to a source tab group, observe toolbar visibility, and service
-  native tab responder actions.
+  opened scene to a source tab group, expose visual native tab-bar presence,
+  toggle the native toolbar, and service native tab responder actions.
 - Never persist `NSWindow.windowNumber`.
 
 ### Sidebar
@@ -137,8 +137,9 @@ data.
 ### Search and chrome
 
 - Use SwiftUI `.searchable` for toolbar search presentation.
-- When the toolbar is hidden, use the native soft top scroll-edge effect where
-  available.
+- Keep the system titlebar and toolbar appearance as the baseline.
+- Treat a native soft titlebar edge as a gated AppKit experiment. Do not
+  simulate it in `PDFReaderView` or with custom blur.
 - The deployment target is macOS 15. Newer appearance APIs need one localized
   availability branch; do not scatter compatibility guards through views.
 

@@ -156,7 +156,7 @@ struct WorkspaceView: View {
             session: session,
             reader: reader,
             canCreateTab: window.hasWindow,
-            hasMultipleTabs: window.isInTabGroup,
+            isNativeTabBarVisible: window.isNativeTabBarVisible,
             createTab: createWorkspaceTab,
             duplicateTab: duplicateCurrentTab,
             replaceWorkspace: { showingPicker = true },

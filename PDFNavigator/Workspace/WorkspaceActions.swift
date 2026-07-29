@@ -4,7 +4,7 @@ struct WorkspaceActions {
     let session: WorkspaceSession
     let reader: PDFReaderHandle
     let canCreateTab: Bool
-    let hasMultipleTabs: Bool 
+    let isNativeTabBarVisible: Bool
     let createTab: () -> Void
     let duplicateTab: () -> Void
     let replaceWorkspace: () -> Void

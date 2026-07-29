@@ -21,13 +21,11 @@ struct WorkspaceToolbar: ToolbarContent {
             .controlGroupStyle(.navigation)
             .labelStyle(.iconOnly)
         }
-        if !actions.hasMultipleTabs {
-            ToolbarItem(placement: .automatic){
-                Button(action: actions.createTab){
-                    Label("New Tab",systemImage: "plus.rectangle.on.rectangle")
-                }
+        ToolbarItem(placement: .automatic) {
+            Button(action: actions.createTab) {
+                Label("New Tab", systemImage: "plus.rectangle.on.rectangle")
             }
         }
-        
+        .hidden(actions.isNativeTabBarVisible)
     }
 }
