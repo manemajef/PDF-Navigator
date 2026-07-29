@@ -8,6 +8,7 @@ struct WorkspaceView: View {
     @Binding private var restoration: WorkspaceLaunch?
     @StateObject private var session: WorkspaceSession
     @StateObject private var window: WindowBridge
+    @ObservedObject private var recentDocuments = RecentDocuments.shared
     @State private var reader = PDFReaderHandle()
 
     @SceneStorage("workspaceSidebarVisible") private var isSidebarVisible = false
@@ -134,9 +135,10 @@ struct WorkspaceView: View {
         if showingWelcome {
             WorkspaceWelcomeView(
                 workspaceName: session.folderName,
-                lastSelectedPDF: lastSelectedPDF,
                 hasWorkspace: session.rootURL != nil,
-                onOpenLastPDF: openLastPDF,
+                recentPDFs: Array(recentDocuments.urls.prefix(5)),
+                workspaceRecentPDFs: workspaceRecentPDFs,
+                onOpenRecentPDF: openRecentPDF,
                 onLoadNewWorkspace: { showingPicker = true }
             )
         } else if session.isLoading && session.items.isEmpty {
@@ -210,6 +212,22 @@ struct WorkspaceView: View {
         showingWelcome = false
     }
 
+    private func openRecentPDF(_ pdf: URL) {
+        if session.containsPDF(pdf) {
+            selectPDF(pdf)
+        } else {
+            open(pdf)
+        }
+    }
+
+    private var workspaceRecentPDFs: [URL] {
+        Array(
+            recentDocuments.urls.lazy
+                .filter { session.containsPDF($0) }
+                .prefix(5)
+        )
+    }
+
     private func openAsTab(_ launch: WorkspaceLaunch) {
         guard window.registerAsTabSource(for: launch.id) else { return }
         openWindow(value: launch)
@@ -223,12 +241,6 @@ struct WorkspaceView: View {
         }
         presentedInitialPicker = true
         showingPicker = true
-    }
-
-    private func openLastPDF() {
-        if let lastSelectedPDF {
-            selectPDF(lastSelectedPDF)
-        }
     }
 
     private func saveRestorationState() {

@@ -61,6 +61,11 @@ final class WorkspaceSession: ObservableObject {
         loadingDirectories.contains(directory.standardizedFileURL)
     }
 
+    func containsPDF(_ url: URL) -> Bool {
+        guard let rootURL else { return false }
+        return isPDF(url, inside: rootURL)
+    }
+
     func open(_ url: URL) {
         if url.pathExtension.caseInsensitiveCompare("pdf") == .orderedSame {
             open(pdf: url)
