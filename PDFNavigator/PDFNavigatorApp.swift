@@ -17,6 +17,7 @@ struct PDFNavigatorApp: App {
                 initialWorkspace: launch?.rootURL,
                 lastSelectedPDF: launch?.lastSelectedPDF,
                 launchID: launch?.id,
+                initialSidebarVisible: launch?.sidebarVisible == true,
                 presentsPicker: launch?.presentsPicker == true,
                 startsAtWelcome: launch?.startsAtWelcome == true
             )

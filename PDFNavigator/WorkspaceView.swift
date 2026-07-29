@@ -11,7 +11,7 @@ struct WorkspaceView: View {
     @ObservedObject private var recentDocuments = RecentDocuments.shared
     @State private var reader = PDFReaderHandle()
 
-    @SceneStorage("workspaceSidebarVisible") private var isSidebarVisible = false
+    @SceneStorage private var isSidebarVisible: Bool
     @State private var restorationID: UUID
     @State private var showingPicker = false
     @State private var presentedInitialPicker = false
@@ -27,6 +27,7 @@ struct WorkspaceView: View {
         initialWorkspace: URL? = nil,
         lastSelectedPDF: URL? = nil,
         launchID: UUID? = nil,
+        initialSidebarVisible: Bool = false,
         presentsPicker: Bool = false,
         startsAtWelcome: Bool = false
     ) {
@@ -44,6 +45,10 @@ struct WorkspaceView: View {
             )
         )
         _window = StateObject(wrappedValue: WindowBridge(launchID: launchID))
+        _isSidebarVisible = SceneStorage(
+            wrappedValue: initialSidebarVisible,
+            "workspaceSidebarVisible"
+        )
         _showingWelcome = State(initialValue: startsAtWelcome)
     }
 
@@ -158,7 +163,6 @@ struct WorkspaceView: View {
             canCreateTab: window.hasWindow,
             isNativeTabBarVisible: window.isNativeTabBarVisible,
             createTab: createWorkspaceTab,
-            duplicateTab: duplicateCurrentTab,
             replaceWorkspace: { showingPicker = true },
             toggleToolbar: window.toggleToolbar
         )
@@ -184,21 +188,23 @@ struct WorkspaceView: View {
         openAsTab(
             .newTab(
                 rootURL: session.rootURL,
-                lastSelectedPDF: session.selectedPDF
+                lastSelectedPDF: session.selectedPDF,
+                sidebarVisible: isSidebarVisible
             )
         )
-    }
-
-    private func duplicateCurrentTab() {
-        if let pdf = session.selectedPDF {
-            openPDFInNewTab(pdf)
-        }
     }
 
     private func openPDFInNewTab(_ pdf: URL) {
         guard let rootURL = session.rootURL else { return }
         RecentDocuments.shared.note(pdf)
-        openAsTab(.duplicate(rootURL: rootURL, selectedPDF: pdf))
+        openAsTab(
+            .openingPDF(
+                rootURL: rootURL,
+                selectedPDF: pdf,
+                sidebarVisible: isSidebarVisible
+            ),
+            selectsNewTab: false
+        )
     }
 
     private func selectPDF(_ pdf: URL) {
@@ -228,8 +234,14 @@ struct WorkspaceView: View {
         )
     }
 
-    private func openAsTab(_ launch: WorkspaceLaunch) {
-        guard window.registerAsTabSource(for: launch.id) else { return }
+    private func openAsTab(
+        _ launch: WorkspaceLaunch,
+        selectsNewTab: Bool = true
+    ) {
+        guard window.registerAsTabSource(
+            for: launch.id,
+            selectsNewTab: selectsNewTab
+        ) else { return }
         openWindow(value: launch)
     }
 
@@ -249,6 +261,7 @@ struct WorkspaceView: View {
             rootURL: session.rootURL,
             selectedPDF: session.selectedPDF,
             lastSelectedPDF: showingWelcome ? lastSelectedPDF : nil,
+            sidebarVisible: isSidebarVisible,
             presentsPicker: false,
             startsAtWelcome: showingWelcome
         )

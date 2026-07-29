@@ -20,11 +20,6 @@ struct WorkspaceCommands: Commands {
             .keyboardShortcut("t", modifiers: .command)
             .disabled(actions?.canCreateTab != true)
 
-            Button("Duplicate Current Tab") {
-                actions?.duplicateTab()
-            }
-            .disabled(actions?.canDuplicateTab != true)
-
             Menu("Open Recent") {
                 if recentDocuments.urls.isEmpty {
                     Button("No Recent Files") {}
@@ -169,7 +164,7 @@ struct WorkspaceCommands: Commands {
     private func openRecent(_ url: URL) {
         recentDocuments.note(url)
         openWindow(
-            value: WorkspaceLaunch.duplicate(
+            value: WorkspaceLaunch.openingPDF(
                 rootURL: url.deletingLastPathComponent(),
                 selectedPDF: url
             )

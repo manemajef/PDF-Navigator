@@ -28,6 +28,7 @@ struct NavigatorView: View {
             synchronizeSelection()
         }
         .onChange(of: focusedURL) {
+            guard !NSEvent.modifierFlags.contains(.command) else { return }
             if let focusedURL,
                focusedURL.pathExtension.caseInsensitiveCompare("pdf") == .orderedSame,
                focusedURL != session.selectedPDF {

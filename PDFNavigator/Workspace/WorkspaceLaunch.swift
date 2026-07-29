@@ -5,6 +5,7 @@ struct WorkspaceLaunch: Codable, Hashable {
     let rootURL: URL?
     let selectedPDF: URL?
     let lastSelectedPDF: URL?
+    let sidebarVisible: Bool?
     let presentsPicker: Bool
     let startsAtWelcome: Bool
 
@@ -14,6 +15,7 @@ struct WorkspaceLaunch: Codable, Hashable {
             rootURL: nil,
             selectedPDF: nil,
             lastSelectedPDF: nil,
+            sidebarVisible: false,
             presentsPicker: false,
             startsAtWelcome: true
         )
@@ -21,27 +23,31 @@ struct WorkspaceLaunch: Codable, Hashable {
 
     static func newTab(
         rootURL: URL?,
-        lastSelectedPDF: URL?
+        lastSelectedPDF: URL?,
+        sidebarVisible: Bool
     ) -> WorkspaceLaunch {
         WorkspaceLaunch(
             id: UUID(),
             rootURL: rootURL,
             selectedPDF: nil,
             lastSelectedPDF: lastSelectedPDF,
+            sidebarVisible: sidebarVisible,
             presentsPicker: false,
             startsAtWelcome: true
         )
     }
 
-    static func duplicate(
+    static func openingPDF(
         rootURL: URL,
-        selectedPDF: URL
+        selectedPDF: URL,
+        sidebarVisible: Bool = false
     ) -> WorkspaceLaunch {
         WorkspaceLaunch(
             id: UUID(),
             rootURL: rootURL,
             selectedPDF: selectedPDF,
             lastSelectedPDF: nil,
+            sidebarVisible: sidebarVisible,
             presentsPicker: false,
             startsAtWelcome: false
         )

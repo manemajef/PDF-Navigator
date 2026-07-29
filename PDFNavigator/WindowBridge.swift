@@ -11,7 +11,6 @@ final class WindowBridge: ObservableObject {
 
     private let launchID: UUID?
     private let tabResponder = TabResponder()
-    private var didJoinSource = false
     private var tabObservation: AnyCancellable?
     private weak var observedTabGroup: NSWindowTabGroup?
 
@@ -27,40 +26,44 @@ final class WindowBridge: ObservableObject {
 
     func represent(_ url: URL?) {
         guard let window else { return }
-        Task { @MainActor [weak window] in
-            await Task.yield()
-            window?.representedURL = url
-        }
+        window.representedURL = url
+        window.tab.attributedTitle = nil
+        window.tab.title = url?.lastPathComponent
     }
 
-    func registerAsTabSource(for id: UUID) -> Bool {
+    func registerAsTabSource(
+        for id: UUID,
+        selectsNewTab: Bool
+    ) -> Bool {
         guard let window else { return false }
         Self.tabSources[id] = TabSource(
             window: window,
-            toolbarIsVisible: window.toolbar?.isVisible ?? true
+            toolbarIsVisible: window.toolbar?.isVisible ?? true,
+            selectsNewTab: selectsNewTab
         )
         return true
     }
 
     func resolve(_ window: NSWindow, onNewTab: @escaping () -> Void) {
-        if self.window !== window {
+        if let resolvedWindow = self.window {
+            assert(resolvedWindow === window)
+            guard resolvedWindow === window else { return }
+        } else {
             self.window = window
             window.makeFirstResponder(nil)
-            tabObservation = nil
-            observedTabGroup = nil
         }
 
         installTabResponder(in: window, action: onNewTab)
 
-        if !didJoinSource,
-           let launchID,
+        if let launchID,
            let source = Self.takeSource(for: launchID),
            let sourceWindow = source.window,
            sourceWindow !== window {
-            didJoinSource = true
             sourceWindow.addTabbedWindow(window, ordered: .above)
             window.toolbar?.isVisible = source.toolbarIsVisible
-            window.makeKeyAndOrderFront(nil)
+            let selectedWindow = source.selectsNewTab ? window : sourceWindow
+            sourceWindow.tabGroup?.selectedWindow = selectedWindow
+            selectedWindow.makeKeyAndOrderFront(nil)
         }
 
         observeTabGroup(in: window)
@@ -68,8 +71,7 @@ final class WindowBridge: ObservableObject {
     }
 
     private static func takeSource(for id: UUID) -> TabSource? {
-        defer { tabSources[id] = nil }
-        return tabSources[id]
+        tabSources.removeValue(forKey: id)
     }
 
     private func observeTabGroup(in window: NSWindow) {
@@ -175,9 +177,5 @@ private final class TabResponder: NSResponder {
 private struct TabSource {
     weak var window: NSWindow?
     let toolbarIsVisible: Bool
-
-    init(window: NSWindow, toolbarIsVisible: Bool) {
-        self.window = window
-        self.toolbarIsVisible = toolbarIsVisible
-    }
+    let selectsNewTab: Bool
 }
