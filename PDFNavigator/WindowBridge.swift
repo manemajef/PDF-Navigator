@@ -28,12 +28,11 @@ final class WindowBridge: ObservableObject {
         applyToolbarVisibility()
     }
 
-    func represent(_ url: URL?, fallbackTitle: String) {
+    func represent(_ url: URL?) {
         guard let window else { return }
         Task { @MainActor [weak window] in
             await Task.yield()
             window?.representedURL = url
-            window?.title = url?.lastPathComponent ?? fallbackTitle
         }
     }
 

@@ -49,6 +49,9 @@ struct WorkspaceView: View {
            
         } detail: {
             content
+                .navigationTitle(
+                    session.selectedPDF?.lastPathComponent ?? session.folderName
+                )
                 .ignoresSafeArea(.container, edges: .top)
                 .toolbarRole(.editor)
                 .toolbar {
@@ -100,12 +103,12 @@ struct WorkspaceView: View {
         }
         .onChange(of: window.hasWindow, initial: true) {
             if $1 {
-                window.represent(session.selectedPDF, fallbackTitle: session.folderName)
+                window.represent(session.selectedPDF)
                 presentInitialPicker()
             }
         }
         .onChange(of: session.selectedPDF) {
-            window.represent($1, fallbackTitle: session.folderName)
+            window.represent($1)
             if $1 != nil {
                 showingWelcome = false
             }
