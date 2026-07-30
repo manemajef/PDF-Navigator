@@ -86,7 +86,8 @@ final class PDFReaderController: NSViewController {
     }
 
     func showActualSize() {
-        pdfView.showPrintSize()
+        pdfView.autoScales = false
+        pdfView.scaleFactor = 1.0
     }
 
     func zoomToFit() {
