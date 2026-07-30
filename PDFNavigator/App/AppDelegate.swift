@@ -4,7 +4,6 @@ import UniformTypeIdentifiers
 @main
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var isPromptingForWorkspace = false
-    private var windowControllers: [ObjectIdentifier: WorkspaceWindowController] = [:]
     private let recentLocations = RecentLocationsStore.shared
 
     static func main() {
@@ -18,7 +17,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.setActivationPolicy(.regular)
         installMainMenu()
         NSApp.activate(ignoringOtherApps: true)
-        openWorkspaceWindow(.empty)
     }
 
     func application(_ application: NSApplication, open urls: [URL]) {
@@ -28,7 +26,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldOpenUntitledFile(_ sender: NSApplication) -> Bool {
-        false
+        true
     }
 
     func applicationOpenUntitledFile(_ sender: NSApplication) -> Bool {
@@ -56,15 +54,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func openDocument(_ sender: Any?) {
-        promptForWorkspaceIfNeeded()
+        guard let request = promptForWorkspace() else { return }
+        open(request, replacing: activeWorkspaceController)
     }
 
     @objc private func newDocument(_ sender: Any?) {
         openWorkspaceWindow(.empty)
     }
 
-    private func promptForWorkspaceIfNeeded() {
-        guard !isPromptingForWorkspace else { return }
+    private func promptForWorkspace() -> WorkspaceOpenRequest? {
+        guard !isPromptingForWorkspace else { return nil }
         isPromptingForWorkspace = true
         defer { isPromptingForWorkspace = false }
 
@@ -75,30 +74,63 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         panel.allowedContentTypes = [.pdf, .folder]
         panel.message = "Choose a PDF or folder"
 
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-        openWorkspace(at: url)
+        guard panel.runModal() == .OK, let url = panel.url else { return nil }
+        return request(for: url)
     }
 
     private func openWorkspace(at url: URL) {
-        let url = url.standardizedFileURL
-        if url.isExistingDirectory {
-            openWorkspaceWindow(.folder(url))
+        open(request(for: url), replacing: activeWorkspaceController)
+    }
+
+    private func request(for url: URL) -> WorkspaceOpenRequest {
+        let standardizedURL = url.standardizedFileURL
+        if standardizedURL.isExistingDirectory {
+            return .folder(standardizedURL)
         } else {
-            openWorkspaceWindow(.pdf(url))
+            return .pdf(standardizedURL)
         }
+    }
+
+    private func open(
+        _ request: WorkspaceOpenRequest,
+        replacing controller: WorkspaceWindowController?
+    ) {
+        if let document = controller?.document as? WorkspaceDocument {
+            document.open(request)
+            noteRecentLocations(for: request)
+        } else {
+            openWorkspaceWindow(request)
+        }
+    }
+
+    private var activeWorkspaceController: WorkspaceWindowController? {
+        NSApp.keyWindow?.windowController as? WorkspaceWindowController
     }
 
     private func openWorkspaceWindow(
         _ request: WorkspaceOpenRequest,
         tabbedWith sourceWindow: NSWindow? = nil
     ) {
-        let controller = WorkspaceWindowController()
-        let identifier = ObjectIdentifier(controller)
-        windowControllers[identifier] = controller
-        controller.onClose = { [weak self, weak controller] in
-            guard let controller else { return }
-            self?.windowControllers[ObjectIdentifier(controller)] = nil
+        let document = WorkspaceDocument(request: request)
+        NSDocumentController.shared.addDocument(document)
+        document.makeWindowControllers()
+
+        guard let controller = document.windowControllers.first as? WorkspaceWindowController else {
+            return
         }
+
+        if let sourceWindow, let tabWindow = controller.window {
+            sourceWindow.addTabbedWindow(tabWindow, ordered: .above)
+            tabWindow.makeKeyAndOrderFront(nil)
+        } else {
+            document.showWindows()
+        }
+    }
+
+    func configure(
+        _ controller: WorkspaceWindowController,
+        for request: WorkspaceOpenRequest
+    ) {
         controller.openWorkspaceInNewTab = { [weak self, weak controller] request in
             guard let sourceWindow = controller?.window else { return }
             self?.openWorkspaceWindow(request, tabbedWith: sourceWindow)
@@ -106,16 +138,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         controller.onSelectedPDF = { [weak self] url in
             self?.recentLocations.notePDF(url)
         }
-        controller.display(
-            workspaceRootURL: request.workspaceRootURL,
-            selectedPDFURL: request.selectedPDFURL
-        )
-        noteRecentLocations(for: request)
-
-        if let sourceWindow, let tabWindow = controller.window {
-            sourceWindow.addTabbedWindow(tabWindow, ordered: .above)
-            tabWindow.makeKeyAndOrderFront(nil)
+        controller.chooseWorkspace = { [weak self, weak controller] in
+            guard let self, let request = promptForWorkspace() else { return }
+            open(request, replacing: controller)
         }
+        controller.openRecentPDF = { [weak self, weak controller] url in
+            self?.open(.pdf(url), replacing: controller)
+        }
+        noteRecentLocations(for: request)
     }
 
     private func noteRecentLocations(for request: WorkspaceOpenRequest) {

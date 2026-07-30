@@ -1,4 +1,5 @@
 import AppKit
+import CoreGraphics
 import PDFKit
 
 final class PDFReaderController: NSViewController {
@@ -86,8 +87,7 @@ final class PDFReaderController: NSViewController {
     }
 
     func showActualSize() {
-        pdfView.autoScales = false
-        pdfView.scaleFactor = 1.0
+        pdfView.showPrintSize()
     }
 
     func zoomToFit() {
@@ -143,5 +143,26 @@ final class PDFReaderController: NSViewController {
             ),
             for: currentURL
         )
+    }
+}
+
+private extension PDFView {
+    func showPrintSize() {
+        autoScales = false
+        scaleFactor = printSizeScaleFactor
+    }
+
+    var printSizeScaleFactor: CGFloat {
+        guard let screen = window?.screen ?? NSScreen.main,
+              let displayID = screen.deviceDescription[
+                NSDeviceDescriptionKey("NSScreenNumber")
+              ] as? CGDirectDisplayID else {
+            return 1
+        }
+
+        let physicalWidth = CGDisplayScreenSize(displayID).width
+        guard physicalWidth > 0 else { return 1 }
+
+        return screen.frame.width / (physicalWidth / 25.4) / 72
     }
 }

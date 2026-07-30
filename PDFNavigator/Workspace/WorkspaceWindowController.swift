@@ -1,6 +1,6 @@
 import AppKit
 
-final class WorkspaceWindowController: NSWindowController, NSWindowDelegate {
+final class WorkspaceWindowController: NSWindowController {
     private let pdfReaderController = PDFReaderController()
     private let placeholderController = WorkspacePlaceholderController()
     private lazy var splitController = WorkspaceSplitViewController(
@@ -11,15 +11,21 @@ final class WorkspaceWindowController: NSWindowController, NSWindowDelegate {
     private var workspaceRootURL: URL?
     private var selectedPDFURL: URL?
     private var navigationHistory = NavigationHistory()
+    private weak var navigationToolbarItem: NSToolbarItemGroup?
 
-    var onClose: (() -> Void)?
     var openWorkspaceInNewTab: ((WorkspaceOpenRequest) -> Void)?
     var onSelectedPDF: ((URL) -> Void)?
+    var chooseWorkspace: (() -> Void)? {
+        didSet { placeholderController.onChooseWorkspace = chooseWorkspace }
+    }
+    var openRecentPDF: ((URL) -> Void)? {
+        didSet { placeholderController.onOpenRecentPDF = openRecentPDF }
+    }
 
     init() {
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 1000, height: 760),
-            styleMask: [.titled, .closable, .miniaturizable, .resizable],
+            contentRect: NSRect(x: 0, y: 0, width: 700, height: 850),
+            styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
             backing: .buffered,
             defer: false
         )
@@ -38,31 +44,33 @@ final class WorkspaceWindowController: NSWindowController, NSWindowDelegate {
         self.workspaceRootURL = workspaceRootURL?.standardizedFileURL
         self.selectedPDFURL = selectedPDFURL?.standardizedFileURL
         navigationHistory.reset(to: self.selectedPDFURL)
+        updateNavigationToolbar()
         updateWindowIdentity()
         showCurrentWorkspace()
-
-        window?.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
     }
 
     private func configureWindow() {
         guard let window else { return }
-        window.delegate = self
-        nextResponder = window.nextResponder
-        window.nextResponder = self
         window.tabbingIdentifier = "WorkspaceWindow"
         window.tabbingMode = .automatic
-        window.toolbarStyle = .automatic
-        window.setContentSize(NSSize(width: 1000, height: 760))
-        window.center()
+        window.toolbarStyle = .unified
+        window.autorecalculatesKeyViewLoop = true
 
-        let toolbar = NSToolbar(identifier: "WorkspaceToolbar")
+        let toolbar = NSToolbar(identifier: "WorkspaceToolbarV3")
         toolbar.delegate = self
         toolbar.displayMode = .iconOnly
         toolbar.allowsUserCustomization = true
         toolbar.autosavesConfiguration = true
         window.toolbar = toolbar
         window.contentViewController = splitController
+
+        let visibleWidth = NSScreen.main?.visibleFrame.width ?? 1_050
+        let documentWidth = min(
+            max(700, floor(visibleWidth * 2 / 3)),
+            max(700, visibleWidth - 80)
+        )
+        window.setContentSize(NSSize(width: documentWidth, height: 850))
+        window.center()
 
         splitController.onSelectPDF = { [weak self] url in
             self?.selectPDF(url)
@@ -76,7 +84,9 @@ final class WorkspaceWindowController: NSWindowController, NSWindowDelegate {
         let url = url.standardizedFileURL
         guard selectedPDFURL != url else { return }
         selectedPDFURL = url
+        (document as? WorkspaceDocument)?.selectPDF(url)
         navigationHistory.visit(url)
+        updateNavigationToolbar()
         updateWindowIdentity()
         splitController.selectPDF(url)
         onSelectedPDF?(url)
@@ -106,10 +116,6 @@ final class WorkspaceWindowController: NSWindowController, NSWindowDelegate {
         }
     }
 
-    func windowWillClose(_ notification: Notification) {
-        onClose?()
-    }
-
     @objc func newWorkspaceTab(_ sender: Any?) {
         if let workspaceRootURL {
             openWorkspaceInNewTab?(.folder(workspaceRootURL))
@@ -120,11 +126,13 @@ final class WorkspaceWindowController: NSWindowController, NSWindowDelegate {
 
     @objc func goBack(_ sender: Any?) {
         guard let url = navigationHistory.goBack() else { return }
+        updateNavigationToolbar()
         showHistoricalSelection(url)
     }
 
     @objc func goForward(_ sender: Any?) {
         guard let url = navigationHistory.goForward() else { return }
+        updateNavigationToolbar()
         showHistoricalSelection(url)
     }
 
@@ -188,32 +196,44 @@ final class WorkspaceWindowController: NSWindowController, NSWindowDelegate {
 
     private func showHistoricalSelection(_ url: URL) {
         selectedPDFURL = url.standardizedFileURL
+        (document as? WorkspaceDocument)?.selectPDF(url)
         updateWindowIdentity()
         splitController.selectPDF(url)
         onSelectedPDF?(url)
+    }
+
+    private func updateNavigationToolbar() {
+        guard let subitems = navigationToolbarItem?.subitems,
+              subitems.count == 2 else {
+            return
+        }
+        subitems[0].isEnabled = navigationHistory.canGoBack
+        subitems[1].isEnabled = navigationHistory.canGoForward
     }
 }
 
 extension WorkspaceWindowController: NSToolbarDelegate {
     func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
         [
-            .toggleSidebar,
             .flexibleSpace,
-            .workspaceBack,
-            .workspaceForward,
-            .workspaceSearch,
-            .workspaceNewTab
+            .toggleSidebar,
+            .sidebarTrackingSeparator,
+            .workspaceNavigation,
+            .flexibleSpace,
+            .workspaceNewTab,
+            .workspaceSearch
         ]
     }
 
     func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
         [
-            .toggleSidebar,
             .flexibleSpace,
-            .workspaceBack,
-            .workspaceForward,
-            .workspaceSearch,
-            .workspaceNewTab
+            .toggleSidebar,
+            .sidebarTrackingSeparator,
+            .workspaceNavigation,
+            .flexibleSpace,
+            .workspaceNewTab,
+            .workspaceSearch
         ]
     }
 
@@ -223,39 +243,53 @@ extension WorkspaceWindowController: NSToolbarDelegate {
         willBeInsertedIntoToolbar flag: Bool
     ) -> NSToolbarItem? {
         switch itemIdentifier {
-        case .toggleSidebar:
-            return toolbarItem(
-                identifier: itemIdentifier,
-                label: "Sidebar",
-                symbolName: "sidebar.left",
-                action: #selector(toggleSidebar(_:))
+        case .workspaceNavigation:
+            let labels = ["Back", "Forward"]
+            let images = [
+                NSImage(
+                    systemSymbolName: "chevron.backward",
+                    accessibilityDescription: labels[0]
+                ),
+                NSImage(
+                    systemSymbolName: "chevron.forward",
+                    accessibilityDescription: labels[1]
+                )
+            ].compactMap { $0 }
+            guard images.count == labels.count else { return nil }
+
+            let item = NSToolbarItemGroup(
+                itemIdentifier: itemIdentifier,
+                images: images,
+                selectionMode: .momentary,
+                labels: labels,
+                target: nil,
+                action: nil
             )
-        case .workspaceBack:
-            return toolbarItem(
-                identifier: itemIdentifier,
-                label: "Back",
-                symbolName: "chevron.backward",
-                action: #selector(goBack(_:))
-            )
-        case .workspaceForward:
-            return toolbarItem(
-                identifier: itemIdentifier,
-                label: "Forward",
-                symbolName: "chevron.forward",
-                action: #selector(goForward(_:))
-            )
+            item.label = "Navigation"
+            item.paletteLabel = "Navigation"
+            item.isNavigational = true
+            item.controlRepresentation = .expanded
+            item.subitems[0].target = self
+            item.subitems[0].action = #selector(goBack(_:))
+            item.subitems[0].toolTip = labels[0]
+            item.subitems[1].target = self
+            item.subitems[1].action = #selector(goForward(_:))
+            item.subitems[1].toolTip = labels[1]
+            navigationToolbarItem = item
+            updateNavigationToolbar()
+            return item
         case .workspaceNewTab:
             return toolbarItem(
                 identifier: itemIdentifier,
                 label: "New Tab",
-                symbolName: "plus.rectangle.on.rectangle",
+                symbolName: "plus",
                 action: #selector(newWorkspaceTab(_:))
             )
         case .workspaceSearch:
             let item = NSSearchToolbarItem(itemIdentifier: itemIdentifier)
             item.label = "Search"
             item.paletteLabel = "Search"
-            item.searchField.placeholderString = "Search"
+            item.searchField.placeholderString = "Search Current PDF"
             item.searchField.target = self
             item.searchField.action = #selector(searchFieldChanged(_:))
             item.searchField.isContinuous = true
@@ -311,24 +345,51 @@ extension WorkspaceWindowController: NSMenuItemValidation {
 }
 
 private extension NSToolbarItem.Identifier {
-    static let workspaceBack = NSToolbarItem.Identifier("WorkspaceBack")
-    static let workspaceForward = NSToolbarItem.Identifier("WorkspaceForward")
+    static let workspaceNavigation = NSToolbarItem.Identifier("WorkspaceNavigation")
     static let workspaceNewTab = NSToolbarItem.Identifier("WorkspaceNewTab")
     static let workspaceSearch = NSToolbarItem.Identifier("WorkspaceSearch")
 }
 
 final class WorkspacePlaceholderController: NSViewController {
+    private let iconView = NSImageView()
     private let titleLabel = NSTextField(labelWithString: "")
     private let subtitleLabel = NSTextField(labelWithString: "")
+    private let openButton = NSButton()
+    private let recentPDFsStack = NSStackView()
+    private var recentPDFs: [URL] = []
+
+    var onChooseWorkspace: (() -> Void)?
+    var onOpenRecentPDF: ((URL) -> Void)?
 
     override func loadView() {
         let container = NSView()
         container.translatesAutoresizingMaskIntoConstraints = false
 
-        let stack = NSStackView(views: [titleLabel, subtitleLabel])
+        iconView.symbolConfiguration = NSImage.SymbolConfiguration(pointSize: 54, weight: .regular)
+        iconView.contentTintColor = .secondaryLabelColor
+
+        openButton.target = self
+        openButton.action = #selector(chooseWorkspace)
+        openButton.controlSize = .large
+        openButton.bezelStyle = .rounded
+
+        recentPDFsStack.orientation = .vertical
+        recentPDFsStack.alignment = .leading
+        recentPDFsStack.spacing = 0
+
+        let recentPDFsBox = NSBox()
+        recentPDFsBox.title = "Recent PDFs"
+        recentPDFsBox.contentView = recentPDFsStack
+        recentPDFsBox.translatesAutoresizingMaskIntoConstraints = false
+
+        let stack = NSStackView(
+            views: [iconView, titleLabel, subtitleLabel, openButton, recentPDFsBox]
+        )
         stack.orientation = .vertical
         stack.alignment = .centerX
-        stack.spacing = 8
+        stack.spacing = 12
+        stack.setCustomSpacing(20, after: subtitleLabel)
+        stack.setCustomSpacing(20, after: openButton)
         stack.translatesAutoresizingMaskIntoConstraints = false
         container.addSubview(stack)
 
@@ -344,6 +405,9 @@ final class WorkspacePlaceholderController: NSViewController {
             stack.leadingAnchor.constraint(greaterThanOrEqualTo: container.leadingAnchor, constant: 32),
             stack.trailingAnchor.constraint(lessThanOrEqualTo: container.trailingAnchor, constant: -32)
         ])
+        let preferredWidth = recentPDFsBox.widthAnchor.constraint(equalToConstant: 440)
+        preferredWidth.priority = .defaultHigh
+        preferredWidth.isActive = true
 
         view = container
     }
@@ -351,13 +415,76 @@ final class WorkspacePlaceholderController: NSViewController {
     func display(workspaceRootURL: URL?) {
         loadViewIfNeeded()
         if let workspaceRootURL {
+            iconView.image = NSImage(
+                systemSymbolName: "folder",
+                accessibilityDescription: "Workspace"
+            )
             titleLabel.stringValue = workspaceRootURL.lastPathComponent.isEmpty
                 ? "Workspace"
                 : workspaceRootURL.lastPathComponent
             subtitleLabel.stringValue = workspaceRootURL.path
+            openButton.title = "Open Different Workspace"
         } else {
+            iconView.image = NSImage(
+                systemSymbolName: "doc.richtext",
+                accessibilityDescription: "PDF Navigator"
+            )
             titleLabel.stringValue = "PDF Navigator"
             subtitleLabel.stringValue = "Open a PDF or folder to begin."
+            openButton.title = "Open New"
+        }
+        reloadRecentPDFs(in: workspaceRootURL)
+    }
+
+    @objc private func chooseWorkspace() {
+        onChooseWorkspace?()
+    }
+
+    @objc private func openRecentPDF(_ sender: NSButton) {
+        guard recentPDFs.indices.contains(sender.tag) else { return }
+        onOpenRecentPDF?(recentPDFs[sender.tag])
+    }
+
+    private func reloadRecentPDFs(in workspaceRootURL: URL?) {
+        recentPDFs = Array(
+            RecentLocationsStore.shared.recentPDFs
+                .filter { url in
+                    guard let workspaceRootURL else { return true }
+                    let rootPath = workspaceRootURL.standardizedFileURL.path
+                    let urlPath = url.standardizedFileURL.path
+                    return urlPath.hasPrefix(rootPath + "/")
+                }
+                .prefix(5)
+        )
+
+        for view in recentPDFsStack.arrangedSubviews {
+            recentPDFsStack.removeArrangedSubview(view)
+            view.removeFromSuperview()
+        }
+
+        if recentPDFs.isEmpty {
+            let label = NSTextField(labelWithString: "No recent PDFs.")
+            label.textColor = .secondaryLabelColor
+            recentPDFsStack.addArrangedSubview(label)
+            return
+        }
+
+        for (index, url) in recentPDFs.enumerated() {
+            let button = NSButton(
+                title: url.lastPathComponent,
+                target: self,
+                action: #selector(openRecentPDF(_:))
+            )
+            button.tag = index
+            button.bezelStyle = .inline
+            button.alignment = .left
+            button.image = NSImage(
+                systemSymbolName: "doc",
+                accessibilityDescription: nil
+            )
+            button.imagePosition = .imageLeading
+            recentPDFsStack.addArrangedSubview(button)
+            button.widthAnchor.constraint(equalTo: recentPDFsStack.widthAnchor).isActive = true
         }
     }
 }

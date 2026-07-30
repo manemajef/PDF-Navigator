@@ -31,7 +31,7 @@ final class NavigatorController: NSViewController {
         outlineView.target = self
         outlineView.action = #selector(rowClicked)
         outlineView.indentationPerLevel = 14
-        outlineView.refusesFirstResponder = true
+        outlineView.refusesFirstResponder = false
         outlineView.menu = makeContextMenu()
 
         let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("file"))
@@ -63,8 +63,8 @@ final class NavigatorController: NSViewController {
             }
             outlineView.reloadData()
             if let rootNode {
-                outlineView.expandItem(rootNode)
                 loadChildrenIfNeeded(for: rootNode) { [weak self] in
+                    self?.outlineView.reloadData()
                     self?.revealSelectedPDF()
                 }
             }
@@ -179,34 +179,69 @@ final class NavigatorController: NSViewController {
             return
         }
 
-        let requestedURL = node.url.standardizedFileURL
-        guard requestedURL != selectedPDFURL else { return }
         if NSApp.currentEvent?.modifierFlags.contains(.command) == true {
-            onOpenPDFInNewTab?(requestedURL)
-            return
+            onOpenPDFInNewTab?(node.url.standardizedFileURL)
         }
-        onSelectPDF?(requestedURL)
     }
 
     @objc private func openClickedRowInNewTab(_ sender: Any?) {
+        guard let url = contextMenuPDFURL else { return }
+        onOpenPDFInNewTab?(url)
+    }
+
+    @objc private func openClickedRow(_ sender: Any?) {
+        guard let url = contextMenuPDFURL else { return }
+        onSelectPDF?(url)
+    }
+
+    @objc private func openClickedRowInDefaultApp(_ sender: Any?) {
+        guard let url = contextMenuPDFURL else { return }
+        NSWorkspace.shared.open(url)
+    }
+
+    @objc private func showClickedRowInFinder(_ sender: Any?) {
+        guard let url = contextMenuPDFURL else { return }
+        NSWorkspace.shared.activateFileViewerSelecting([url])
+    }
+
+    private var contextMenuPDFURL: URL? {
         let clickedRow = outlineView.clickedRow
         let row = clickedRow >= 0 ? clickedRow : outlineView.selectedRow
         guard row >= 0,
               let node = outlineView.item(atRow: row) as? NavigatorNode,
               !node.isDirectory else {
-            return
+            return nil
         }
-        onOpenPDFInNewTab?(node.url.standardizedFileURL)
+        return node.url.standardizedFileURL
     }
 
     private func makeContextMenu() -> NSMenu {
         let menu = NSMenu()
-        let item = menu.addItem(
+        let openItem = menu.addItem(
+            withTitle: "Open",
+            action: #selector(openClickedRow(_:)),
+            keyEquivalent: ""
+        )
+        openItem.target = self
+        let newTabItem = menu.addItem(
             withTitle: "Open in New Tab",
             action: #selector(openClickedRowInNewTab(_:)),
             keyEquivalent: ""
         )
-        item.target = self
+        newTabItem.target = self
+        menu.addItem(.separator())
+        let defaultAppItem = menu.addItem(
+            withTitle: "Open in Default App",
+            action: #selector(openClickedRowInDefaultApp(_:)),
+            keyEquivalent: ""
+        )
+        defaultAppItem.target = self
+        let finderItem = menu.addItem(
+            withTitle: "Show in Finder",
+            action: #selector(showClickedRowInFinder(_:)),
+            keyEquivalent: ""
+        )
+        finderItem.target = self
         return menu
     }
 }
@@ -216,14 +251,14 @@ extension NavigatorController: NSOutlineViewDataSource {
         if let node = item as? NavigatorNode {
             return node.children?.count ?? 0
         }
-        return rootNode == nil ? 0 : 1
+        return rootNode?.children?.count ?? 0
     }
 
     func outlineView(_ outlineView: NSOutlineView, child index: Int, ofItem item: Any?) -> Any {
         if let node = item as? NavigatorNode {
             return node.children![index]
         }
-        return rootNode!
+        return rootNode!.children![index]
     }
 
     func outlineView(_ outlineView: NSOutlineView, isItemExpandable item: Any) -> Bool {
@@ -284,8 +319,21 @@ extension NavigatorController: NSOutlineViewDelegate {
     }
 
     func outlineView(_ outlineView: NSOutlineView, shouldSelectItem item: Any) -> Bool {
-        guard let node = item as? NavigatorNode else { return false }
-        return !node.isDirectory
+        item is NavigatorNode
+    }
+
+    func outlineViewSelectionDidChange(_ notification: Notification) {
+        guard NSApp.currentEvent?.modifierFlags.contains(.command) != true else { return }
+        let row = outlineView.selectedRow
+        guard row >= 0,
+              let node = outlineView.item(atRow: row) as? NavigatorNode,
+              !node.isDirectory else {
+            return
+        }
+
+        let requestedURL = node.url.standardizedFileURL
+        guard requestedURL != selectedPDFURL else { return }
+        onSelectPDF?(requestedURL)
     }
 }
 

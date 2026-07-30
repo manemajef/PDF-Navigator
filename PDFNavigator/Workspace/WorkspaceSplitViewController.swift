@@ -38,10 +38,13 @@ final class WorkspaceSplitViewController: NSSplitViewController {
         sidebar.maximumThickness = 360
         sidebar.canCollapse = true
         sidebar.canCollapseFromWindowResize = false
+        sidebar.allowsFullHeightLayout = true
+        sidebar.titlebarSeparatorStyle = .none
 
         contentHostController.view = NSView()
         let content = NSSplitViewItem(viewController: contentHostController)
         content.minimumThickness = 420
+        content.titlebarSeparatorStyle = .shadow
 
         addSplitViewItem(sidebar)
         addSplitViewItem(content)

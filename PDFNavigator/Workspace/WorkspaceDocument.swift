@@ -34,10 +34,26 @@ final class WorkspaceDocument: NSDocument {
     override func makeWindowControllers() {
         let controller = WorkspaceWindowController()
         addWindowController(controller)
+        (NSApp.delegate as? AppDelegate)?.configure(
+            controller,
+            for: openRequest
+        )
         controller.display(
             workspaceRootURL: workspaceRootURL,
             selectedPDFURL: selectedPDFURL
         )
+    }
+
+    func open(_ request: WorkspaceOpenRequest) {
+        apply(request)
+        (windowControllers.first as? WorkspaceWindowController)?.display(
+            workspaceRootURL: request.workspaceRootURL,
+            selectedPDFURL: request.selectedPDFURL
+        )
+    }
+
+    func selectPDF(_ url: URL) {
+        selectedPDFStorage.withLock { $0 = url.standardizedFileURL }
     }
 
     override nonisolated func read(from url: URL, ofType typeName: String) throws {
@@ -63,5 +79,15 @@ final class WorkspaceDocument: NSDocument {
     private nonisolated func apply(_ request: WorkspaceOpenRequest) {
         workspaceRootStorage.withLock { $0 = request.workspaceRootURL }
         selectedPDFStorage.withLock { $0 = request.selectedPDFURL }
+    }
+
+    private var openRequest: WorkspaceOpenRequest {
+        if let selectedPDFURL {
+            return .pdf(selectedPDFURL)
+        }
+        if let workspaceRootURL {
+            return .folder(workspaceRootURL)
+        }
+        return .empty
     }
 }
