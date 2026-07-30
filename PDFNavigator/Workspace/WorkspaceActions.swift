@@ -4,7 +4,6 @@ struct WorkspaceActions {
     let session: WorkspaceSession
     let reader: PDFReaderHandle
     let canCreateTab: Bool
-    let isNativeTabBarVisible: Bool
     let createTab: () -> Void
     let replaceWorkspace: () -> Void
     let toggleToolbar: () -> Void

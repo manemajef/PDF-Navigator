@@ -6,19 +6,29 @@ struct WorkspaceCommands: Commands {
     @Environment(\.openWindow) private var openWindow
     @FocusedValue(\.workspaceActions) private var actions
     @ObservedObject private var recentDocuments = RecentDocuments.shared
+    private let openWorkspaceWithAppKit: ((WorkspaceLaunch) -> Void)?
+
+    init(
+        openWorkspaceWithAppKit: ((WorkspaceLaunch) -> Void)? = nil
+    ) {
+        self.openWorkspaceWithAppKit = openWorkspaceWithAppKit
+    }
 
     var body: some Commands {
         CommandGroup(replacing: .newItem) {
             Button("New Window") {
-                openWindow(value: WorkspaceLaunch.emptyWindow)
+                openWorkspace(WorkspaceLaunch.emptyWindow)
             }
             .keyboardShortcut("n", modifiers: .command)
 
             Button("New Workspace Tab") {
-                actions?.createTab()
+                if actions?.canCreateTab == true {
+                    actions?.createTab()
+                } else {
+                    openWorkspace(.emptyWindow)
+                }
             }
             .keyboardShortcut("t", modifiers: .command)
-            .disabled(actions?.canCreateTab != true)
 
             Menu("Open Recent") {
                 if recentDocuments.urls.isEmpty {
@@ -139,7 +149,7 @@ struct WorkspaceCommands: Commands {
                 pdfView?.autoScales = false
                 pdfView?.zoomIn(nil)
             }
-            .keyboardShortcut("+", modifiers: .command)
+            .keyboardShortcut("=", modifiers: .command)
             .disabled(pdfView?.canZoomIn != true)
 
             Button("Zoom Out") {
@@ -163,11 +173,19 @@ struct WorkspaceCommands: Commands {
 
     private func openRecent(_ url: URL) {
         recentDocuments.note(url)
-        openWindow(
-            value: WorkspaceLaunch.openingPDF(
+        openWorkspace(
+            WorkspaceLaunch.openingPDF(
                 rootURL: url.deletingLastPathComponent(),
                 selectedPDF: url
             )
         )
+    }
+
+    private func openWorkspace(_ launch: WorkspaceLaunch) {
+        if let openWorkspaceWithAppKit {
+            openWorkspaceWithAppKit(launch)
+        } else {
+            openWindow(value: launch)
+        }
     }
 }

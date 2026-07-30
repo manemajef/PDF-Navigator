@@ -59,6 +59,7 @@ The source tree follows visible product responsibilities:
 ```text
 PDFNavigator/
 ├── PDFNavigatorApp.swift
+├── AppKitWindowShell.swift
 ├── WorkspaceView.swift
 ├── WindowBridge.swift
 ├── Workspace/
@@ -67,6 +68,7 @@ PDFNavigator/
 │   ├── WorkspaceCommands.swift
 │   ├── WorkspaceToolbar.swift
 │   ├── WorkspaceLaunch.swift
+│   ├── WorkspaceShellState.swift
 │   └── NavigationHistory.swift
 ├── Navigator/
 │   ├── NavigatorView.swift
@@ -85,6 +87,8 @@ Add a directory only for a real product responsibility, not to separate
 ### Ownership
 
 - `PDFNavigatorApp` declares scenes and application commands.
+- `AppKitWindowShell` owns the feature-flagged `NSWindow` lifecycle and native
+  tab grouping. It hosts SwiftUI but does not own SwiftUI presentation state.
 - `WorkspaceView` is the visible `NavigationSplitView` skeleton. It composes
   feature views and wires the picker, focused commands, and tab launch.
 - `WorkspaceSession` owns workspace loading, selected PDF, document history,
@@ -95,7 +99,10 @@ Add a directory only for a real product responsibility, not to separate
   `ReadingPositionStore` hold the two noisy reader behaviors worth separating.
 - `WorkspaceActions` carries the focused session, reader handle, and tab
   actions to commands and toolbar content without mirroring PDFKit state.
-- `WindowBridge` is the only general `NSWindow` escape hatch.
+- `WorkspaceShellState` is SwiftUI-owned presentation state for one native
+  window or tab. New tabs inherit a value copy; changing PDFs never changes it.
+- `WindowBridge` resolves the backing window for the `WindowGroup` fallback and
+  carries its in-memory tab source until the new scene resolves.
 
 Views receive state and actions. They should not scan directories, construct
 PDF documents outside the reader bridge, mutate navigation history, or persist
@@ -105,12 +112,15 @@ data.
 
 ### Windows and tabs
 
-- Use `WindowGroup`; do not migrate to `DocumentGroup`.
+- Keep `WindowGroup` as the rollback path while the AppKit shell is gated; do
+  not migrate to `DocumentGroup`.
 - One SwiftUI scene creates one independent `WorkspaceSession`.
 - Native tabs are grouped `NSWindow` instances.
 - AppKit is required only to acquire the backing window, join an explicitly
   opened scene to a source tab group, expose visual native tab-bar presence,
-  toggle the native toolbar, and service native tab responder actions.
+  and service native tab responder actions.
+- SwiftUI owns sidebar and toolbar visibility. AppKit renders that state but
+  does not decide or persist it.
 - Never persist `NSWindow.windowNumber`.
 
 ### Sidebar

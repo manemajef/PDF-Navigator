@@ -4,10 +4,18 @@ set -euo pipefail
 MODE="${1:-run}"
 APP_NAME="PDFNavigator"
 CONFIGURATION="Debug"
+APP_ARGUMENTS=()
 
 if [[ "$MODE" == "--release" || "$MODE" == "release" ]]; then
   MODE="run"
   CONFIGURATION="Release"
+elif [[ "$MODE" == "--appkit-shell" || "$MODE" == "appkit-shell" ]]; then
+  MODE="run"
+  APP_ARGUMENTS=(
+    "--appkit-window-shell"
+    "-ApplePersistenceIgnoreState"
+    "YES"
+  )
 fi
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -30,7 +38,11 @@ xcodebuild \
   build
 
 open_app() {
-  /usr/bin/open -n "$APP_BUNDLE"
+  if [[ "${#APP_ARGUMENTS[@]}" -eq 0 ]]; then
+    /usr/bin/open -n "$APP_BUNDLE"
+  else
+    /usr/bin/open -n "$APP_BUNDLE" --args "${APP_ARGUMENTS[@]}"
+  fi
 }
 
 case "$MODE" in
@@ -54,7 +66,7 @@ case "$MODE" in
     ;;
   *)
     echo \
-      "usage: $0 [run|--release|--debug|--logs|--verify]" \
+      "usage: $0 [run|--release|--appkit-shell|--debug|--logs|--verify]" \
       >&2
     exit 2
     ;;

@@ -5,23 +5,21 @@ import SwiftUI
 @MainActor
 final class WindowBridge: ObservableObject {
     @Published private(set) var window: NSWindow?
-    @Published private(set) var isNativeTabBarVisible = false
 
     private static var tabSources: [UUID: TabSource] = [:]
 
-    private let launchID: UUID?
-    private let tabResponder = TabResponder()
-    private var tabObservation: AnyCancellable?
-    private weak var observedTabGroup: NSWindowTabGroup?
+    private var tabSource: TabSource?
 
     init(launchID: UUID?) {
-        self.launchID = launchID
+        tabSource = launchID.flatMap {
+            Self.tabSources.removeValue(forKey: $0)
+        }
     }
 
     var hasWindow: Bool { window != nil }
 
-    func toggleToolbar() {
-        window?.toolbar?.isVisible.toggle()
+    var inheritedShellState: WorkspaceShellState? {
+        tabSource?.shellState
     }
 
     func represent(_ url: URL?) {
@@ -33,18 +31,17 @@ final class WindowBridge: ObservableObject {
 
     func registerAsTabSource(
         for id: UUID,
-        selectsNewTab: Bool
+        shellState: WorkspaceShellState
     ) -> Bool {
         guard let window else { return false }
         Self.tabSources[id] = TabSource(
             window: window,
-            toolbarIsVisible: window.toolbar?.isVisible ?? true,
-            selectsNewTab: selectsNewTab
+            shellState: shellState
         )
         return true
     }
 
-    func resolve(_ window: NSWindow, onNewTab: @escaping () -> Void) {
+    func resolve(_ window: NSWindow) {
         if let resolvedWindow = self.window {
             assert(resolvedWindow === window)
             guard resolvedWindow === window else { return }
@@ -53,61 +50,15 @@ final class WindowBridge: ObservableObject {
             window.makeFirstResponder(nil)
         }
 
-        installTabResponder(in: window, action: onNewTab)
-
-        if let launchID,
-           let source = Self.takeSource(for: launchID),
-           let sourceWindow = source.window,
-           sourceWindow !== window {
+        if let source = tabSource {
+            tabSource = nil
+            guard let sourceWindow = source.window,
+                  sourceWindow !== window else {
+                return
+            }
             sourceWindow.addTabbedWindow(window, ordered: .above)
-            window.toolbar?.isVisible = source.toolbarIsVisible
-            let selectedWindow = source.selectsNewTab ? window : sourceWindow
-            sourceWindow.tabGroup?.selectedWindow = selectedWindow
-            selectedWindow.makeKeyAndOrderFront(nil)
+            window.makeKeyAndOrderFront(nil)
         }
-
-        observeTabGroup(in: window)
-        refreshTabBarVisibility(in: window)
-    }
-
-    private static func takeSource(for id: UUID) -> TabSource? {
-        tabSources.removeValue(forKey: id)
-    }
-
-    private func observeTabGroup(in window: NSWindow) {
-        let tabGroup = window.tabGroup
-        guard observedTabGroup !== tabGroup else { return }
-        observedTabGroup = tabGroup
-        tabObservation = nil
-
-        guard let tabGroup else { return }
-        tabObservation = tabGroup.publisher(
-            for: \.windows,
-            options: [.initial, .new]
-        )
-        .sink { [weak self, weak window] _ in
-            guard let self, let window else { return }
-            self.observeTabGroup(in: window)
-            self.refreshTabBarVisibility(in: window)
-        }
-    }
-
-    private func refreshTabBarVisibility(in window: NSWindow) {
-        guard self.window === window else { return }
-        let isVisible = window.tabbedWindows != nil
-        if isNativeTabBarVisible != isVisible {
-            isNativeTabBarVisible = isVisible
-        }
-    }
-
-    private func installTabResponder(
-        in window: NSWindow,
-        action: @escaping () -> Void
-    ) {
-        tabResponder.action = action
-        guard window.nextResponder !== tabResponder else { return }
-        tabResponder.nextResponder = window.nextResponder
-        window.nextResponder = tabResponder
     }
 }
 
@@ -165,17 +116,7 @@ struct WindowReader: NSViewRepresentable {
     }
 }
 
-@MainActor
-private final class TabResponder: NSResponder {
-    var action: () -> Void = {}
-
-    override func newWindowForTab(_ sender: Any?) {
-        action()
-    }
-}
-
 private struct TabSource {
     weak var window: NSWindow?
-    let toolbarIsVisible: Bool
-    let selectsNewTab: Bool
+    let shellState: WorkspaceShellState
 }

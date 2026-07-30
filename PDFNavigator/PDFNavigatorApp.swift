@@ -9,45 +9,39 @@ import SwiftUI
 
 @main
 struct PDFNavigatorApp: App {
+    @NSApplicationDelegateAdaptor(AppKitWindowShell.self)
+    private var appKitWindowShell
+
     var body: some Scene {
         WindowGroup(for: WorkspaceLaunch.self) { $launch in
             WorkspaceView(
                 restoration: $launch,
-                initialPDF: initialPDF(for: launch),
+                initialPDF: launch?.selectedPDF,
                 initialWorkspace: launch?.rootURL,
                 lastSelectedPDF: launch?.lastSelectedPDF,
                 launchID: launch?.id,
-                initialSidebarVisible: launch?.sidebarVisible == true,
                 presentsPicker: launch?.presentsPicker == true,
-                startsAtWelcome: launch?.startsAtWelcome == true
+                startsAtWelcome: launch?.startsAtWelcome ?? true
             )
         }
         .windowToolbarStyle(.unified)
         .defaultSize(width: 700, height: 850)
+        .defaultLaunchBehavior(WindowShellSelection.current.launchBehavior)
+        .restorationBehavior(
+            WindowShellSelection.current == .appKitExperiment
+                ? .disabled
+                : .automatic
+        )
         .commands {
-            WorkspaceCommands()
+            WorkspaceCommands(
+                openWorkspaceWithAppKit: appKitWindowShell.workspaceOpener
+            )
         }
 
         Settings {
             ContentUnavailableView("No Settings", systemImage: "gear")
                 .frame(width: 360, height: 180)
         }
-    }
-
-    private func initialPDF(
-        for launch: WorkspaceLaunch?
-    ) -> URL? {
-        if let selectedPDF = launch?.selectedPDF {
-            return selectedPDF
-        }
-
-        #if DEBUG
-        return launch == nil
-            ? DevelopmentConfiguration.demoPDFURL
-            : nil
-        #else
-        return nil
-        #endif
     }
 }
 

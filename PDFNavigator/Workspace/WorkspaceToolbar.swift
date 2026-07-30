@@ -26,6 +26,5 @@ struct WorkspaceToolbar: ToolbarContent {
                 Label("New Tab", systemImage: "plus.rectangle.on.rectangle")
             }
         }
-        .hidden(actions.isNativeTabBarVisible)
     }
 }

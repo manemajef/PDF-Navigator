@@ -11,7 +11,7 @@ struct WorkspaceView: View {
     @ObservedObject private var recentDocuments = RecentDocuments.shared
     @State private var reader = PDFReaderHandle()
 
-    @SceneStorage private var isSidebarVisible: Bool
+    @State private var shellState: WorkspaceShellState
     @State private var restorationID: UUID
     @State private var showingPicker = false
     @State private var presentedInitialPicker = false
@@ -20,6 +20,9 @@ struct WorkspaceView: View {
 
     private let presentsPicker: Bool
     private let lastSelectedPDF: URL?
+    private let openTabWithAppKit:
+        ((WorkspaceLaunch, WorkspaceShellState, NSWindow) -> Void)?
+    private let onWindowReady: ((NSWindow) -> Void)?
 
     init(
         restoration: Binding<WorkspaceLaunch?> = .constant(nil),
@@ -27,13 +30,18 @@ struct WorkspaceView: View {
         initialWorkspace: URL? = nil,
         lastSelectedPDF: URL? = nil,
         launchID: UUID? = nil,
-        initialSidebarVisible: Bool = false,
+        initialShellState: WorkspaceShellState? = nil,
         presentsPicker: Bool = false,
-        startsAtWelcome: Bool = false
+        startsAtWelcome: Bool = false,
+        openTabWithAppKit:
+            ((WorkspaceLaunch, WorkspaceShellState, NSWindow) -> Void)? = nil,
+        onWindowReady: ((NSWindow) -> Void)? = nil
     ) {
         _restoration = restoration
         self.presentsPicker = presentsPicker
         self.lastSelectedPDF = lastSelectedPDF
+        self.openTabWithAppKit = openTabWithAppKit
+        self.onWindowReady = onWindowReady
         _restorationID = State(
             initialValue: restoration.wrappedValue?.id ?? UUID()
         )
@@ -44,10 +52,12 @@ struct WorkspaceView: View {
                 selectsInitialPDF: !startsAtWelcome
             )
         )
-        _window = StateObject(wrappedValue: WindowBridge(launchID: launchID))
-        _isSidebarVisible = SceneStorage(
-            wrappedValue: initialSidebarVisible,
-            "workspaceSidebarVisible"
+        let window = WindowBridge(launchID: launchID)
+        _window = StateObject(wrappedValue: window)
+        _shellState = State(
+            initialValue: initialShellState
+                ?? window.inheritedShellState
+                ?? WorkspaceShellState()
         )
         _showingWelcome = State(initialValue: startsAtWelcome)
     }
@@ -82,6 +92,10 @@ struct WorkspaceView: View {
                     )
                 }
         }
+        .toolbarVisibility(
+            shellState.isToolbarVisible ? .automatic : .hidden,
+            for: .windowToolbar
+        )
         .fileImporter(
             isPresented: $showingPicker,
             allowedContentTypes: [.folder, .pdf],
@@ -105,14 +119,18 @@ struct WorkspaceView: View {
             Text($0)
         }
         .background {
-            WindowReader {
-                window.resolve($0, onNewTab: createWorkspaceTab)
+            WindowReader { resolvedWindow in
+                window.resolve(resolvedWindow)
+                onWindowReady?(resolvedWindow)
             }
         }
         .focusedSceneValue(\.workspaceActions, actions)
-        .onOpenURL {
-            open($0)
-        }
+        .modifier(
+            ExternalURLHandler(
+                isEnabled: openTabWithAppKit == nil,
+                action: open
+            )
+        )
         .onChange(of: window.hasWindow, initial: true) {
             if $1 {
                 window.represent(session.selectedPDF)
@@ -137,22 +155,23 @@ struct WorkspaceView: View {
 
     @ViewBuilder
     private var content: some View {
-        if showingWelcome {
-            WorkspaceWelcomeView(
-                workspaceName: session.folderName,
-                hasWorkspace: session.rootURL != nil,
-                recentPDFs: Array(recentDocuments.urls.prefix(5)),
-                workspaceRecentPDFs: workspaceRecentPDFs,
-                onOpenRecentPDF: openRecentPDF,
-                onLoadNewWorkspace: { showingPicker = true }
-            )
-        } else if session.isLoading && session.items.isEmpty {
+        if !showingWelcome && session.isLoading && session.items.isEmpty {
             ProgressView("Loading Workspace…")
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if let pdf = session.selectedPDF {
-            PDFReaderView(url: pdf, searchText: searchText, handle: reader)
+        } else if !showingWelcome, let pdf = session.selectedPDF {
+            PDFReaderView(
+                url: pdf,
+                searchText: searchText,
+                handle: reader
+            )
         } else {
-            WorkspaceEmptyView { showingPicker = true }
+            WorkspaceWelcomeView(
+                recentPDFs: Array(recentDocuments.urls.prefix(5)),
+                onOpenRecentPDF: openRecentPDF,
+                onLoadNewWorkspace: {
+                    showingPicker = true
+                }
+            )
         }
     }
 
@@ -161,18 +180,19 @@ struct WorkspaceView: View {
             session: session,
             reader: reader,
             canCreateTab: window.hasWindow,
-            isNativeTabBarVisible: window.isNativeTabBarVisible,
             createTab: createWorkspaceTab,
             replaceWorkspace: { showingPicker = true },
-            toggleToolbar: window.toggleToolbar
+            toggleToolbar: {
+                shellState.isToolbarVisible.toggle()
+            }
         )
     }
 
     private var columnVisibility: Binding<NavigationSplitViewVisibility> {
         Binding {
-            isSidebarVisible ? .all : .detailOnly
+            shellState.isSidebarVisible ? .all : .detailOnly
         } set: {
-            isSidebarVisible = $0 != .detailOnly
+            shellState.isSidebarVisible = $0 != .detailOnly
         }
     }
 
@@ -188,8 +208,7 @@ struct WorkspaceView: View {
         openAsTab(
             .newTab(
                 rootURL: session.rootURL,
-                lastSelectedPDF: session.selectedPDF,
-                sidebarVisible: isSidebarVisible
+                lastSelectedPDF: session.selectedPDF
             )
         )
     }
@@ -200,10 +219,8 @@ struct WorkspaceView: View {
         openAsTab(
             .openingPDF(
                 rootURL: rootURL,
-                selectedPDF: pdf,
-                sidebarVisible: isSidebarVisible
-            ),
-            selectsNewTab: false
+                selectedPDF: pdf
+            )
         )
     }
 
@@ -226,21 +243,15 @@ struct WorkspaceView: View {
         }
     }
 
-    private var workspaceRecentPDFs: [URL] {
-        Array(
-            recentDocuments.urls.lazy
-                .filter { session.containsPDF($0) }
-                .prefix(5)
-        )
-    }
+    private func openAsTab(_ launch: WorkspaceLaunch) {
+        if let openTabWithAppKit, let sourceWindow = window.window {
+            openTabWithAppKit(launch, shellState, sourceWindow)
+            return
+        }
 
-    private func openAsTab(
-        _ launch: WorkspaceLaunch,
-        selectsNewTab: Bool = true
-    ) {
         guard window.registerAsTabSource(
             for: launch.id,
-            selectsNewTab: selectsNewTab
+            shellState: shellState
         ) else { return }
         openWindow(value: launch)
     }
@@ -261,12 +272,25 @@ struct WorkspaceView: View {
             rootURL: session.rootURL,
             selectedPDF: session.selectedPDF,
             lastSelectedPDF: showingWelcome ? lastSelectedPDF : nil,
-            sidebarVisible: isSidebarVisible,
             presentsPicker: false,
             startsAtWelcome: showingWelcome
         )
         if restoration != state {
             restoration = state
+        }
+    }
+}
+
+private struct ExternalURLHandler: ViewModifier {
+    let isEnabled: Bool
+    let action: (URL) -> Void
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if isEnabled {
+            content.onOpenURL(perform: action)
+        } else {
+            content
         }
     }
 }
