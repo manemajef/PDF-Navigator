@@ -92,10 +92,6 @@ struct WorkspaceView: View {
                     )
                 }
         }
-        .toolbarVisibility(
-            shellState.isToolbarVisible ? .automatic : .hidden,
-            for: .windowToolbar
-        )
         .fileImporter(
             isPresented: $showingPicker,
             allowedContentTypes: [.folder, .pdf],
@@ -134,6 +130,7 @@ struct WorkspaceView: View {
         .onChange(of: window.hasWindow, initial: true) {
             if $1 {
                 window.represent(session.selectedPDF)
+                window.setToolbarVisible(shellState.isToolbarVisible)
                 saveRestorationState()
                 presentInitialPicker()
             }
@@ -184,6 +181,7 @@ struct WorkspaceView: View {
             replaceWorkspace: { showingPicker = true },
             toggleToolbar: {
                 shellState.isToolbarVisible.toggle()
+                window.setToolbarVisible(shellState.isToolbarVisible)
             }
         )
     }

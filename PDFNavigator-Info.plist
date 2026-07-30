@@ -13,6 +13,8 @@
 			<string>Viewer</string>
 			<key>LSHandlerRank</key>
 			<string>Alternate</string>
+			<key>NSDocumentClass</key>
+			<string>$(PRODUCT_MODULE_NAME).WorkspaceDocument</string>
 			<key>LSItemContentTypes</key>
 			<array>
 				<string>com.adobe.pdf</string>

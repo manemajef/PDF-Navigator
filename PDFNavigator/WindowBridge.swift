@@ -29,6 +29,19 @@ final class WindowBridge: ObservableObject {
         window.tab.title = url?.lastPathComponent
     }
 
+    func setToolbarVisible(_ isVisible: Bool) {
+        guard let window else { return }
+        if let toolbar = window.toolbar {
+            toolbar.isVisible = isVisible
+            return
+        }
+
+        Task { @MainActor [weak window] in
+            await Task.yield()
+            window?.toolbar?.isVisible = isVisible
+        }
+    }
+
     func registerAsTabSource(
         for id: UUID,
         shellState: WorkspaceShellState
