@@ -22,6 +22,7 @@ final class PDFReaderController: NSViewController {
         pdfView.displaysPageBreaks = true
         pdfView.displayBox = .cropBox
         pdfView.autoScales = true
+        pdfView.backgroundColor = NSColor.windowBackgroundColor
         searchController.attach(pdfView: pdfView)
         view = pdfView
     }
