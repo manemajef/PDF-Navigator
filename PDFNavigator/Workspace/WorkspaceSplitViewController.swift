@@ -33,9 +33,6 @@ final class WorkspaceSplitViewController: NSSplitViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         
-        // enable overlay
-//        splitView.dividerStyle = .thin
-        
         // sidebar
         let sidebar = NSSplitViewItem(sidebarWithViewController: navigatorController)
         sidebar.minimumThickness = 180
@@ -51,8 +48,9 @@ final class WorkspaceSplitViewController: NSSplitViewController {
         content.minimumThickness = 420
         content.titlebarSeparatorStyle = .shadow
         
+        
         if #available(macOS 26.0, *) {
-            content.automaticallyAdjustsSafeAreaInsets = true
+            content.automaticallyAdjustsSafeAreaInsets = true //toggle to disable floating sidebar effect
         }
 
         // compose sidebar and content

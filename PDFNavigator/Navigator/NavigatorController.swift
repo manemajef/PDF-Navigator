@@ -23,9 +23,11 @@ final class NavigatorController: NSViewController {
         scrollView.autohidesScrollers = true
         scrollView.borderType = .noBorder
         scrollView.drawsBackground = false
+        scrollView.contentView.drawsBackground = false
         container.addSubview(scrollView)
 
         outlineView.style = .sourceList
+        outlineView.backgroundColor = .clear
         outlineView.headerView = nil
         outlineView.allowsMultipleSelection = false
         outlineView.allowsEmptySelection = true
