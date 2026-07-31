@@ -137,6 +137,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         } else {
             document.showWindows()
         }
+
+        DispatchQueue.main.async { [weak controller] in
+            controller?.endSearchInteraction()
+        }
     }
 
     func configure(

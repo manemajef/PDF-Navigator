@@ -10,7 +10,6 @@ final class WelcomeController: NSViewController {
 
     override func loadView() {
         let container = NSView()
-        container.translatesAutoresizingMaskIntoConstraints = false
 
         let iconView = NSImageView(
             image: NSImage(
@@ -29,20 +28,15 @@ final class WelcomeController: NSViewController {
         subtitleLabel.textColor = .secondaryLabelColor
 
         let openButton = NSButton(
-            title: "Open New",
+            title: "Open…",
             target: self,
             action: #selector(chooseWorkspace)
         )
         openButton.controlSize = .large
         openButton.bezelStyle = .rounded
 
-        let recentPDFsBox = NSBox()
-        recentPDFsBox.title = "Recent PDFs"
-        recentPDFsBox.contentView = recentPDFsList
-        recentPDFsBox.translatesAutoresizingMaskIntoConstraints = false
-
         let stack = NSStackView(
-            views: [iconView, titleLabel, subtitleLabel, openButton, recentPDFsBox]
+            views: [iconView, titleLabel, subtitleLabel, openButton, recentPDFsList]
         )
         stack.orientation = .vertical
         stack.alignment = .centerX
@@ -52,13 +46,14 @@ final class WelcomeController: NSViewController {
         stack.translatesAutoresizingMaskIntoConstraints = false
         container.addSubview(stack)
 
+        let contentArea = container.safeAreaLayoutGuide
         NSLayoutConstraint.activate([
-            stack.centerXAnchor.constraint(equalTo: container.centerXAnchor),
-            stack.centerYAnchor.constraint(equalTo: container.centerYAnchor),
-            stack.leadingAnchor.constraint(greaterThanOrEqualTo: container.leadingAnchor, constant: 32),
-            stack.trailingAnchor.constraint(lessThanOrEqualTo: container.trailingAnchor, constant: -32)
+            stack.centerXAnchor.constraint(equalTo: contentArea.centerXAnchor),
+            stack.centerYAnchor.constraint(equalTo: contentArea.centerYAnchor),
+            stack.leadingAnchor.constraint(greaterThanOrEqualTo: contentArea.leadingAnchor, constant: 32),
+            stack.trailingAnchor.constraint(lessThanOrEqualTo: contentArea.trailingAnchor, constant: -32)
         ])
-        let preferredWidth = recentPDFsBox.widthAnchor.constraint(equalToConstant: 440)
+        let preferredWidth = recentPDFsList.widthAnchor.constraint(equalToConstant: 440)
         preferredWidth.priority = .defaultHigh
         preferredWidth.isActive = true
 

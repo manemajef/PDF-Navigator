@@ -20,6 +20,7 @@ final class PDFSearchController {
     }
 
     func setDocument(_ document: PDFDocument?) {
+        self.document?.cancelFindString()
         clearFindObservers()
         self.document = document
         query = ""
@@ -33,6 +34,7 @@ final class PDFSearchController {
         let nextQuery = rawQuery.trimmingCharacters(in: .whitespacesAndNewlines)
         guard nextQuery != query else { return }
 
+        document?.cancelFindString()
         clearFindObservers()
         query = nextQuery
         matches = []
@@ -55,8 +57,8 @@ final class PDFSearchController {
     }
 
     func clear() {
-        clearFindObservers()
         document?.cancelFindString()
+        clearFindObservers()
         query = ""
         matches = []
         selectedMatchIndex = nil
@@ -85,7 +87,7 @@ final class PDFSearchController {
                 queue: .main
             ) { [weak self] _ in
                 Task { @MainActor [weak self] in
-                    self?.clearFindObservers()
+                    self?.finishFind()
                 }
             }
         ]
@@ -94,12 +96,16 @@ final class PDFSearchController {
     private func appendMatch(_ selection: PDFSelection) {
         selection.color = .systemYellow.withAlphaComponent(0.45)
         matches.append(selection)
-        pdfView?.highlightedSelections = matches
 
         if selectedMatchIndex == nil {
             selectedMatchIndex = 0
             show(selection)
         }
+    }
+
+    private func finishFind() {
+        pdfView?.highlightedSelections = matches
+        clearFindObservers()
     }
 
     private func selectMatch(offset: Int) {

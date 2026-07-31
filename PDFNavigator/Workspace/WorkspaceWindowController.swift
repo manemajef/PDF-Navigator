@@ -151,6 +151,15 @@ final class WorkspaceWindowController: NSWindowController {
         pdfReaderController.search(sender.stringValue)
     }
 
+    @objc func searchFieldSubmitted(_ sender: NSSearchField) {
+        pdfReaderController.selectNextSearchMatch()
+    }
+
+    func endSearchInteraction() {
+        workspaceToolbar.endSearch()
+        window?.makeFirstResponder(nil)
+    }
+
     @objc func selectNextSearchMatch(_ sender: Any?) {
         pdfReaderController.selectNextSearchMatch()
     }

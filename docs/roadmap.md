@@ -15,11 +15,12 @@
 
 ### 2. Fixes — search freeze first, it's the most user-hostile
 
-- [ ] (fix) search freeze — root cause identified in `PDFSearchController`:
+- [x] (fix) search freeze — root cause identified in `PDFSearchController`:
   - `updateQuery` starts `beginFindString` without `cancelFindString()` on the in-flight find; `isContinuous` search field means overlapping finds on every keystroke
   - `appendMatch` reassigns `pdfView.highlightedSelections = matches` on **every** match → O(n²) main-thread work on common queries
   - fix: cancel before starting a new find; buffer matches and batch the `highlightedSelections` assignment (on `PDFDocumentDidEndFind`, or throttled)
-- [ ] (fix) `enter` to move to next match — falls out of the search-field action once distinguished from continuous changes (field's action already fires on return)
+- [x] (fix) `enter` to move to next match — continuous changes use the field delegate; Return uses the field action
+- [x] (fix) search field does not take focus when opening a new window or tab
 - [ ] (fix) navigation control
   - [ ] disabled when it can't navigate
   - [ ] able to navigate back to welcome page

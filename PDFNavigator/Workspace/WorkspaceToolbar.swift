@@ -1,6 +1,6 @@
 import AppKit
 
-final class WorkspaceToolbar: NSObject, NSToolbarDelegate {
+final class WorkspaceToolbar: NSObject, NSToolbarDelegate, NSSearchFieldDelegate {
     private weak var target: WorkspaceWindowController?
     private weak var navigationItem: NSToolbarItemGroup?
     private weak var searchItem: NSSearchToolbarItem?
@@ -35,6 +35,15 @@ final class WorkspaceToolbar: NSObject, NSToolbarDelegate {
 
     func beginSearch() {
         searchItem?.beginSearchInteraction()
+    }
+
+    func endSearch() {
+        searchItem?.endSearchInteraction()
+    }
+
+    func controlTextDidChange(_ notification: Notification) {
+        guard let searchField = notification.object as? NSSearchField else { return }
+        target?.searchFieldChanged(searchField)
     }
 
     func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
@@ -143,9 +152,10 @@ final class WorkspaceToolbar: NSObject, NSToolbarDelegate {
         item.label = "Search"
         item.paletteLabel = "Search"
         item.searchField.placeholderString = "Search Current PDF"
+        item.searchField.delegate = self
         item.searchField.target = target
-        item.searchField.action = #selector(WorkspaceWindowController.searchFieldChanged(_:))
-        item.searchField.isContinuous = true
+        item.searchField.action = #selector(WorkspaceWindowController.searchFieldSubmitted(_:))
+        item.searchField.isContinuous = false
         searchItem = item
         return item
     }

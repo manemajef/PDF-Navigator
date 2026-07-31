@@ -1,15 +1,19 @@
-import AppKit
+import SwiftUI
 
-final class RecentPDFListView: NSStackView {
+final class RecentPDFListView: NSHostingView<RecentPDFListContent> {
     private var pdfs: [URL] = []
 
-    var onOpenPDF: ((URL) -> Void)?
+    var onOpenPDF: ((URL) -> Void)? {
+        didSet { updateContent() }
+    }
 
     init() {
-        super.init(frame: .zero)
-        orientation = .vertical
-        alignment = .leading
-        spacing = 0
+        super.init(rootView: RecentPDFListContent(pdfs: [], onOpenPDF: { _ in }))
+    }
+
+    @available(*, unavailable)
+    required init(rootView: RecentPDFListContent) {
+        fatalError("init(rootView:) is unavailable")
     }
 
     @available(*, unavailable)
@@ -19,37 +23,86 @@ final class RecentPDFListView: NSStackView {
 
     func display(_ pdfs: [URL]) {
         self.pdfs = pdfs
-
-        for view in arrangedSubviews {
-            removeArrangedSubview(view)
-            view.removeFromSuperview()
-        }
-
-        if pdfs.isEmpty {
-            let label = NSTextField(labelWithString: "No recent PDFs.")
-            label.textColor = .secondaryLabelColor
-            addArrangedSubview(label)
-            return
-        }
-
-        for (index, url) in pdfs.enumerated() {
-            let button = NSButton(
-                title: url.lastPathComponent,
-                target: self,
-                action: #selector(openPDF(_:))
-            )
-            button.tag = index
-            button.bezelStyle = .inline
-            button.alignment = .left
-            button.image = NSImage(systemSymbolName: "doc", accessibilityDescription: nil)
-            button.imagePosition = .imageLeading
-            addArrangedSubview(button)
-            button.widthAnchor.constraint(equalTo: widthAnchor).isActive = true
-        }
+        updateContent()
     }
 
-    @objc private func openPDF(_ sender: NSButton) {
-        guard pdfs.indices.contains(sender.tag) else { return }
-        onOpenPDF?(pdfs[sender.tag])
+    private func updateContent() {
+        rootView = RecentPDFListContent(
+            pdfs: pdfs,
+            onOpenPDF: { [weak self] url in self?.onOpenPDF?(url) }
+        )
+    }
+}
+
+struct RecentPDFListContent: View {
+    let pdfs: [URL]
+    let onOpenPDF: (URL) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Recent PDFs")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.secondary)
+                .padding(.leading, 8)
+
+            VStack(spacing: 2) {
+                if pdfs.isEmpty {
+                    Text("No recent PDFs.")
+                        .font(.system(size: 13))
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, minHeight: 48)
+                } else {
+                    ForEach(pdfs, id: \.self) { url in
+                        Button {
+                            onOpenPDF(url)
+                        } label: {
+                            RecentPDFRow(url: url)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+            .padding(6)
+            .background(.quinary, in: RoundedRectangle(cornerRadius: 10))
+        }
+        .frame(maxWidth: .infinity)
+    }
+}
+
+private struct RecentPDFRow: View {
+    let url: URL
+    @State private var isHovered = false
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "doc.text")
+                .font(.system(size: 14))
+                .foregroundStyle(.secondary)
+                .frame(width: 18)
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text(url.lastPathComponent)
+                    .font(.system(size: 13))
+                    .truncationMode(.middle)
+                    .lineLimit(1)
+
+                Text((url.deletingLastPathComponent().path as NSString).abbreviatingWithTildeInPath)
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .truncationMode(.middle)
+                    .lineLimit(1)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 5)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 6)
+                .fill(isHovered ? AnyShapeStyle(.quaternary) : AnyShapeStyle(.clear))
+        )
+        .contentShape(Rectangle())
+        .onHover { isHovered = $0 }
     }
 }
