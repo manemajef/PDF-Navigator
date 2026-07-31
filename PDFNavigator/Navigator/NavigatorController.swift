@@ -10,11 +10,14 @@ final class NavigatorController: NSViewController {
     private var rootNode: NavigatorNode?
     private var selectedPDFURL: URL?
     private var loadingNodes: Set<URL> = []
-
+    private let folderNameLabel = NSTextField(labelWithString: "")
+    
+    
+    
+    
     override func loadView() {
         let container = NSView()
         container.translatesAutoresizingMaskIntoConstraints = false
-
         scrollView.translatesAutoresizingMaskIntoConstraints = false
         scrollView.hasVerticalScroller = true
         scrollView.autohidesScrollers = true
@@ -61,6 +64,7 @@ final class NavigatorController: NSViewController {
             rootNode = standardizedRoot.map {
                 NavigatorNode(url: $0, isDirectory: true)
             }
+            
             outlineView.reloadData()
             if let rootNode {
                 loadChildrenIfNeeded(for: rootNode) { [weak self] in
@@ -358,4 +362,16 @@ private extension URL {
         let root = other.standardizedFileURL.path
         return mine == root || mine.hasPrefix(root + "/")
     }
+}
+
+#Preview("Sidebar Only") {
+    let controller = NavigatorController()
+    
+    // Pass a test folder URL (like your home directory or demo folder)
+    let sampleURL = URL(fileURLWithPath: NSHomeDirectory())
+    controller.display(workspaceRootURL: sampleURL, selectedPDFURL: nil)
+    
+    // Set a fixed frame size for the Xcode Canvas canvas
+    controller.view.frame = NSRect(x: 0, y: 0, width: 260, height: 600)
+    return controller
 }
