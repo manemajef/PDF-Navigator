@@ -30,7 +30,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationOpenUntitledFile(_ sender: NSApplication) -> Bool {
+        #if DEBUG
+        openWorkspaceWindow(.pdf(DevelopmentConfiguration.demoPDFURL))
+        #else
         openWorkspaceWindow(.empty)
+        #endif
+
         return true
     }
 
