@@ -5,6 +5,22 @@ import UniformTypeIdentifiers
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var isPromptingForWorkspace = false
     private let recentLocations = RecentLocationsStore.shared
+    private lazy var mainMenu = MainMenu(
+        recentLocations: recentLocations,
+        onNewWindow: { [weak self] in
+            self?.openWorkspaceWindow(.empty)
+        },
+        onOpen: { [weak self] in
+            guard let self, let request = promptForWorkspace() else { return }
+            open(request, replacing: activeWorkspaceController)
+        },
+        onOpenRecentWorkspace: { [weak self] url in
+            self?.openWorkspaceWindow(.folder(url))
+        },
+        onOpenRecentPDF: { [weak self] url in
+            self?.openWorkspaceWindow(.pdf(url))
+        }
+    )
 
     static func main() {
         let application = NSApplication.shared
@@ -15,7 +31,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.regular)
-        installMainMenu()
+        mainMenu.install()
         NSApp.activate(ignoringOtherApps: true)
     }
 
@@ -56,15 +72,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationSupportsSecureRestorableState(_ app: NSApplication) -> Bool {
         true
-    }
-
-    @objc private func openDocument(_ sender: Any?) {
-        guard let request = promptForWorkspace() else { return }
-        open(request, replacing: activeWorkspaceController)
-    }
-
-    @objc private func newDocument(_ sender: Any?) {
-        openWorkspaceWindow(.empty)
     }
 
     private func promptForWorkspace() -> WorkspaceOpenRequest? {
@@ -159,247 +166,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         if let selectedPDFURL = request.selectedPDFURL {
             recentLocations.notePDF(selectedPDFURL)
-        }
-    }
-
-    private func installMainMenu() {
-        let mainMenu = NSMenu()
-        NSApp.mainMenu = mainMenu
-
-        let appMenuItem = NSMenuItem()
-        mainMenu.addItem(appMenuItem)
-        let appMenu = NSMenu()
-        appMenuItem.submenu = appMenu
-        appMenu.addItem(
-            withTitle: "Quit PDF Navigator",
-            action: #selector(NSApplication.terminate(_:)),
-            keyEquivalent: "q"
-        )
-
-        let fileMenuItem = NSMenuItem()
-        mainMenu.addItem(fileMenuItem)
-        let fileMenu = NSMenu(title: "File")
-        fileMenuItem.submenu = fileMenu
-        fileMenu.addItem(
-            withTitle: "New Window",
-            action: #selector(newDocument(_:)),
-            keyEquivalent: "n"
-        ).target = self
-        fileMenu.addItem(
-            withTitle: "New Tab",
-            action: #selector(WorkspaceWindowController.newWorkspaceTab(_:)),
-            keyEquivalent: "t"
-        )
-        fileMenu.addItem(
-            withTitle: "Open...",
-            action: #selector(openDocument(_:)),
-            keyEquivalent: "o"
-        ).target = self
-        let openRecentItem = NSMenuItem(title: "Open Recent", action: nil, keyEquivalent: "")
-        let openRecentMenu = NSMenu(title: "Open Recent")
-        openRecentMenu.delegate = self
-        openRecentItem.submenu = openRecentMenu
-        fileMenu.addItem(openRecentItem)
-        fileMenu.addItem(.separator())
-        fileMenu.addItem(
-            withTitle: "Close Window",
-            action: #selector(NSWindow.performClose(_:)),
-            keyEquivalent: "w"
-        )
-
-        let viewMenuItem = NSMenuItem()
-        mainMenu.addItem(viewMenuItem)
-        let viewMenu = NSMenu(title: "View")
-        viewMenuItem.submenu = viewMenu
-        viewMenu.addItem(
-            withTitle: "Toggle Sidebar",
-            action: #selector(WorkspaceWindowController.toggleSidebar(_:)),
-            keyEquivalent: "s"
-        ).keyEquivalentModifierMask = [.command, .shift]
-        viewMenu.addItem(
-            withTitle: "Toggle Toolbar",
-            action: #selector(NSWindow.toggleToolbarShown(_:)),
-            keyEquivalent: "t"
-        ).keyEquivalentModifierMask = [.command, .option]
-        viewMenu.addItem(.separator())
-        viewMenu.addItem(
-            withTitle: "Actual Size",
-            action: #selector(WorkspaceWindowController.showActualSize(_:)),
-            keyEquivalent: "0"
-        )
-        viewMenu.addItem(
-            withTitle: "Zoom to Fit",
-            action: #selector(WorkspaceWindowController.zoomToFit(_:)),
-            keyEquivalent: "9"
-        )
-        viewMenu.addItem(
-            withTitle: "Zoom In",
-            action: #selector(WorkspaceWindowController.zoomIn(_:)),
-            keyEquivalent: "="
-        )
-        viewMenu.addItem(
-            withTitle: "Zoom Out",
-            action: #selector(WorkspaceWindowController.zoomOut(_:)),
-            keyEquivalent: "-"
-        )
-
-        let navigateMenuItem = NSMenuItem()
-        mainMenu.addItem(navigateMenuItem)
-        let navigateMenu = NSMenu(title: "Navigate")
-        navigateMenuItem.submenu = navigateMenu
-        navigateMenu.addItem(
-            withTitle: "Back",
-            action: #selector(WorkspaceWindowController.goBack(_:)),
-            keyEquivalent: "["
-        )
-        navigateMenu.addItem(
-            withTitle: "Forward",
-            action: #selector(WorkspaceWindowController.goForward(_:)),
-            keyEquivalent: "]"
-        )
-        navigateMenu.addItem(.separator())
-        navigateMenu.addItem(
-            withTitle: "Previous Page",
-            action: #selector(WorkspaceWindowController.goToPreviousPage(_:)),
-            keyEquivalent: ""
-        )
-        navigateMenu.addItem(
-            withTitle: "Next Page",
-            action: #selector(WorkspaceWindowController.goToNextPage(_:)),
-            keyEquivalent: ""
-        )
-
-        let findMenuItem = NSMenuItem()
-        mainMenu.addItem(findMenuItem)
-        let findMenu = NSMenu(title: "Find")
-        findMenuItem.submenu = findMenu
-        findMenu.addItem(
-            withTitle: "Find...",
-            action: #selector(WorkspaceWindowController.beginSearch(_:)),
-            keyEquivalent: "f"
-        )
-        findMenu.addItem(
-            withTitle: "Find Next",
-            action: #selector(WorkspaceWindowController.selectNextSearchMatch(_:)),
-            keyEquivalent: "g"
-        )
-        let previousMatchItem = findMenu.addItem(
-            withTitle: "Find Previous",
-            action: #selector(WorkspaceWindowController.selectPreviousSearchMatch(_:)),
-            keyEquivalent: "g"
-        )
-        previousMatchItem.keyEquivalentModifierMask = [.command, .shift]
-
-        fileMenu.addItem(.separator())
-        fileMenu.addItem(
-            withTitle: "Open in Default App",
-            action: #selector(WorkspaceWindowController.openCurrentPDFInDefaultApp(_:)),
-            keyEquivalent: ""
-        )
-        fileMenu.addItem(
-            withTitle: "Share...",
-            action: #selector(WorkspaceWindowController.shareCurrentPDF(_:)),
-            keyEquivalent: ""
-        )
-
-        let windowMenuItem = NSMenuItem()
-        mainMenu.addItem(windowMenuItem)
-        let windowMenu = NSMenu(title: "Window")
-        windowMenuItem.submenu = windowMenu
-        NSApp.windowsMenu = windowMenu
-        windowMenu.addItem(
-            withTitle: "Minimize",
-            action: #selector(NSWindow.performMiniaturize(_:)),
-            keyEquivalent: "m"
-        )
-        windowMenu.addItem(
-            withTitle: "Zoom",
-            action: #selector(NSWindow.performZoom(_:)),
-            keyEquivalent: ""
-        )
-        windowMenu.addItem(.separator())
-        windowMenu.addItem(
-            withTitle: "Show Next Tab",
-            action: #selector(NSWindow.selectNextTab(_:)),
-            keyEquivalent: "}"
-        )
-        windowMenu.addItem(
-            withTitle: "Show Previous Tab",
-            action: #selector(NSWindow.selectPreviousTab(_:)),
-            keyEquivalent: "{"
-        )
-        windowMenu.addItem(.separator())
-        windowMenu.addItem(
-            withTitle: "Bring All to Front",
-            action: #selector(NSApplication.arrangeInFront(_:)),
-            keyEquivalent: ""
-        )
-    }
-
-    @objc private func openRecentWorkspace(_ sender: NSMenuItem) {
-        guard let url = sender.representedObject as? URL else { return }
-        openWorkspaceWindow(.folder(url))
-    }
-
-    @objc private func openRecentPDF(_ sender: NSMenuItem) {
-        guard let url = sender.representedObject as? URL else { return }
-        openWorkspaceWindow(.pdf(url))
-    }
-
-    @objc private func clearRecentLocations(_ sender: Any?) {
-        recentLocations.clear()
-    }
-}
-
-extension AppDelegate: NSMenuDelegate {
-    func menuNeedsUpdate(_ menu: NSMenu) {
-        guard menu.title == "Open Recent" else { return }
-        menu.removeAllItems()
-
-        appendRecentSection(
-            title: "Workspaces",
-            urls: recentLocations.recentWorkspaces,
-            action: #selector(openRecentWorkspace(_:)),
-            to: menu
-        )
-        menu.addItem(.separator())
-        appendRecentSection(
-            title: "PDFs",
-            urls: recentLocations.recentPDFs,
-            action: #selector(openRecentPDF(_:)),
-            to: menu
-        )
-        menu.addItem(.separator())
-        menu.addItem(
-            withTitle: "Clear Menu",
-            action: #selector(clearRecentLocations(_:)),
-            keyEquivalent: ""
-        ).target = self
-    }
-
-    private func appendRecentSection(
-        title: String,
-        urls: [URL],
-        action: Selector,
-        to menu: NSMenu
-    ) {
-        let header = menu.addItem(withTitle: title, action: nil, keyEquivalent: "")
-        header.isEnabled = false
-
-        if urls.isEmpty {
-            let emptyItem = menu.addItem(withTitle: "None", action: nil, keyEquivalent: "")
-            emptyItem.isEnabled = false
-            return
-        }
-
-        for url in urls {
-            let item = menu.addItem(
-                withTitle: url.lastPathComponent.isEmpty ? url.path : url.lastPathComponent,
-                action: action,
-                keyEquivalent: ""
-            )
-            item.target = self
-            item.representedObject = url
         }
     }
 }

@@ -1,0 +1,89 @@
+import AppKit
+
+final class WorkspaceHomeController: NSViewController {
+    private let titleLabel = NSTextField(labelWithString: "")
+    private let subtitleLabel = NSTextField(labelWithString: "")
+    private let recentPDFsList = RecentPDFListView()
+
+    var onChooseWorkspace: (() -> Void)?
+    var onOpenRecentPDF: ((URL) -> Void)? {
+        didSet { recentPDFsList.onOpenPDF = onOpenRecentPDF }
+    }
+
+    override func loadView() {
+        let container = NSView()
+        container.translatesAutoresizingMaskIntoConstraints = false
+
+        let iconView = NSImageView(
+            image: NSImage(
+                systemSymbolName: "folder",
+                accessibilityDescription: "Workspace"
+            ) ?? NSImage()
+        )
+        iconView.symbolConfiguration = NSImage.SymbolConfiguration(pointSize: 54, weight: .regular)
+        iconView.contentTintColor = .secondaryLabelColor
+
+        titleLabel.font = .systemFont(ofSize: 28, weight: .semibold)
+        subtitleLabel.font = .systemFont(ofSize: 13)
+        subtitleLabel.textColor = .secondaryLabelColor
+        subtitleLabel.lineBreakMode = .byTruncatingMiddle
+        subtitleLabel.maximumNumberOfLines = 2
+
+        let openButton = NSButton(
+            title: "Open Different Workspace",
+            target: self,
+            action: #selector(chooseWorkspace)
+        )
+        openButton.controlSize = .large
+        openButton.bezelStyle = .rounded
+
+        let recentPDFsBox = NSBox()
+        recentPDFsBox.title = "Recent PDFs"
+        recentPDFsBox.contentView = recentPDFsList
+        recentPDFsBox.translatesAutoresizingMaskIntoConstraints = false
+
+        let stack = NSStackView(
+            views: [iconView, titleLabel, subtitleLabel, openButton, recentPDFsBox]
+        )
+        stack.orientation = .vertical
+        stack.alignment = .centerX
+        stack.spacing = 12
+        stack.setCustomSpacing(20, after: subtitleLabel)
+        stack.setCustomSpacing(20, after: openButton)
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(stack)
+
+        NSLayoutConstraint.activate([
+            stack.centerXAnchor.constraint(equalTo: container.centerXAnchor),
+            stack.centerYAnchor.constraint(equalTo: container.centerYAnchor),
+            stack.leadingAnchor.constraint(greaterThanOrEqualTo: container.leadingAnchor, constant: 32),
+            stack.trailingAnchor.constraint(lessThanOrEqualTo: container.trailingAnchor, constant: -32)
+        ])
+        let preferredWidth = recentPDFsBox.widthAnchor.constraint(equalToConstant: 440)
+        preferredWidth.priority = .defaultHigh
+        preferredWidth.isActive = true
+
+        view = container
+    }
+
+    func display(workspaceRootURL: URL) {
+        loadViewIfNeeded()
+        titleLabel.stringValue = workspaceRootURL.lastPathComponent.isEmpty
+            ? "Workspace"
+            : workspaceRootURL.lastPathComponent
+        subtitleLabel.stringValue = workspaceRootURL.path
+
+        let rootPath = workspaceRootURL.standardizedFileURL.path
+        recentPDFsList.display(
+            Array(
+                RecentLocationsStore.shared.recentPDFs
+                    .filter { $0.standardizedFileURL.path.hasPrefix(rootPath + "/") }
+                    .prefix(5)
+            )
+        )
+    }
+
+    @objc private func chooseWorkspace() {
+        onChooseWorkspace?()
+    }
+}

@@ -3,7 +3,8 @@ import AppKit
 final class WorkspaceSplitViewController: NSSplitViewController {
     private let navigatorController = NavigatorController()
     private let pdfReaderController: PDFReaderController
-    private let placeholderController: WorkspacePlaceholderController
+    private let welcomeController: WelcomeController
+    private let workspaceHomeController: WorkspaceHomeController
     private let contentHostController = NSViewController()
 
     var onSelectPDF: ((URL) -> Void)? {
@@ -18,10 +19,12 @@ final class WorkspaceSplitViewController: NSSplitViewController {
 
     init(
         pdfReaderController: PDFReaderController,
-        placeholderController: WorkspacePlaceholderController
+        welcomeController: WelcomeController,
+        workspaceHomeController: WorkspaceHomeController
     ) {
         self.pdfReaderController = pdfReaderController
-        self.placeholderController = placeholderController
+        self.welcomeController = welcomeController
+        self.workspaceHomeController = workspaceHomeController
         super.init(nibName: nil, bundle: nil)
     }
 
@@ -68,8 +71,10 @@ final class WorkspaceSplitViewController: NSSplitViewController {
 
         if let selectedPDFURL {
             showPDF(selectedPDFURL)
+        } else if let workspaceRootURL {
+            showWorkspaceHome(workspaceRootURL)
         } else {
-            showPlaceholder(workspaceRootURL: workspaceRootURL)
+            showWelcome()
         }
     }
 
@@ -84,9 +89,14 @@ final class WorkspaceSplitViewController: NSSplitViewController {
         pdfReaderController.display(url)
     }
 
-    private func showPlaceholder(workspaceRootURL: URL?) {
-        placeholderController.display(workspaceRootURL: workspaceRootURL)
-        installContentController(placeholderController)
+    private func showWelcome() {
+        welcomeController.refresh()
+        installContentController(welcomeController)
+    }
+
+    private func showWorkspaceHome(_ workspaceRootURL: URL) {
+        workspaceHomeController.display(workspaceRootURL: workspaceRootURL)
+        installContentController(workspaceHomeController)
     }
 
     private func installContentController(_ controller: NSViewController) {
