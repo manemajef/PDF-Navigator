@@ -106,3 +106,5 @@ private struct RecentPDFRow: View {
         .onHover { isHovered = $0 }
     }
 }
+
+

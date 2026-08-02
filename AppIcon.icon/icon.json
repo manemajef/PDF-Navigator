@@ -1,0 +1,339 @@
+{
+  "fill" : {
+    "automatic-gradient" : "display-p3:0.18074,0.42033,0.77793,1.00000"
+  },
+  "groups" : [
+    {
+      "layers" : [
+        {
+          "blend-mode" : "screen",
+          "fill-specializations" : [
+            {
+              "value" : {
+                "linear-gradient" : [
+                  "extended-srgb:0.00000,0.53333,1.00000,0.50000",
+                  "display-p3:0.24442,0.56870,1.05747,0.10000"
+                ]
+              }
+            },
+            {
+              "appearance" : "tinted",
+              "value" : {
+                "linear-gradient" : [
+                  "display-p3:0.24442,0.56870,1.05747,1.00000",
+                  "extended-srgb:0.00000,0.53333,1.00000,1.00000"
+                ],
+                "orientation" : {
+                  "start" : {
+                    "x" : 0.5,
+                    "y" : 0
+                  },
+                  "stop" : {
+                    "x" : 0.7200716619398156,
+                    "y" : 1.458777504798202
+                  }
+                }
+              }
+            }
+          ],
+          "glass" : true,
+          "image-name" : "SVG image 2.svg",
+          "name" : "SVG image 2",
+          "position-specializations" : [
+            {
+              "idiom" : "square",
+              "value" : {
+                "scale" : 2.8,
+                "translation-in-points" : [
+                  -24.18428740866119,
+                  11.944203020299312
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "blend-mode" : "multiply",
+          "fill-specializations" : [
+            {
+              "value" : {
+                "automatic-gradient" : "display-p3:0.16632,0.28134,0.43182,1.00000",
+                "orientation" : {
+                  "start" : {
+                    "x" : 0.5,
+                    "y" : 1
+                  },
+                  "stop" : {
+                    "x" : 0.5,
+                    "y" : 0
+                  }
+                }
+              }
+            },
+            {
+              "appearance" : "tinted",
+              "value" : {
+                "linear-gradient" : [
+                  "display-p3:0.24442,0.56870,1.05747,1.00000",
+                  "extended-srgb:0.00000,0.53333,1.00000,1.00000"
+                ],
+                "orientation" : {
+                  "start" : {
+                    "x" : 0.5,
+                    "y" : 0
+                  },
+                  "stop" : {
+                    "x" : 0.7200716619398156,
+                    "y" : 1.458777504798202
+                  }
+                }
+              }
+            }
+          ],
+          "glass" : true,
+          "image-name" : "SVG image 2.svg",
+          "name" : "SVG image 2",
+          "position-specializations" : [
+            {
+              "idiom" : "square",
+              "value" : {
+                "scale" : 2.8,
+                "translation-in-points" : [
+                  -24.18428740866119,
+                  11.944203020299312
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "blend-mode" : "darken",
+          "fill" : "system-light",
+          "hidden" : false,
+          "image-name" : "SVG image.svg",
+          "name" : "SVG image",
+          "position-specializations" : [
+            {
+              "idiom" : "square",
+              "value" : {
+                "scale" : 6,
+                "translation-in-points" : [
+                  0,
+                  -10.87557665961117
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.6
+      },
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.2
+      }
+    },
+    {
+      "hidden" : true,
+      "layers" : [
+        {
+          "blend-mode" : "lighten",
+          "fill" : {
+            "solid" : "extended-srgb:0.00000,0.53333,1.00000,1.00000"
+          },
+          "hidden" : false,
+          "image-name" : "Image 5.png",
+          "name" : "Image 5",
+          "position-specializations" : [
+            {
+              "value" : {
+                "scale" : 1,
+                "translation-in-points" : [
+                  -8.155899246787158,
+                  -208.23438942529458
+                ]
+              }
+            },
+            {
+              "idiom" : "square",
+              "value" : {
+                "scale" : 0.55,
+                "translation-in-points" : [
+                  -42.29089005523929,
+                  -137.55579697970074
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "fill" : "none",
+          "hidden" : false,
+          "image-name" : "Image 15.png",
+          "name" : "Image 15",
+          "position-specializations" : [
+            {
+              "value" : {
+                "scale" : 1,
+                "translation-in-points" : [
+                  -8.155899246787158,
+                  -208.23438942529458
+                ]
+              }
+            },
+            {
+              "idiom" : "square",
+              "value" : {
+                "scale" : 0.5,
+                "translation-in-points" : [
+                  -44.19089005523938,
+                  -137.55579697970074
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "blend-mode" : "darken",
+          "fill" : {
+            "automatic-gradient" : "extended-srgb:0.00000,0.53333,1.00000,1.00000"
+          },
+          "hidden" : false,
+          "image-name" : "Image 4.png",
+          "name" : "Image 4",
+          "position-specializations" : [
+            {
+              "value" : {
+                "scale" : 1,
+                "translation-in-points" : [
+                  -8.155899246787158,
+                  -148.9567318126459
+                ]
+              }
+            },
+            {
+              "idiom" : "square",
+              "value" : {
+                "scale" : 0.5,
+                "translation-in-points" : [
+                  -44.19089005523938,
+                  -92.80579697970074
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "blend-mode" : "lighten",
+          "fill" : "system-light",
+          "hidden" : false,
+          "image-name" : "Image 9.png",
+          "name" : "Image 9",
+          "position-specializations" : [
+            {
+              "value" : {
+                "scale" : 1,
+                "translation-in-points" : [
+                  -8.155899246787158,
+                  -208.23438942529458
+                ]
+              }
+            },
+            {
+              "idiom" : "square",
+              "value" : {
+                "scale" : 0.5,
+                "translation-in-points" : [
+                  -44.19089005523938,
+                  -152.08345459234943
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "fill" : "system-light",
+          "hidden" : false,
+          "image-name" : "Image 13.png",
+          "name" : "Image 13",
+          "position-specializations" : [
+            {
+              "value" : {
+                "scale" : 1,
+                "translation-in-points" : [
+                  -8.155899246787158,
+                  109.95673181264601
+                ]
+              }
+            },
+            {
+              "idiom" : "square",
+              "value" : {
+                "scale" : 0.5,
+                "translation-in-points" : [
+                  -44.19089005523938,
+                  41.629032833484985
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.6
+      },
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.2
+      }
+    },
+    {
+      "layers" : [
+
+      ],
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.6
+      },
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.2
+      }
+    },
+    {
+      "layers" : [
+
+      ],
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.6
+      },
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.2
+      }
+    },
+    {
+      "layers" : [
+
+      ],
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.6
+      },
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.2
+      }
+    }
+  ],
+  "supported-platforms" : {
+    "circles" : [
+      "watchOS"
+    ],
+    "squares" : "shared"
+  }
+}
