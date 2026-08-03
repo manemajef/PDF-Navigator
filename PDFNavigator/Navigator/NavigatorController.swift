@@ -1,20 +1,38 @@
 import AppKit
+import Combine
 
-@MainActor
 final class NavigatorController: NSViewController {
-    var onSelectPDF: ((URL) -> Void)?
-    var onOpenPDFInNewTab: ((URL) -> Void)?
+    private let session: WorkspaceSession
+    private let actions: WorkspaceActions
 
     private let scrollView = NSScrollView()
     private let outlineView = NSOutlineView()
     private var rootNode: NavigatorNode?
-    private var selectedPDFURL: URL?
     private var loadingNodes: Set<URL> = []
-    private let folderNameLabel = NSTextField(labelWithString: "")
-    
-    
-    
-    
+    private var sessionChangesSubscription: AnyCancellable?
+
+    init(session: WorkspaceSession, actions: WorkspaceActions) {
+        self.session = session
+        self.actions = actions
+        super.init(nibName: nil, bundle: nil)
+
+        sessionChangesSubscription = session.changes.sink { [weak self] change in
+            switch change {
+            case .root:
+                self?.reloadTree()
+            case .selection:
+                self?.revealSelectedPDF()
+            case .history:
+                break
+            }
+        }
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) is unavailable")
+    }
+
     override func loadView() {
         let container = NSView()
         container.translatesAutoresizingMaskIntoConstraints = false
@@ -56,10 +74,9 @@ final class NavigatorController: NSViewController {
         view = container
     }
 
-    func display(workspaceRootURL: URL?, selectedPDFURL: URL?) {
+    private func reloadTree() {
         loadViewIfNeeded()
-        let standardizedRoot = workspaceRootURL?.standardizedFileURL
-        self.selectedPDFURL = selectedPDFURL?.standardizedFileURL
+        let standardizedRoot = session.root?.standardizedFileURL
 
         if rootNode?.url != standardizedRoot {
             loadingNodes.removeAll()
@@ -77,11 +94,6 @@ final class NavigatorController: NSViewController {
         } else {
             revealSelectedPDF()
         }
-    }
-
-    func setSelectedPDF(_ url: URL) {
-        selectedPDFURL = url.standardizedFileURL
-        revealSelectedPDF()
     }
 
     private func loadChildrenIfNeeded(
@@ -125,7 +137,7 @@ final class NavigatorController: NSViewController {
     }
 
     private func revealSelectedPDF() {
-        guard let selectedPDFURL,
+        guard let selectedPDFURL = session.selection,
               let rootNode else {
             outlineView.deselectAll(nil)
             return
@@ -186,18 +198,18 @@ final class NavigatorController: NSViewController {
         }
 
         if NSApp.currentEvent?.modifierFlags.contains(.command) == true {
-            onOpenPDFInNewTab?(node.url.standardizedFileURL)
+            actions.openInNewTab(node.url.standardizedFileURL)
         }
     }
 
     @objc private func openClickedRowInNewTab(_ sender: Any?) {
         guard let url = contextMenuPDFURL else { return }
-        onOpenPDFInNewTab?(url)
+        actions.openInNewTab(url)
     }
 
     @objc private func openClickedRow(_ sender: Any?) {
         guard let url = contextMenuPDFURL else { return }
-        onSelectPDF?(url)
+        session.select(url)
     }
 
     @objc private func openClickedRowInDefaultApp(_ sender: Any?) {
@@ -338,8 +350,8 @@ extension NavigatorController: NSOutlineViewDelegate {
         }
 
         let requestedURL = node.url.standardizedFileURL
-        guard requestedURL != selectedPDFURL else { return }
-        onSelectPDF?(requestedURL)
+        guard requestedURL != session.selection else { return }
+        session.select(requestedURL)
     }
 }
 
@@ -364,16 +376,4 @@ private extension URL {
         let root = other.standardizedFileURL.path
         return mine == root || mine.hasPrefix(root + "/")
     }
-}
-
-#Preview("Sidebar Only") {
-    let controller = NavigatorController()
-    
-    // Pass a test folder URL (like your home directory or demo folder)
-    let sampleURL = URL(fileURLWithPath: NSHomeDirectory())
-    controller.display(workspaceRootURL: sampleURL, selectedPDFURL: nil)
-    
-    // Set a fixed frame size for the Xcode Canvas canvas
-    controller.view.frame = NSRect(x: 0, y: 0, width: 260, height: 600)
-    return controller
 }

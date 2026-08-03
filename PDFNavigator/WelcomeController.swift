@@ -1,11 +1,20 @@
 import AppKit
 
 final class WelcomeController: NSViewController {
+    private let actions: WorkspaceActions
     private let recentPDFsList = RecentPDFListView()
 
-    var onChooseWorkspace: (() -> Void)?
-    var onOpenRecentPDF: ((URL) -> Void)? {
-        didSet { recentPDFsList.onOpenPDF = onOpenRecentPDF }
+    init(actions: WorkspaceActions) {
+        self.actions = actions
+        super.init(nibName: nil, bundle: nil)
+        recentPDFsList.onOpenPDF = { [actions] url in
+            actions.openPDF(url)
+        }
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) is unavailable")
     }
 
     override func loadView() {
@@ -66,6 +75,6 @@ final class WelcomeController: NSViewController {
     }
 
     @objc private func chooseWorkspace() {
-        onChooseWorkspace?()
+        actions.chooseWorkspace()
     }
 }

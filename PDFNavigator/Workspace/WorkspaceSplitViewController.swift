@@ -1,31 +1,30 @@
 import AppKit
+import Combine
 
 final class WorkspaceSplitViewController: NSSplitViewController {
-    private let navigatorController = NavigatorController()
-    private let pdfReaderController: PDFReaderController
+    private let session: WorkspaceSession
+    private let navigatorController: NavigatorController
+    private let pdfReaderController = PDFReaderController()
     private let welcomeController: WelcomeController
     private let workspaceHomeController: WorkspaceHomeController
     private let contentHostController = NSViewController()
+    private var sessionChangesSubscription: AnyCancellable?
 
-    var onSelectPDF: ((URL) -> Void)? {
-        get { navigatorController.onSelectPDF }
-        set { navigatorController.onSelectPDF = newValue }
+    var readerController: PDFReaderController {
+        pdfReaderController
     }
 
-    var onOpenPDFInNewTab: ((URL) -> Void)? {
-        get { navigatorController.onOpenPDFInNewTab }
-        set { navigatorController.onOpenPDFInNewTab = newValue }
-    }
-
-    init(
-        pdfReaderController: PDFReaderController,
-        welcomeController: WelcomeController,
-        workspaceHomeController: WorkspaceHomeController
-    ) {
-        self.pdfReaderController = pdfReaderController
-        self.welcomeController = welcomeController
-        self.workspaceHomeController = workspaceHomeController
+    init(session: WorkspaceSession, actions: WorkspaceActions) {
+        self.session = session
+        self.navigatorController = NavigatorController(session: session, actions: actions)
+        self.welcomeController = WelcomeController(actions: actions)
+        self.workspaceHomeController = WorkspaceHomeController(actions: actions)
         super.init(nibName: nil, bundle: nil)
+
+        sessionChangesSubscription = session.changes.sink { [weak self] change in
+            guard change == .selection else { return }
+            self?.renderMode()
+        }
     }
 
     @available(*, unavailable)
@@ -62,41 +61,23 @@ final class WorkspaceSplitViewController: NSSplitViewController {
         splitView.autosaveName = "WorkspaceSplitView"
     }
 
-    func display(workspaceRootURL: URL?, selectedPDFURL: URL?) {
+    private func renderMode() {
         loadViewIfNeeded()
-        navigatorController.display(
-            workspaceRootURL: workspaceRootURL,
-            selectedPDFURL: selectedPDFURL
-        )
 
-        if let selectedPDFURL {
-            showPDF(selectedPDFURL)
-        } else if let workspaceRootURL {
-            showWorkspaceHome(workspaceRootURL)
-        } else {
-            showWelcome()
+        switch session.mode {
+        case .reading:
+            guard let pdfSession = session.pdfSession else { return }
+            installContentController(pdfReaderController)
+            pdfReaderController.display(pdfSession)
+
+        case .workspaceHome(let root):
+            workspaceHomeController.display(workspaceRootURL: root)
+            installContentController(workspaceHomeController)
+
+        case .welcome:
+            welcomeController.refresh()
+            installContentController(welcomeController)
         }
-    }
-
-    func selectPDF(_ url: URL) {
-        loadViewIfNeeded()
-        navigatorController.setSelectedPDF(url)
-        showPDF(url)
-    }
-
-    private func showPDF(_ url: URL) {
-        installContentController(pdfReaderController)
-        pdfReaderController.display(url)
-    }
-
-    private func showWelcome() {
-        welcomeController.refresh()
-        installContentController(welcomeController)
-    }
-
-    private func showWorkspaceHome(_ workspaceRootURL: URL) {
-        workspaceHomeController.display(workspaceRootURL: workspaceRootURL)
-        installContentController(workspaceHomeController)
     }
 
     private func installContentController(_ controller: NSViewController) {

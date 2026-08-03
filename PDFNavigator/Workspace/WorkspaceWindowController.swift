@@ -1,33 +1,19 @@
 import AppKit
+import Combine
 
 final class WorkspaceWindowController: NSWindowController {
-    private let pdfReaderController = PDFReaderController()
-    private let welcomeController = WelcomeController()
-    private let workspaceHomeController = WorkspaceHomeController()
+    let session = WorkspaceSession()
+    let actions = WorkspaceActions()
+
     private lazy var workspaceToolbar = WorkspaceToolbar(target: self)
     private lazy var splitController = WorkspaceSplitViewController(
-        pdfReaderController: pdfReaderController,
-        welcomeController: welcomeController,
-        workspaceHomeController: workspaceHomeController
+        session: session,
+        actions: actions
     )
+    private var sessionChangesSubscription: AnyCancellable?
 
-    private var workspaceRootURL: URL?
-    private var selectedPDFURL: URL?
-    private var navigationHistory = NavigationHistory()
-
-    var openWorkspaceInNewTab: ((WorkspaceOpenRequest) -> Void)?
-    var onSelectedPDF: ((URL) -> Void)?
-    var chooseWorkspace: (() -> Void)? {
-        didSet {
-            welcomeController.onChooseWorkspace = chooseWorkspace
-            workspaceHomeController.onChooseWorkspace = chooseWorkspace
-        }
-    }
-    var openRecentPDF: ((URL) -> Void)? {
-        didSet {
-            welcomeController.onOpenRecentPDF = openRecentPDF
-            workspaceHomeController.onOpenRecentPDF = openRecentPDF
-        }
+    private var reader: PDFReaderController {
+        splitController.readerController
     }
 
     init() {
@@ -40,7 +26,11 @@ final class WorkspaceWindowController: NSWindowController {
         window.title = "PDF Navigator"
         window.animationBehavior = .default
         super.init(window: window)
+
         configureWindow()
+        sessionChangesSubscription = session.changes.sink { [weak self] change in
+            self?.apply(change)
+        }
     }
 
     @available(*, unavailable)
@@ -48,13 +38,8 @@ final class WorkspaceWindowController: NSWindowController {
         fatalError("init(coder:) is unavailable")
     }
 
-    func display(workspaceRootURL: URL?, selectedPDFURL: URL?) {
-        self.workspaceRootURL = workspaceRootURL?.standardizedFileURL
-        self.selectedPDFURL = selectedPDFURL?.standardizedFileURL
-        navigationHistory.reset(to: self.selectedPDFURL)
-        updateNavigationToolbar()
-        updateWindowIdentity()
-        showCurrentWorkspace()
+    func open(_ request: WorkspaceOpenRequest) {
+        session.open(request)
     }
 
     private func configureWindow() {
@@ -74,69 +59,47 @@ final class WorkspaceWindowController: NSWindowController {
         )
         window.setContentSize(NSSize(width: documentWidth, height: 850))
         window.center()
-
-        splitController.onSelectPDF = { [weak self] url in
-            self?.selectPDF(url)
-        }
-        splitController.onOpenPDFInNewTab = { [weak self] url in
-            self?.openWorkspaceInNewTab?(.pdf(url))
-        }
     }
 
-    private func selectPDF(_ url: URL) {
-        let url = url.standardizedFileURL
-        guard selectedPDFURL != url else { return }
-        selectedPDFURL = url
-        (document as? WorkspaceDocument)?.selectPDF(url)
-        navigationHistory.visit(url)
-        updateNavigationToolbar()
-        updateWindowIdentity()
-        splitController.selectPDF(url)
-        onSelectedPDF?(url)
-    }
+    private func apply(_ change: WorkspaceSession.Change) {
+        switch change {
+        case .root:
+            updateWindowIdentity()
+            if let root = session.root {
+                RecentLocationsStore.shared.noteWorkspace(root)
+            }
 
-    private func showCurrentWorkspace() {
-        splitController.display(
-            workspaceRootURL: workspaceRootURL,
-            selectedPDFURL: selectedPDFURL
-        )
+        case .selection:
+            updateWindowIdentity()
+            if let selection = session.selection {
+                RecentLocationsStore.shared.notePDF(selection)
+            }
+
+        case .history:
+            workspaceToolbar.updateNavigation(
+                canGoBack: session.canGoBack,
+                canGoForward: session.canGoForward
+            )
+        }
     }
 
     private func updateWindowIdentity() {
-        guard let window else { return }
-
-        if let selectedPDFURL {
-            window.title = selectedPDFURL.lastPathComponent
-            window.representedURL = selectedPDFURL
-        } else if let workspaceRootURL {
-            window.title = workspaceRootURL.lastPathComponent.isEmpty
-                ? workspaceRootURL.path
-                : workspaceRootURL.lastPathComponent
-            window.representedURL = workspaceRootURL
-        } else {
-            window.title = "PDF Navigator"
-            window.representedURL = nil
-        }
+        window?.title = session.windowTitle
+        window?.representedURL = session.representedURL
     }
 
+    // MARK: - Commands
+
     @objc func newWorkspaceTab(_ sender: Any?) {
-        if let workspaceRootURL {
-            openWorkspaceInNewTab?(.folder(workspaceRootURL))
-        } else {
-            openWorkspaceInNewTab?(.empty)
-        }
+        actions.newTab()
     }
 
     @objc func goBack(_ sender: Any?) {
-        guard let url = navigationHistory.goBack() else { return }
-        updateNavigationToolbar()
-        showHistoricalSelection(url)
+        session.goBack()
     }
 
     @objc func goForward(_ sender: Any?) {
-        guard let url = navigationHistory.goForward() else { return }
-        updateNavigationToolbar()
-        showHistoricalSelection(url)
+        session.goForward()
     }
 
     @objc func toggleSidebar(_ sender: Any?) {
@@ -148,11 +111,11 @@ final class WorkspaceWindowController: NSWindowController {
     }
 
     @objc func searchFieldChanged(_ sender: NSSearchField) {
-        pdfReaderController.search(sender.stringValue)
+        session.pdfSession?.search(sender.stringValue)
     }
 
     @objc func searchFieldSubmitted(_ sender: NSSearchField) {
-        pdfReaderController.selectNextSearchMatch()
+        session.pdfSession?.selectNextMatch()
     }
 
     func endSearchInteraction() {
@@ -161,59 +124,44 @@ final class WorkspaceWindowController: NSWindowController {
     }
 
     @objc func selectNextSearchMatch(_ sender: Any?) {
-        pdfReaderController.selectNextSearchMatch()
+        session.pdfSession?.selectNextMatch()
     }
 
     @objc func selectPreviousSearchMatch(_ sender: Any?) {
-        pdfReaderController.selectPreviousSearchMatch()
+        session.pdfSession?.selectPreviousMatch()
     }
 
     @objc func goToPreviousPage(_ sender: Any?) {
-        pdfReaderController.goToPreviousPage()
+        reader.goToPreviousPage()
     }
 
     @objc func goToNextPage(_ sender: Any?) {
-        pdfReaderController.goToNextPage()
+        reader.goToNextPage()
     }
 
     @objc func zoomIn(_ sender: Any?) {
-        pdfReaderController.zoomIn()
+        reader.zoomIn()
     }
 
     @objc func zoomOut(_ sender: Any?) {
-        pdfReaderController.zoomOut()
+        reader.zoomOut()
     }
 
     @objc func showActualSize(_ sender: Any?) {
-        pdfReaderController.showActualSize()
+        reader.showActualSize()
     }
 
     @objc func zoomToFit(_ sender: Any?) {
-        pdfReaderController.zoomToFit()
+        reader.zoomToFit()
     }
 
     @objc func openCurrentPDFInDefaultApp(_ sender: Any?) {
-        pdfReaderController.openInDefaultApp()
+        reader.openInDefaultApp()
     }
 
     @objc func shareCurrentPDF(_ sender: Any?) {
         guard let contentView = window?.contentView else { return }
-        pdfReaderController.share(from: contentView)
-    }
-
-    private func showHistoricalSelection(_ url: URL) {
-        selectedPDFURL = url.standardizedFileURL
-        (document as? WorkspaceDocument)?.selectPDF(url)
-        updateWindowIdentity()
-        splitController.selectPDF(url)
-        onSelectedPDF?(url)
-    }
-
-    private func updateNavigationToolbar() {
-        workspaceToolbar.updateNavigation(
-            canGoBack: navigationHistory.canGoBack,
-            canGoForward: navigationHistory.canGoForward
-        )
+        reader.share(from: contentView)
     }
 }
 
@@ -221,9 +169,9 @@ extension WorkspaceWindowController: NSMenuItemValidation {
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
         switch menuItem.action {
         case #selector(goBack(_:)):
-            return navigationHistory.canGoBack
+            return session.canGoBack
         case #selector(goForward(_:)):
-            return navigationHistory.canGoForward
+            return session.canGoForward
         case #selector(toggleSidebar(_:)),
              #selector(newWorkspaceTab(_:)):
             return true
@@ -238,7 +186,7 @@ extension WorkspaceWindowController: NSMenuItemValidation {
              #selector(zoomToFit(_:)),
              #selector(openCurrentPDFInDefaultApp(_:)),
              #selector(shareCurrentPDF(_:)):
-            return pdfReaderController.hasDocument
+            return session.pdfSession?.hasDocument == true
         default:
             return true
         }

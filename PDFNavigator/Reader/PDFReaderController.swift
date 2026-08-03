@@ -1,20 +1,14 @@
 import AppKit
+import Combine
 import CoreGraphics
 import PDFKit
 
+/// Renders a `PDFSession` into a `PDFView`.
 final class PDFReaderController: NSViewController {
     private let pdfView = PDFView()
-    private let searchController = PDFSearchController()
-    private let positions = ReadingPositionStore()
-    private var currentURL: URL?
 
-    var currentPDFURL: URL? {
-        currentURL
-    }
-
-    var hasDocument: Bool {
-        pdfView.document != nil
-    }
+    private var session: PDFSession?
+    private var sessionChangesSubscription: AnyCancellable?
 
     override func loadView() {
         pdfView.displayMode = .singlePageContinuous
@@ -23,33 +17,22 @@ final class PDFReaderController: NSViewController {
         pdfView.displayBox = .cropBox
         pdfView.autoScales = true
         pdfView.backgroundColor = NSColor.windowBackgroundColor
-        searchController.attach(pdfView: pdfView)
         view = pdfView
     }
 
-    func display(_ url: URL) {
+    func display(_ session: PDFSession) {
         loadViewIfNeeded()
-        let url = url.standardizedFileURL
-        guard currentURL != url else { return }
+        guard self.session !== session else { return }
 
         savePosition()
-        currentURL = url
-
-        guard let document = PDFDocument(url: url) else {
-            pdfView.document = nil
-            return
-        }
-
-        for pageIndex in 0..<document.pageCount {
-            document.page(at: pageIndex)?.annotations.forEach {
-                $0.isReadOnly = true
-            }
-        }
+        self.session = session
+        observe(session)
 
         pdfView.autoScales = true
-        pdfView.document = document
-        searchController.setDocument(document)
-        restorePosition(for: url, in: document)
+        pdfView.document = session.document
+        pdfView.highlightedSelections = nil
+        pdfView.clearSelection()
+        restorePosition(from: session)
     }
 
     override func viewWillDisappear() {
@@ -57,16 +40,35 @@ final class PDFReaderController: NSViewController {
         savePosition()
     }
 
-    func search(_ query: String) {
-        searchController.updateQuery(query)
+    private func observe(_ session: PDFSession) {
+        sessionChangesSubscription = session.changes.sink { [weak self, weak session] change in
+            guard let self, let session,
+                  self.session === session else {
+                return
+            }
+            self.render(change, from: session)
+        }
     }
 
-    func selectNextSearchMatch() {
-        searchController.selectNextMatch()
-    }
+    private func render(_ change: PDFSession.Change, from session: PDFSession) {
+        switch change {
+        case .searchQuery:
+            pdfView.highlightedSelections = nil
+            pdfView.clearSelection()
 
-    func selectPreviousSearchMatch() {
-        searchController.selectPreviousMatch()
+        case .matchesFinalized:
+            pdfView.highlightedSelections = session.matches.isEmpty
+                ? nil
+                : session.matches
+
+        case .currentMatch:
+            guard let match = session.currentMatch else {
+                pdfView.clearSelection()
+                return
+            }
+            pdfView.setCurrentSelection(match, animate: true)
+            pdfView.scrollSelectionToVisible(nil)
+        }
     }
 
     func goToPreviousPage() {
@@ -96,21 +98,22 @@ final class PDFReaderController: NSViewController {
     }
 
     func openInDefaultApp() {
-        guard let currentURL else { return }
-        NSWorkspace.shared.open(currentURL)
+        guard let session else { return }
+        NSWorkspace.shared.open(session.url)
     }
 
     func share(from sourceView: NSView) {
-        guard let currentURL else { return }
-        NSSharingServicePicker(items: [currentURL]).show(
+        guard let session else { return }
+        NSSharingServicePicker(items: [session.url]).show(
             relativeTo: sourceView.bounds,
             of: sourceView,
             preferredEdge: .maxY
         )
     }
 
-    private func restorePosition(for url: URL, in document: PDFDocument) {
-        guard let position = positions.position(for: url),
+    private func restorePosition(from session: PDFSession) {
+        guard let document = session.document,
+              let position = session.savedPosition,
               let page = document.page(at: position.pageIndex) else {
             return
         }
@@ -125,8 +128,8 @@ final class PDFReaderController: NSViewController {
     }
 
     private func savePosition() {
-        guard let currentURL,
-              let document = pdfView.document,
+        guard let session,
+              let document = session.document,
               let destination = pdfView.currentDestination,
               let page = destination.page else {
             return
@@ -135,14 +138,13 @@ final class PDFReaderController: NSViewController {
         let pageIndex = document.index(for: page)
         guard pageIndex != NSNotFound else { return }
 
-        positions.save(
+        session.savePosition(
             ReadingPosition(
                 pageIndex: pageIndex,
                 pointX: destination.point.x,
                 pointY: destination.point.y,
                 zoom: pdfView.scaleFactor
-            ),
-            for: currentURL
+            )
         )
     }
 }

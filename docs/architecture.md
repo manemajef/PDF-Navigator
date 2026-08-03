@@ -26,30 +26,25 @@ App/
 Workspace/
   WorkspaceDocument
   WorkspaceWindowController
-  WorkspaceState
+  WorkspaceSession
+  WorkspaceActions
   WorkspaceOpenRequest
-  WorkspaceOpenResolver
-  WorkspaceRestoration
+  WorkspaceSplitViewController
+  WorkspaceToolbar
+  NavigationHistory
 
 Navigator/
   NavigatorController
   NavigatorItem
   DirectoryScanner
-  DirectoryWatcher
 
 Reader/
+  PDFSession
   PDFReaderController
-  PDFSearchController
   ReadingPositionStore
 
-Window/
-  WindowChromeState
-  NativeTabCoordinator
-
 Stores/
-  RecentWorkspaceStore
-  RecentPDFStore
-  SecurityScopedBookmarkStore
+  RecentLocationsStore
 ```
 
 Names may change during implementation, but the ownership boundaries should
@@ -76,13 +71,18 @@ SwiftUI should not be the root architecture for native tabs or window chrome.
 Each native tab is one workspace context.
 
 ```text
-Workspace tab
-  workspaceRootURL: URL?
-  selectedPDFURL: URL?
+WorkspaceSession
+  root: URL?
+  selection: URL?
+  pdfSession: PDFSession?
   directory tree/cache
   expanded directories
   PDF-to-PDF navigation history
-  reader/search state for selected PDF
+
+PDFSession
+  document
+  search query and matches
+  reading position
 ```
 
 The window shell contains state that should feel shared across tabs:
@@ -101,19 +101,10 @@ All document/workspace state is scoped to the active workspace tab.
 
 ## WorkspaceDocument
 
-`WorkspaceDocument` is the document-like unit for one native tab. It should be
-read-only from the user's perspective.
-
-It represents a workspace context, not a PDF file.
-
-Expected state:
-
-```swift
-final class WorkspaceDocument: NSDocument {
-    var workspaceRootURL: URL?
-    var selectedPDFURL: URL?
-}
-```
+`WorkspaceDocument` is currently the read-only AppKit entry point that creates
+one native tab. It retains the initial open request so AppKit can construct the
+window, but it does not track later sidebar or history selection changes.
+`WorkspaceSession` is the live source of truth.
 
 Opening a PDF creates a `WorkspaceDocument` whose root is the PDF's parent
 directory and whose selected PDF is the opened file.
@@ -136,12 +127,13 @@ Responsibilities:
 - Create and own the `NSToolbar`.
 - Create and own the split view controller.
 - Route toolbar and menu actions to the active workspace/reader controllers.
-- Maintain PDF-to-PDF navigation history for the tab.
+- Own one `WorkspaceSession`, which maintains root, selection, the current
+  `PDFSession`, and PDF-to-PDF navigation history.
 - Update window title, subtitle, represented URL, and recent items.
 - Coordinate opening files/folders in the current tab, new tab, or new window.
 
-It may hold current state directly or through a dedicated `WorkspaceState`
-object. Either way, there should be one clear source of truth per tab.
+Controllers read from the shared session and send mutations through its
+methods. They must not cache copies of root or selection.
 
 ## NativeTabCoordinator
 
@@ -219,15 +211,15 @@ large workspaces on open.
 
 ## Reader Architecture
 
-`PDFReaderController` owns `PDFView` and PDFKit behavior.
+`PDFSession` owns the selected URL, `PDFDocument`, search state, and reading
+position. `PDFReaderController` owns `PDFView` and renders the session.
 
 Responsibilities:
 
-- Load/display the selected PDF.
-- Save and restore reading position.
+- Attach a `PDFSession` and display its document.
+- Save and restore reading position through the session.
 - Expose page navigation.
 - Expose zoom commands.
-- Expose search commands.
 - Expose share/print/default-app actions when relevant.
 - Hide PDFKit implementation details from global app commands.
 
@@ -235,7 +227,7 @@ Commands should call reader capabilities:
 
 ```swift
 reader.zoomIn()
-reader.selectNextSearchMatch()
+session.pdfSession?.selectNextMatch()
 reader.goToPreviousPage()
 ```
 
@@ -245,18 +237,20 @@ They should not reach through to a raw `PDFView` from app-level command code.
 
 Search should be an AppKit toolbar/readers feature, not SwiftUI `.searchable`.
 
-Use `NSSearchToolbarItem` in the native toolbar. It should drive a
-`PDFSearchController` owned by `PDFReaderController`.
+Use `NSSearchToolbarItem` in the native toolbar. It drives the current
+`PDFSession`; the reader observes that session and renders search changes.
 
-The search controller owns:
+`PDFSession` owns:
 
 - Current query.
 - PDFKit find cancellation.
 - Match collection.
-- Highlighted selections.
 - Selected match index.
 - Next/previous result behavior.
 - Result-count reporting when added to the UI.
+
+`PDFReaderController` owns only the rendered selection and highlighted
+selections in `PDFView`.
 
 Changing the selected PDF must cancel search for the old document and clear or
 re-run search according to the current product decision.
@@ -268,8 +262,10 @@ Use the AppKit responder chain for native command routing and validation.
 Global app/menu commands should resolve the active `WorkspaceWindowController`
 from the key or main window, then ask it whether an action is available.
 
-Avoid broad action bags that expose internal models or framework views. Prefer
-small controller methods:
+`WorkspaceActions` is limited to the four app-level operations needed by child
+controllers: choose workspace, open PDF, open in a new tab, and create a tab.
+It must not expose session state or framework views. Menu commands continue to
+use small controller methods:
 
 ```swift
 openWorkspace()

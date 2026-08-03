@@ -42,28 +42,4 @@ struct DirectoryScanner {
             return $0.name.localizedStandardCompare($1.name) == .orderedAscending
         }
     }
-
-    @concurrent
-    static func items(
-        from root: URL,
-        revealing file: URL?
-    ) async throws -> [URL: [NavigatorItem]] {
-        let root = root.standardizedFileURL
-        var result = [root: try await items(in: root)]
-
-        guard let file else { return result }
-
-        let parent = file.standardizedFileURL.deletingLastPathComponent()
-        let rootParts = root.pathComponents
-        let parentParts = parent.pathComponents
-        guard parentParts.starts(with: rootParts) else { return result }
-
-        var directory = root
-        for component in parentParts.dropFirst(rootParts.count) {
-            directory.appendPathComponent(component, isDirectory: true)
-            result[directory] = try await items(in: directory)
-        }
-
-        return result
-    }
 }

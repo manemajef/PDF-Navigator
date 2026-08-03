@@ -109,7 +109,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     ) {
         if let document = controller?.document as? WorkspaceDocument {
             document.open(request)
-            noteRecentLocations(for: request)
         } else {
             openWorkspaceWindow(request)
         }
@@ -143,33 +142,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    func configure(
-        _ controller: WorkspaceWindowController,
-        for request: WorkspaceOpenRequest
-    ) {
-        controller.openWorkspaceInNewTab = { [weak self, weak controller] request in
+    func configure(_ controller: WorkspaceWindowController) {
+        let actions = controller.actions
+
+        actions.newTab = { [weak self, weak controller] in
             guard let sourceWindow = controller?.window else { return }
+            let request: WorkspaceOpenRequest
+            if let root = controller?.session.root {
+                request = .folder(root)
+            } else {
+                request = .empty
+            }
             self?.openWorkspaceWindow(request, tabbedWith: sourceWindow)
         }
-        controller.onSelectedPDF = { [weak self] url in
-            self?.recentLocations.notePDF(url)
+        actions.openInNewTab = { [weak self, weak controller] url in
+            guard let sourceWindow = controller?.window else { return }
+            self?.openWorkspaceWindow(.pdf(url), tabbedWith: sourceWindow)
         }
-        controller.chooseWorkspace = { [weak self, weak controller] in
+        actions.chooseWorkspace = { [weak self, weak controller] in
             guard let self, let request = promptForWorkspace() else { return }
             open(request, replacing: controller)
         }
-        controller.openRecentPDF = { [weak self, weak controller] url in
+        actions.openPDF = { [weak self, weak controller] url in
             self?.open(.pdf(url), replacing: controller)
-        }
-        noteRecentLocations(for: request)
-    }
-
-    private func noteRecentLocations(for request: WorkspaceOpenRequest) {
-        if let workspaceRootURL = request.workspaceRootURL {
-            recentLocations.noteWorkspace(workspaceRootURL)
-        }
-        if let selectedPDFURL = request.selectedPDFURL {
-            recentLocations.notePDF(selectedPDFURL)
         }
     }
 }
