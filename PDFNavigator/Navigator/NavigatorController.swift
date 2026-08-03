@@ -2,8 +2,8 @@ import AppKit
 import Combine
 
 final class NavigatorController: NSViewController {
-    private let session: WorkspaceSession
-    private let actions: WorkspaceActions
+    private let session: TabSession
+    private let actions: WindowActions
 
     private let scrollView = NSScrollView()
     private let outlineView = NSOutlineView()
@@ -11,7 +11,7 @@ final class NavigatorController: NSViewController {
     private var loadingNodes: Set<URL> = []
     private var sessionChangesSubscription: AnyCancellable?
 
-    init(session: WorkspaceSession, actions: WorkspaceActions) {
+    init(session: TabSession, actions: WindowActions) {
         self.session = session
         self.actions = actions
         super.init(nibName: nil, bundle: nil)
@@ -83,7 +83,7 @@ final class NavigatorController: NSViewController {
             rootNode = standardizedRoot.map {
                 NavigatorNode(url: $0, isDirectory: true)
             }
-            
+
             outlineView.reloadData()
             if let rootNode {
                 loadChildrenIfNeeded(for: rootNode) { [weak self] in

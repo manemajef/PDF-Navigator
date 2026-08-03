@@ -1,13 +1,13 @@
 import AppKit
 
-final class WorkspaceToolbar: NSObject, NSToolbarDelegate, NSSearchFieldDelegate {
-    private weak var target: WorkspaceWindowController?
+final class WindowToolbar: NSObject, NSToolbarDelegate, NSSearchFieldDelegate {
+    private weak var target: WindowController?
     private weak var navigationItem: NSToolbarItemGroup?
     private weak var searchItem: NSSearchToolbarItem?
     private var canGoBack = false
     private var canGoForward = false
 
-    init(target: WorkspaceWindowController) {
+    init(target: WindowController) {
         self.target = target
     }
 
@@ -67,7 +67,7 @@ final class WorkspaceToolbar: NSObject, NSToolbarDelegate, NSSearchFieldDelegate
                 identifier: itemIdentifier,
                 label: "New Tab",
                 symbolName: "plus",
-                action: #selector(WorkspaceWindowController.newWorkspaceTab(_:))
+                action: #selector(WindowController.newTab(_:))
             )
         case .workspaceSearch:
             makeSearchItem(itemIdentifier)
@@ -125,7 +125,7 @@ final class WorkspaceToolbar: NSObject, NSToolbarDelegate, NSSearchFieldDelegate
         let backItem = item.subitems[0]
         backItem.target = target
         backItem.action = #selector(
-            WorkspaceWindowController.goBack(_:)
+            WindowController.goBack(_:)
         )
         backItem.toolTip = "Back"
         backItem.autovalidates = false
@@ -134,7 +134,7 @@ final class WorkspaceToolbar: NSObject, NSToolbarDelegate, NSSearchFieldDelegate
         let forwardItem = item.subitems[1]
         forwardItem.target = target
         forwardItem.action = #selector(
-            WorkspaceWindowController.goForward(_:)
+            WindowController.goForward(_:)
         )
         forwardItem.toolTip = "Forward"
         forwardItem.autovalidates = false
@@ -154,7 +154,7 @@ final class WorkspaceToolbar: NSObject, NSToolbarDelegate, NSSearchFieldDelegate
         item.searchField.placeholderString = "Search Current PDF"
         item.searchField.delegate = self
         item.searchField.target = target
-        item.searchField.action = #selector(WorkspaceWindowController.searchFieldSubmitted(_:))
+        item.searchField.action = #selector(WindowController.searchFieldSubmitted(_:))
         item.searchField.isContinuous = false
         searchItem = item
         return item

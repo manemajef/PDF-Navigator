@@ -1,5 +1,6 @@
 import Foundation
 
+/// Back and forward PDF selections for one tab session.
 struct NavigationHistory {
     private var entries: [URL] = []
     private var index: Int?

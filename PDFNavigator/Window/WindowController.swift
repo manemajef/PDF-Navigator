@@ -1,19 +1,19 @@
 import AppKit
 import Combine
 
-final class WorkspaceWindowController: NSWindowController {
-    let session = WorkspaceSession()
-    let actions = WorkspaceActions()
+final class WindowController: NSWindowController {
+    let session = TabSession()
+    let actions = WindowActions()
 
-    private lazy var workspaceToolbar = WorkspaceToolbar(target: self)
-    private lazy var splitController = WorkspaceSplitViewController(
+    private lazy var toolbar = WindowToolbar(target: self)
+    private lazy var contentController = WindowContentController(
         session: session,
         actions: actions
     )
     private var sessionChangesSubscription: AnyCancellable?
 
     private var reader: PDFReaderController {
-        splitController.readerController
+        contentController.readerController
     }
 
     init() {
@@ -38,7 +38,7 @@ final class WorkspaceWindowController: NSWindowController {
         fatalError("init(coder:) is unavailable")
     }
 
-    func open(_ request: WorkspaceOpenRequest) {
+    func open(_ request: OpenRequest) {
         session.open(request)
     }
 
@@ -49,8 +49,8 @@ final class WorkspaceWindowController: NSWindowController {
         window.toolbarStyle = .unified
         window.autorecalculatesKeyViewLoop = true
 
-        window.toolbar = workspaceToolbar.makeToolbar()
-        window.contentViewController = splitController
+        window.toolbar = toolbar.makeToolbar()
+        window.contentViewController = contentController
 
         let visibleWidth = NSScreen.main?.visibleFrame.width ?? 1_050
         let documentWidth = min(
@@ -61,7 +61,7 @@ final class WorkspaceWindowController: NSWindowController {
         window.center()
     }
 
-    private func apply(_ change: WorkspaceSession.Change) {
+    private func apply(_ change: TabSession.Change) {
         switch change {
         case .root:
             updateWindowIdentity()
@@ -76,7 +76,7 @@ final class WorkspaceWindowController: NSWindowController {
             }
 
         case .history:
-            workspaceToolbar.updateNavigation(
+            toolbar.updateNavigation(
                 canGoBack: session.canGoBack,
                 canGoForward: session.canGoForward
             )
@@ -90,7 +90,7 @@ final class WorkspaceWindowController: NSWindowController {
 
     // MARK: - Commands
 
-    @objc func newWorkspaceTab(_ sender: Any?) {
+    @objc func newTab(_ sender: Any?) {
         actions.newTab()
     }
 
@@ -103,11 +103,11 @@ final class WorkspaceWindowController: NSWindowController {
     }
 
     @objc func toggleSidebar(_ sender: Any?) {
-        splitController.toggleSidebar(sender)
+        contentController.toggleSidebar(sender)
     }
 
     @objc func beginSearch(_ sender: Any?) {
-        workspaceToolbar.beginSearch()
+        toolbar.beginSearch()
     }
 
     @objc func searchFieldChanged(_ sender: NSSearchField) {
@@ -119,7 +119,7 @@ final class WorkspaceWindowController: NSWindowController {
     }
 
     func endSearchInteraction() {
-        workspaceToolbar.endSearch()
+        toolbar.endSearch()
         window?.makeFirstResponder(nil)
     }
 
@@ -165,7 +165,7 @@ final class WorkspaceWindowController: NSWindowController {
     }
 }
 
-extension WorkspaceWindowController: NSMenuItemValidation {
+extension WindowController: NSMenuItemValidation {
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
         switch menuItem.action {
         case #selector(goBack(_:)):
@@ -173,7 +173,7 @@ extension WorkspaceWindowController: NSMenuItemValidation {
         case #selector(goForward(_:)):
             return session.canGoForward
         case #selector(toggleSidebar(_:)),
-             #selector(newWorkspaceTab(_:)):
+             #selector(newTab(_:)):
             return true
         case #selector(beginSearch(_:)),
              #selector(selectNextSearchMatch(_:)),

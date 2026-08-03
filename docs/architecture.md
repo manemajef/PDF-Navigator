@@ -1,355 +1,228 @@
 # PDF Navigator Architecture
 
-This document translates `product-requirements.md` into technical design rules.
-If product requirements change, this document may need to change. Internal
-implementation details may also change without changing product requirements,
-as long as the user-visible behavior remains the same.
+This document translates `product-requirements.md` into current technical
+ownership rules. Product terminology comes from the requirements; type names
+describe implementation scope.
 
-## Architectural Direction
+## Direction
 
-PDF Navigator should use an AppKit-first macOS shell with focused SwiftUI use
-only where it clearly helps.
+PDF Navigator uses an AppKit-first macOS shell. AppKit owns application and
+window lifecycle, native tabs, the toolbar, the sidebar split, menus, and
+command routing. PDFKit owns PDF rendering and operations. SwiftUI is used only
+inside contained views where it reduces presentation code.
 
-The app needs native document opening, native window tabs, toolbar hiding and
-customization, sidebar collapse behavior, responder-chain commands, and a
-PDFKit reader. These are AppKit-native responsibilities. SwiftUI remains useful
-for isolated views such as welcome screens, settings, or simple panels, but it
-should not own the window/tab/toolbar/sidebar shell.
-
-## High-Level Structure
+## Source Structure
 
 ```text
-App/
-  AppDelegate
-  AppCommands
+PDFNavigator/
+  AppDelegate.swift
+  MainMenu.swift
+  OpenRequest.swift
+  WorkspaceDocument.swift
 
-Workspace/
-  WorkspaceDocument
-  WorkspaceWindowController
-  WorkspaceSession
-  WorkspaceActions
-  WorkspaceOpenRequest
-  WorkspaceSplitViewController
-  WorkspaceToolbar
-  NavigationHistory
+  Window/
+    WindowController.swift
+    WindowContentController.swift
+    WindowToolbar.swift
+    WindowActions.swift
+    TabSession.swift
+    NavigationHistory.swift
 
-Navigator/
-  NavigatorController
-  NavigatorItem
-  DirectoryScanner
+  Home/
+    WelcomeController.swift
+    WorkspaceHomeController.swift
+    RecentPDFListView.swift
 
-Reader/
-  PDFSession
-  PDFReaderController
-  ReadingPositionStore
+  Navigator/
+    NavigatorController.swift
+    NavigatorItem.swift
+    DirectoryScanner.swift
 
-Stores/
-  RecentLocationsStore
+  Reader/
+    PDFSession.swift
+    PDFReaderController.swift
+    ReadingPositionStore.swift
+
+  Stores/
+    RecentLocationsStore.swift
 ```
 
-Names may change during implementation, but the ownership boundaries should
-remain stable.
+The source root contains application entry, lifecycle, and top-level routing.
+Directories group concrete features or responsibilities. App-wide persistence
+lives in `Stores`; feature-private persistence stays with its feature.
 
-## Framework Ownership
+## Runtime Model
 
-| Responsibility | Owner |
-| --- | --- |
-| App lifecycle and open-file handling | AppKit |
-| Native windows and native tabs | AppKit |
-| Toolbar construction, hiding, customization, validation | AppKit |
-| Sidebar split, collapse, width autosave | AppKit |
-| PDF rendering and PDF operations | PDFKit inside AppKit controller |
-| Command routing and menu validation | AppKit responder chain |
-| Welcome, settings, simple empty states | SwiftUI optional |
-| Filesystem scanning | Service/value layer, off main actor where safe |
-| Persistence and bookmarks | Store layer |
+A **workspace** is a directory used as the navigation root. It is not a window,
+tab, controller, or globally unique runtime object.
 
-SwiftUI should not be the root architecture for native tabs or window chrome.
-
-## Core Runtime Model
-
-Each native tab is one workspace context.
+A `TabSession` is the mutable browsing state of one native tab or standalone
+window:
 
 ```text
-WorkspaceSession
+TabSession
   root: URL?
   selection: URL?
   pdfSession: PDFSession?
-  directory tree/cache
-  expanded directories
-  PDF-to-PDF navigation history
+  navigation history
+```
 
+Multiple `TabSession` instances may reference the same workspace root. Their
+selection, search, PDF state, and history remain independent. Shared directory
+data should be introduced only if measured duplication justifies it; UI
+controllers and mutable navigation state must not be shared between tabs.
+
+A `PDFSession` is the source of truth for one open PDF:
+
+```text
 PDFSession
-  document
+  URL and PDFDocument
   search query and matches
+  selected search match
   reading position
 ```
 
-The window shell contains state that should feel shared across tabs:
+There is no global current workspace or current PDF.
+
+## Ownership
 
 ```text
-Window shell
-  toolbar visibility
-  sidebar visibility
-  window size/position
-  native tab bar
-  toolbar customization
+AppDelegate
+  creates WindowController instances
+  configures app-level WindowActions
+  owns menus and open routing
+
+WindowController
+  owns one NSWindow, including a window used as a native tab
+  owns one TabSession
+  owns one WindowToolbar
+  owns one WindowContentController
+
+WindowContentController
+  owns NavigatorController
+  owns PDFReaderController
+  owns WelcomeController
+  owns WorkspaceHomeController
+  switches the detail content from TabSession.mode
 ```
 
-The app should not store one global current workspace or one global current PDF.
-All document/workspace state is scoped to the active workspace tab.
+Each native tab has its own `NSWindow` and `NSWindowController`, so each tab
+also has its own toolbar, split-view controller, sidebar controller, and reader
+controller. Native tab grouping controls presentation; it does not create a
+shared controller tree.
 
-## WorkspaceDocument
+Controllers read state from `TabSession` and mutate it through session methods.
+They must not cache their own copies of the workspace root, selected PDF, search
+state, or navigation history.
 
-`WorkspaceDocument` is currently the read-only AppKit entry point that creates
-one native tab. It retains the initial open request so AppKit can construct the
-window, but it does not track later sidebar or history selection changes.
-`WorkspaceSession` is the live source of truth.
+## Opening
 
-Opening a PDF creates a `WorkspaceDocument` whose root is the PDF's parent
-directory and whose selected PDF is the opened file.
-
-Opening a folder creates a `WorkspaceDocument` whose root is that folder and
-whose selected PDF is nil.
-
-The document should disable unsupported save/revert commands unless a future
-feature introduces real workspace files.
-
-## WorkspaceWindowController
-
-`WorkspaceWindowController` owns one native tab/window's shell and active
-workspace UI.
-
-Responsibilities:
-
-- Create and configure `NSWindow`.
-- Assign `tabbingIdentifier` and `tabbingMode`.
-- Create and own the `NSToolbar`.
-- Create and own the split view controller.
-- Route toolbar and menu actions to the active workspace/reader controllers.
-- Own one `WorkspaceSession`, which maintains root, selection, the current
-  `PDFSession`, and PDF-to-PDF navigation history.
-- Update window title, subtitle, represented URL, and recent items.
-- Coordinate opening files/folders in the current tab, new tab, or new window.
-
-Controllers read from the shared session and send mutations through its
-methods. They must not cache copies of root or selection.
-
-## NativeTabCoordinator
-
-Native tabs should use AppKit `NSWindow` tabbing, not a custom SwiftUI tab bar.
-
-The tab coordinator should isolate all tab-specific AppKit behavior:
-
-- Mark the next opened workspace window as an explicit tab.
-- Mark the next opened workspace window as an explicit separate window.
-- Attach a newly created window to the frontmost compatible tab group.
-- Respect `NSWindow.userTabbingPreference` for ordinary opens.
-- Keep one-shot tab/separate-window flags from leaking if no window is created.
-
-No regular view should call `addTabbedWindow` directly.
-
-## WindowChromeState
-
-Toolbar and sidebar visibility are window-shell concerns.
-
-Toolbar visibility should be applied through the native window toolbar:
+`OpenRequest` is the single input for opening an empty state, folder, or PDF:
 
 ```swift
-window.toolbar?.isVisible = isVisible
-```
-
-or the equivalent responder-chain toolbar toggle.
-
-Sidebar visibility should be applied through the split view controller. If
-multiple native tabs need shared sidebar visibility, the window/tab coordinator
-must synchronize that state across the windows in the tab group.
-
-Do not store toolbar/sidebar visibility inside a workspace model as if it were
-document content.
-
-## Workspace Open Flow
-
-Use one resolver for all user-originated open requests:
-
-```swift
-enum WorkspaceOpenRequest {
-    case pdf(URL)
+enum OpenRequest {
+    case empty
     case folder(URL)
+    case pdf(URL)
 }
 ```
 
-Resolution rules:
+- An empty request has no workspace and no PDF.
+- A folder request uses that folder as the workspace root.
+- A PDF request uses the PDF parent directory as the workspace root and selects
+  the PDF.
 
-- PDF request: root is `pdf.deletingLastPathComponent()`, selected PDF is the
-  PDF.
-- Folder request: root is the folder, selected PDF is nil.
-- Record recent workspace for both PDFs and folders.
-- Record recent PDF for PDF requests and selected sidebar PDFs.
-- Create or refresh security-scoped bookmark access for restored locations.
+`AppDelegate` resolves Finder, menu, recent-item, new-window, and new-tab opens.
+Child controllers receive only the four app-level operations in
+`WindowActions`: choose a location, open a PDF in the current tab, open a PDF in
+a new tab, and create a new tab.
 
-Open logic should not be duplicated in welcome views, menu commands, sidebar
-context menus, and document controllers.
+`Cmd-N` creates an independent empty window. `Cmd-T` creates a native tab and
+inherits the current root without inheriting the selected PDF. Opening a PDF in
+a new tab creates another independent `TabSession` in the same native tab
+group.
 
-## Sidebar Architecture
+## `WorkspaceDocument`
 
-The sidebar should use AppKit for native source-list behavior unless a later
-experiment proves SwiftUI is simpler without losing native behavior.
+`WorkspaceDocument` is a temporary read-only `NSDocument` lifecycle adapter.
+It stores the initial `OpenRequest`, creates a `WindowController`, and lets
+`NSDocumentController` retain the relationship. It does not own live workspace,
+PDF, search, or navigation state and it does not support editing or saving.
 
-Responsibilities:
+Removing it requires a separate window-lifetime refactor and verification of
+Finder opening, independent windows, native tabs, tab detachment, and closing.
+It should not acquire additional responsibilities in the meantime.
 
-- Display the current workspace root.
-- Lazily enumerate directories.
-- Track expanded directories per workspace tab.
-- Track selected PDF per workspace tab.
-- Restore committed selection if navigation is cancelled or fails.
-- Provide context menu actions such as Open, Open in New Tab, Open in New
-  Window, Show in Finder, and Open in Default App.
+## Window Shell
 
-Directory scanning should remain lazy. Do not recursively enumerate arbitrary
-large workspaces on open.
+`WindowController` creates and configures the `NSWindow`, routes responder-chain
+commands, validates menu items, and projects `TabSession` changes into the
+window title, represented URL, recents, toolbar state, and visible content.
 
-## Reader Architecture
+`WindowContentController` owns the stable sidebar/detail composition:
 
-`PDFSession` owns the selected URL, `PDFDocument`, search state, and reading
-position. `PDFReaderController` owns `PDFView` and renders the session.
+- `.welcome`: no workspace root; show `WelcomeController`.
+- `.workspaceHome`: root exists with no selected PDF; show
+  `WorkspaceHomeController`.
+- `.reading`: install `PDFReaderController` and display the current
+  `PDFSession`.
 
-Responsibilities:
+`WindowToolbar` owns `NSToolbarDelegate`, toolbar item creation, search-field
+delegation, and back/forward enabled state. Persisted toolbar and split-view
+identifiers are compatibility keys and do not need to match current type names.
 
-- Attach a `PDFSession` and display its document.
-- Save and restore reading position through the session.
-- Expose page navigation.
-- Expose zoom commands.
-- Expose share/print/default-app actions when relevant.
-- Hide PDFKit implementation details from global app commands.
+## Navigator
 
-Commands should call reader capabilities:
+`NavigatorController` owns native sidebar construction, lazy tree loading,
+selection, expansion, command-click handling, and sidebar actions.
+`DirectoryScanner` owns filesystem enumeration. `NavigatorItem` is the
+sendable value returned by the scanner.
 
-```swift
-reader.zoomIn()
-session.pdfSession?.selectNextMatch()
-reader.goToPreviousPage()
-```
+Directory scanning remains lazy. Do not recursively enumerate an arbitrary
+workspace on open. Keep the outline behavior in `NavigatorController` until a
+new independently substantial responsibility emerges; forwarding wrappers are
+not a useful split.
 
-They should not reach through to a raw `PDFView` from app-level command code.
+## Reader and Search
 
-## Search Architecture
+`PDFReaderController` owns the `PDFView` and rendered selections. `PDFSession`
+owns the document, search operation, matches, current match, and reading
+position. Global commands call controller or session capabilities rather than
+reaching into a raw `PDFView`.
 
-Search should be an AppKit toolbar/readers feature, not SwiftUI `.searchable`.
+Changing the selected PDF creates a new `PDFSession`. Search cancellation and
+observer cleanup belong to the old session, while the reader only updates its
+rendered state.
 
-Use `NSSearchToolbarItem` in the native toolbar. It drives the current
-`PDFSession`; the reader observes that session and renders search changes.
+## Commands
 
-`PDFSession` owns:
+Menus and toolbar items use the AppKit responder chain and target the same
+small `@objc` methods on `WindowController`. `WindowActions` exists only for
+app-level operations that child controllers cannot perform themselves. It must
+not expose state or framework views.
 
-- Current query.
-- PDFKit find cancellation.
-- Match collection.
-- Selected match index.
-- Next/previous result behavior.
-- Result-count reporting when added to the UI.
-
-`PDFReaderController` owns only the rendered selection and highlighted
-selections in `PDFView`.
-
-Changing the selected PDF must cancel search for the old document and clear or
-re-run search according to the current product decision.
-
-## Command Routing
-
-Use the AppKit responder chain for native command routing and validation.
-
-Global app/menu commands should resolve the active `WorkspaceWindowController`
-from the key or main window, then ask it whether an action is available.
-
-`WorkspaceActions` is limited to the four app-level operations needed by child
-controllers: choose workspace, open PDF, open in a new tab, and create a tab.
-It must not expose session state or framework views. Menu commands continue to
-use small controller methods:
-
-```swift
-openWorkspace()
-openPDFInNewTab(_:)
-toggleSidebar()
-toggleToolbar()
-goBackInWorkspace()
-goForwardInWorkspace()
-zoomInPDF()
-searchCurrentPDF(_:)
-```
-
-Document navigation and PDF page navigation must remain separate commands.
+PDF-to-PDF back/forward navigation is owned by `TabSession`. Page navigation
+inside the current PDF is owned by `PDFReaderController` and PDFKit. These are
+separate commands.
 
 ## Persistence
 
-Persist these concepts separately:
+Persist concepts with their owner:
 
-- Recent workspaces.
-- Recent PDFs.
-- Restored workspace tabs.
-- Reading positions per PDF.
-- Toolbar customization.
-- Window frame.
-- Split view/sidebar width.
+- Recent workspaces and PDFs: `RecentLocationsStore`.
+- Reading positions: `ReadingPositionStore`.
+- Toolbar customization: native `NSToolbar` autosaving.
+- Sidebar width: native split-view autosaving.
 
-Use security-scoped bookmarks for durable access to user-selected files and
-folders. Raw URLs are acceptable for current runtime state, but not as the only
-restoration mechanism in a sandboxed macOS app.
+Restored file access will require security-scoped bookmarks before sandboxed
+distribution. Raw URLs are acceptable for current runtime state but are not a
+complete sandbox restoration design.
 
-Where possible, store paths relative to the workspace root:
+## Non-Goals
 
-```swift
-struct WorkspaceSnapshot: Codable {
-    var rootBookmarkID: UUID
-    var selectedPDFRelativePath: String?
-    var expandedDirectoryRelativePaths: Set<String>
-}
-```
-
-## SwiftUI Usage Rules
-
-SwiftUI is allowed where it reduces complexity:
-
-- General welcome view.
-- Workspace home view.
-- Settings.
-- Simple panels or popovers.
-- Small static or form-like views hosted in AppKit.
-
-SwiftUI should not own:
-
-- Native window lifecycle.
-- Native tab attachment.
-- Toolbar customization.
-- Toolbar visibility.
-- Sidebar split/collapse behavior.
-- PDFKit command routing.
-
-If a SwiftUI view needs to trigger shell behavior, it should call a narrow
-controller method rather than receiving `NSWindow`, `NSToolbar`, or `PDFView`.
-
-## Technical Non-Goals
-
-- A fake-native custom tab strip.
-- A parallel SwiftUI and AppKit window system.
-- A `DocumentGroup` architecture where one PDF is treated as the whole scene
-  model.
-- Passing raw `PDFView` through global command state.
-- Persisting raw URLs as the only file-access restoration mechanism.
-- Recursive eager scanning of arbitrary directory trees.
-
-## Migration Direction From Current Code
-
-The current SwiftUI `WindowGroup` architecture should be treated as temporary.
-Future refactors should move toward:
-
-1. AppKit app/document opening.
-2. `WorkspaceDocument` or equivalent read-only document context.
-3. `WorkspaceWindowController` with native toolbar and native tabs.
-4. AppKit split/sidebar shell.
-5. `PDFReaderController` owning all PDFKit operations.
-6. Store-backed recents, bookmarks, and restoration.
-
-During migration, avoid expanding the existing `WindowBridge` and
-`WorkspaceActions` patterns. They are symptoms of the current mismatch between
-SwiftUI scene ownership and native Mac shell behavior.
+- A globally unique workspace instance for every root URL.
+- Shared mutable tab sessions or UI controllers.
+- A custom tab strip or parallel SwiftUI window system.
+- A protocol, coordinator, or service for a single concrete implementation.
+- Splitting cohesive controllers solely to reduce line counts.
+- Treating one PDF as the entire application model.

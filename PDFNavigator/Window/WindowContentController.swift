@@ -1,8 +1,8 @@
 import AppKit
 import Combine
 
-final class WorkspaceSplitViewController: NSSplitViewController {
-    private let session: WorkspaceSession
+final class WindowContentController: NSSplitViewController {
+    private let session: TabSession
     private let navigatorController: NavigatorController
     private let pdfReaderController = PDFReaderController()
     private let welcomeController: WelcomeController
@@ -14,7 +14,7 @@ final class WorkspaceSplitViewController: NSSplitViewController {
         pdfReaderController
     }
 
-    init(session: WorkspaceSession, actions: WorkspaceActions) {
+    init(session: TabSession, actions: WindowActions) {
         self.session = session
         self.navigatorController = NavigatorController(session: session, actions: actions)
         self.welcomeController = WelcomeController(actions: actions)
@@ -34,8 +34,7 @@ final class WorkspaceSplitViewController: NSSplitViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        
-        // sidebar
+
         let sidebar = NSSplitViewItem(sidebarWithViewController: navigatorController)
         sidebar.minimumThickness = 180
         sidebar.maximumThickness = 360
@@ -44,18 +43,16 @@ final class WorkspaceSplitViewController: NSSplitViewController {
         sidebar.allowsFullHeightLayout = true
         sidebar.titlebarSeparatorStyle = .none
 
-        // content
         contentHostController.view = NSView()
         let content = NSSplitViewItem(viewController: contentHostController)
         content.minimumThickness = 420
         content.titlebarSeparatorStyle = .shadow
-        
-        
+
         if #available(macOS 26.0, *) {
-            content.automaticallyAdjustsSafeAreaInsets = true //toggle to disable floating sidebar effect
+            // Keep detail content beside the full-height sidebar instead of underneath it.
+            content.automaticallyAdjustsSafeAreaInsets = true
         }
 
-        // compose sidebar and content
         addSplitViewItem(sidebar)
         addSplitViewItem(content)
         splitView.autosaveName = "WorkspaceSplitView"

@@ -1,10 +1,10 @@
 import AppKit
 
 final class WelcomeController: NSViewController {
-    private let actions: WorkspaceActions
+    private let actions: WindowActions
     private let recentPDFsList = RecentPDFListView()
 
-    init(actions: WorkspaceActions) {
+    init(actions: WindowActions) {
         self.actions = actions
         super.init(nibName: nil, bundle: nil)
         recentPDFsList.onOpenPDF = { [actions] url in
@@ -39,7 +39,7 @@ final class WelcomeController: NSViewController {
         let openButton = NSButton(
             title: "Open…",
             target: self,
-            action: #selector(chooseWorkspace)
+            action: #selector(chooseLocation)
         )
         openButton.controlSize = .large
         openButton.bezelStyle = .rounded
@@ -74,7 +74,7 @@ final class WelcomeController: NSViewController {
         recentPDFsList.display(Array(RecentLocationsStore.shared.recentPDFs.prefix(5)))
     }
 
-    @objc private func chooseWorkspace() {
-        actions.chooseWorkspace()
+    @objc private func chooseLocation() {
+        actions.chooseLocation()
     }
 }

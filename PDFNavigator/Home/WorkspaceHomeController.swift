@@ -1,12 +1,12 @@
 import AppKit
 
 final class WorkspaceHomeController: NSViewController {
-    private let actions: WorkspaceActions
+    private let actions: WindowActions
     private let titleLabel = NSTextField(labelWithString: "")
     private let subtitleLabel = NSTextField(labelWithString: "")
     private let recentPDFsList = RecentPDFListView()
 
-    init(actions: WorkspaceActions) {
+    init(actions: WindowActions) {
         self.actions = actions
         super.init(nibName: nil, bundle: nil)
         recentPDFsList.onOpenPDF = { [actions] url in
@@ -40,7 +40,7 @@ final class WorkspaceHomeController: NSViewController {
         let openButton = NSButton(
             title: "Open Different Workspace",
             target: self,
-            action: #selector(chooseWorkspace)
+            action: #selector(chooseLocation)
         )
         openButton.controlSize = .large
         openButton.bezelStyle = .rounded
@@ -87,7 +87,7 @@ final class WorkspaceHomeController: NSViewController {
         )
     }
 
-    @objc private func chooseWorkspace() {
-        actions.chooseWorkspace()
+    @objc private func chooseLocation() {
+        actions.chooseLocation()
     }
 }

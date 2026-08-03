@@ -1,5 +1,6 @@
 import SwiftUI
 
+/// Shared recent-PDF grid for the welcome and workspace-home screens.
 final class RecentPDFListView: NSHostingView<RecentPDFListContent> {
     private var pdfs: [URL] = []
 
@@ -106,5 +107,4 @@ private struct RecentPDFRow: View {
         .onHover { isHovered = $0 }
     }
 }
-
 

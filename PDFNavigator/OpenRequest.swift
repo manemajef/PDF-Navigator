@@ -1,6 +1,6 @@
 import Foundation
 
-enum WorkspaceOpenRequest {
+enum OpenRequest {
     case empty
     case folder(URL)
     case pdf(URL)

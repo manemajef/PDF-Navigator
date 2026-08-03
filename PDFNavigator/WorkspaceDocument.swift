@@ -13,7 +13,7 @@ final class WorkspaceDocument: NSDocument {
         selectedPDFStorage.withLock { $0 }
     }
 
-    convenience init(request: WorkspaceOpenRequest) {
+    convenience init(request: OpenRequest) {
         self.init()
         apply(request)
     }
@@ -32,15 +32,15 @@ final class WorkspaceDocument: NSDocument {
     }
 
     override func makeWindowControllers() {
-        let controller = WorkspaceWindowController()
+        let controller = WindowController()
         addWindowController(controller)
         (NSApp.delegate as? AppDelegate)?.configure(controller)
         controller.open(openRequest)
     }
 
-    func open(_ request: WorkspaceOpenRequest) {
+    func open(_ request: OpenRequest) {
         apply(request)
-        (windowControllers.first as? WorkspaceWindowController)?.open(request)
+        (windowControllers.first as? WindowController)?.open(request)
     }
 
     override nonisolated func read(from url: URL, ofType typeName: String) throws {
@@ -63,12 +63,12 @@ final class WorkspaceDocument: NSDocument {
         }
     }
 
-    private nonisolated func apply(_ request: WorkspaceOpenRequest) {
+    private nonisolated func apply(_ request: OpenRequest) {
         workspaceRootStorage.withLock { $0 = request.workspaceRootURL }
         selectedPDFStorage.withLock { $0 = request.selectedPDFURL }
     }
 
-    private var openRequest: WorkspaceOpenRequest {
+    private var openRequest: OpenRequest {
         if let selectedPDFURL {
             return .pdf(selectedPDFURL)
         }

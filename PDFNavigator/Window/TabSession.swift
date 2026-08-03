@@ -1,8 +1,8 @@
 import Combine
 import Foundation
 
-/// The state of one workspace window.
-final class WorkspaceSession {
+/// The browsing state of one native tab or window.
+final class TabSession {
     enum Mode: Equatable {
         case welcome
         case workspaceHome(URL)
@@ -50,7 +50,7 @@ final class WorkspaceSession {
         selection ?? root
     }
 
-    func open(_ request: WorkspaceOpenRequest) {
+    func open(_ request: OpenRequest) {
         root = request.workspaceRootURL
         selection = request.selectedPDFURL
         if let selection {

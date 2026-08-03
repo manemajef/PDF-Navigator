@@ -46,7 +46,7 @@ final class MainMenu: NSObject, NSMenuDelegate {
         ).target = self
         fileMenu.addItem(
             withTitle: "New Tab",
-            action: #selector(WorkspaceWindowController.newWorkspaceTab(_:)),
+            action: #selector(WindowController.newTab(_:)),
             keyEquivalent: "t"
         )
         fileMenu.addItem(
@@ -72,7 +72,7 @@ final class MainMenu: NSObject, NSMenuDelegate {
         viewMenuItem.submenu = viewMenu
         viewMenu.addItem(
             withTitle: "Toggle Sidebar",
-            action: #selector(WorkspaceWindowController.toggleSidebar(_:)),
+            action: #selector(WindowController.toggleSidebar(_:)),
             keyEquivalent: "s"
         ).keyEquivalentModifierMask = [.command, .shift]
         viewMenu.addItem(
@@ -83,22 +83,22 @@ final class MainMenu: NSObject, NSMenuDelegate {
         viewMenu.addItem(.separator())
         viewMenu.addItem(
             withTitle: "Actual Size",
-            action: #selector(WorkspaceWindowController.showActualSize(_:)),
+            action: #selector(WindowController.showActualSize(_:)),
             keyEquivalent: "0"
         )
         viewMenu.addItem(
             withTitle: "Zoom to Fit",
-            action: #selector(WorkspaceWindowController.zoomToFit(_:)),
+            action: #selector(WindowController.zoomToFit(_:)),
             keyEquivalent: "9"
         )
         viewMenu.addItem(
             withTitle: "Zoom In",
-            action: #selector(WorkspaceWindowController.zoomIn(_:)),
+            action: #selector(WindowController.zoomIn(_:)),
             keyEquivalent: "="
         )
         viewMenu.addItem(
             withTitle: "Zoom Out",
-            action: #selector(WorkspaceWindowController.zoomOut(_:)),
+            action: #selector(WindowController.zoomOut(_:)),
             keyEquivalent: "-"
         )
 
@@ -108,23 +108,23 @@ final class MainMenu: NSObject, NSMenuDelegate {
         navigateMenuItem.submenu = navigateMenu
         navigateMenu.addItem(
             withTitle: "Back",
-            action: #selector(WorkspaceWindowController.goBack(_:)),
+            action: #selector(WindowController.goBack(_:)),
             keyEquivalent: "["
         )
         navigateMenu.addItem(
             withTitle: "Forward",
-            action: #selector(WorkspaceWindowController.goForward(_:)),
+            action: #selector(WindowController.goForward(_:)),
             keyEquivalent: "]"
         )
         navigateMenu.addItem(.separator())
         navigateMenu.addItem(
             withTitle: "Previous Page",
-            action: #selector(WorkspaceWindowController.goToPreviousPage(_:)),
+            action: #selector(WindowController.goToPreviousPage(_:)),
             keyEquivalent: ""
         )
         navigateMenu.addItem(
             withTitle: "Next Page",
-            action: #selector(WorkspaceWindowController.goToNextPage(_:)),
+            action: #selector(WindowController.goToNextPage(_:)),
             keyEquivalent: ""
         )
 
@@ -134,17 +134,17 @@ final class MainMenu: NSObject, NSMenuDelegate {
         findMenuItem.submenu = findMenu
         findMenu.addItem(
             withTitle: "Find...",
-            action: #selector(WorkspaceWindowController.beginSearch(_:)),
+            action: #selector(WindowController.beginSearch(_:)),
             keyEquivalent: "f"
         )
         findMenu.addItem(
             withTitle: "Find Next",
-            action: #selector(WorkspaceWindowController.selectNextSearchMatch(_:)),
+            action: #selector(WindowController.selectNextSearchMatch(_:)),
             keyEquivalent: "g"
         )
         let previousMatchItem = findMenu.addItem(
             withTitle: "Find Previous",
-            action: #selector(WorkspaceWindowController.selectPreviousSearchMatch(_:)),
+            action: #selector(WindowController.selectPreviousSearchMatch(_:)),
             keyEquivalent: "g"
         )
         previousMatchItem.keyEquivalentModifierMask = [.command, .shift]
@@ -152,12 +152,12 @@ final class MainMenu: NSObject, NSMenuDelegate {
         fileMenu.addItem(.separator())
         fileMenu.addItem(
             withTitle: "Open in Default App",
-            action: #selector(WorkspaceWindowController.openCurrentPDFInDefaultApp(_:)),
+            action: #selector(WindowController.openCurrentPDFInDefaultApp(_:)),
             keyEquivalent: ""
         )
         fileMenu.addItem(
             withTitle: "Share...",
-            action: #selector(WorkspaceWindowController.shareCurrentPDF(_:)),
+            action: #selector(WindowController.shareCurrentPDF(_:)),
             keyEquivalent: ""
         )
 
