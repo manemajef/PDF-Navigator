@@ -5,10 +5,13 @@ import UniformTypeIdentifiers
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var isShowingOpenPanel = false
     private let recentLocations = RecentLocationsStore.shared
+    private var launchPanelController: LaunchPanelController?
+
     private lazy var mainMenu = MainMenu(
         recentLocations: recentLocations,
         onNewWindow: { [weak self] in
-            self?.openWindow(.empty)
+            guard let self, let request = promptForOpenRequest() else { return }
+            openWindow(request)
         },
         onOpen: { [weak self] in
             guard let self, let request = promptForOpenRequest() else { return }
@@ -49,9 +52,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         #if DEBUG
         openWindow(.pdf(DevelopmentConfiguration.demoPDFURL))
         #else
-        openWindow(.empty)
+        showLaunchPanel()
         #endif
-
         return true
     }
 
@@ -60,7 +62,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         hasVisibleWindows: Bool
     ) -> Bool {
         if !hasVisibleWindows {
-            openWindow(.empty)
+            #if DEBUG
+            openWindow(.pdf(DevelopmentConfiguration.demoPDFURL))
+            #else
+            showLaunchPanel()
+            #endif
             return false
         }
         return true
@@ -72,6 +78,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationSupportsSecureRestorableState(_ app: NSApplication) -> Bool {
         true
+    }
+
+    private func showLaunchPanel() {
+        if launchPanelController == nil {
+            let controller = LaunchPanelController()
+            controller.onOpen = { [weak self] in
+                guard let self, let request = promptForOpenRequest() else { return }
+                openWindow(request)
+            }
+            controller.onSelectWorkspace = { [weak self] url in
+                self?.openWindow(.folder(url))
+            }
+            controller.onSelectPDF = { [weak self] url in
+                self?.openWindow(.pdf(url))
+            }
+            launchPanelController = controller
+        }
+        launchPanelController?.refresh()
+        launchPanelController?.showWindow(nil)
     }
 
     private func promptForOpenRequest() -> OpenRequest? {
@@ -122,6 +147,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         _ request: OpenRequest,
         tabbedWith sourceWindow: NSWindow? = nil
     ) {
+        launchPanelController?.close()
         let document = WorkspaceDocument(request: request)
         NSDocumentController.shared.addDocument(document)
         document.makeWindowControllers()
@@ -146,14 +172,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let actions = controller.actions
 
         actions.newTab = { [weak self, weak controller] in
-            guard let sourceWindow = controller?.window else { return }
-            let request: OpenRequest
-            if let root = controller?.session.root {
-                request = .folder(root)
-            } else {
-                request = .empty
-            }
-            self?.openWindow(request, tabbedWith: sourceWindow)
+            guard let controller, let sourceWindow = controller.window else { return }
+            self?.openWindow(.folder(controller.session.root), tabbedWith: sourceWindow)
         }
         actions.openInNewTab = { [weak self, weak controller] url in
             guard let sourceWindow = controller?.window else { return }
@@ -174,17 +194,3 @@ private extension URL {
         (try? resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true
     }
 }
-
-#if DEBUG
-enum DevelopmentConfiguration {
-    static let demoPDFURL = repositoryRoot
-        .appendingPathComponent("DEMO_DIR", isDirectory: true)
-        .appendingPathComponent("micro3-sylabus.pdf", isDirectory: false)
-
-    private static let repositoryRoot = URL(
-        fileURLWithPath: #filePath
-    )
-    .deletingLastPathComponent()
-    .deletingLastPathComponent()
-}
-#endif

@@ -28,13 +28,17 @@ PDFNavigator/
     TabSession.swift
     NavigationHistory.swift
 
-  Home/
-    WelcomeController.swift
-    WorkspaceHomeController.swift
-    RecentPDFListView.swift
+  LaunchPanel/
+    LaunchPanelController.swift
+    LaunchPanelView.swift
 
-  Navigator/
-    NavigatorController.swift
+  Workspace/
+    WorkspaceHomeController.swift
+    WorkspaceHomeView.swift
+
+  Sidebar/
+    SidebarView.swift
+    SidebarItemRowView.swift
     NavigatorItem.swift
     DirectoryScanner.swift
 
@@ -61,7 +65,7 @@ window:
 
 ```text
 TabSession
-  root: URL?
+  root: URL
   selection: URL?
   pdfSession: PDFSession?
   navigation history
@@ -99,9 +103,8 @@ WindowController
   owns one WindowContentController
 
 WindowContentController
-  owns NavigatorController
+  owns the SwiftUI sidebar hosting controller
   owns PDFReaderController
-  owns WelcomeController
   owns WorkspaceHomeController
   switches the detail content from TabSession.mode
 ```
@@ -117,17 +120,15 @@ state, or navigation history.
 
 ## Opening
 
-`OpenRequest` is the single input for opening an empty state, folder, or PDF:
+`OpenRequest` is the single input for opening a folder or PDF:
 
 ```swift
 enum OpenRequest {
-    case empty
     case folder(URL)
     case pdf(URL)
 }
 ```
 
-- An empty request has no workspace and no PDF.
 - A folder request uses that folder as the workspace root.
 - A PDF request uses the PDF parent directory as the workspace root and selects
   the PDF.
@@ -137,10 +138,11 @@ Child controllers receive only the four app-level operations in
 `WindowActions`: choose a location, open a PDF in the current tab, open a PDF in
 a new tab, and create a new tab.
 
-`Cmd-N` creates an independent empty window. `Cmd-T` creates a native tab and
-inherits the current root without inheriting the selected PDF. Opening a PDF in
-a new tab creates another independent `TabSession` in the same native tab
-group.
+`Cmd-N` presents the location picker and creates an independent window only
+after a selection. `Cmd-T` creates a native tab and inherits the current root
+without inheriting the selected PDF. Opening a PDF in a new tab creates another
+independent `TabSession` in the same native tab group. The launch panel is the
+only no-workspace UI.
 
 ## `WorkspaceDocument`
 
@@ -161,8 +163,7 @@ window title, represented URL, recents, toolbar state, and visible content.
 
 `WindowContentController` owns the stable sidebar/detail composition:
 
-- `.welcome`: no workspace root; show `WelcomeController`.
-- `.workspaceHome`: root exists with no selected PDF; show
+- `.workspaceHome`: no selected PDF; show
   `WorkspaceHomeController`.
 - `.reading`: install `PDFReaderController` and display the current
   `PDFSession`.
@@ -173,15 +174,14 @@ identifiers are compatibility keys and do not need to match current type names.
 
 ## Navigator
 
-`NavigatorController` owns native sidebar construction, lazy tree loading,
-selection, expansion, command-click handling, and sidebar actions.
-`DirectoryScanner` owns filesystem enumeration. `NavigatorItem` is the
-sendable value returned by the scanner.
+`WindowContentController` hosts `SidebarView` as the native split sidebar.
+`SidebarViewModel` owns its presentation tree, lazy loading, selection, and
+expansion state. `DirectoryScanner` owns filesystem enumeration. `NavigatorItem`
+is the sendable value returned by the scanner.
 
 Directory scanning remains lazy. Do not recursively enumerate an arbitrary
-workspace on open. Keep the outline behavior in `NavigatorController` until a
-new independently substantial responsibility emerges; forwarding wrappers are
-not a useful split.
+workspace on open. The production sidebar and its `#Preview` use the same
+`SidebarView`; previews replace only URLs and action closures with sample data.
 
 ## Reader and Search
 

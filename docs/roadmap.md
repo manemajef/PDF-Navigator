@@ -39,20 +39,18 @@
 
 ## Completed Foundations
 
-- [x] AppKit window, native-tab, toolbar, sidebar, menu, and PDFKit shell.
-- [x] Separate welcome and workspace-home states.
+- [x] AppKit window, native-tab, toolbar, sidebar split, menu, and PDFKit shell.
+- [x] Separate launch-panel and workspace-home surfaces.
 - [x] Separate recent workspaces and recent PDFs, capped at five on home views.
 - [x] `TabSession` owns root, selection, PDF session, and navigation history.
 - [x] `PDFSession` owns document, search, matches, and reading position.
 - [x] Native Combine publishers replace custom change notification code.
 - [x] Main menu and toolbar have focused owners.
-- [x] Navigator scanning, item data, and controller ownership are separated at
-  substantive boundaries.
+- [x] Sidebar presentation, scanning, and item data have substantive boundaries.
 
 ## Decided Against for Now
 
 - A global workspace registry keyed by root URL.
 - Shared controllers or mutable session state between tabs with the same root.
-- Splitting `NavigatorController` into forwarding controller/view wrappers.
 - A custom command layer on top of the AppKit responder chain.
-- Replacing the native sidebar or native tabs with custom SwiftUI versions.
+- Replacing the native AppKit split or native tabs with custom SwiftUI versions.

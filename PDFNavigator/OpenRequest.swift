@@ -1,14 +1,11 @@
 import Foundation
 
 enum OpenRequest {
-    case empty
     case folder(URL)
     case pdf(URL)
 
-    nonisolated var workspaceRootURL: URL? {
+    nonisolated var workspaceRootURL: URL {
         switch self {
-        case .empty:
-            nil
         case .folder(let url):
             url.standardizedFileURL
         case .pdf(let url):
@@ -18,7 +15,7 @@ enum OpenRequest {
 
     nonisolated var selectedPDFURL: URL? {
         switch self {
-        case .empty, .folder:
+        case .folder:
             nil
         case .pdf(let url):
             url.standardizedFileURL

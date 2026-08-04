@@ -72,12 +72,11 @@ selected, the app shows a workspace home view.
 
 ## Window And Tab Behavior
 
-`Cmd-N` opens a new native window with no workspace selected. It shows the
-general welcome view.
+`Cmd-N` opens the PDF-or-folder picker. A new native window is created only
+after the user chooses a workspace or PDF.
 
-`Cmd-T` opens a new native tab. If the current tab has a workspace, the new tab
-inherits that workspace and starts with no selected PDF. If the current tab has
-no workspace, the new tab shows the general welcome view.
+`Cmd-T` opens a new native tab that inherits the current workspace and starts
+with no selected PDF.
 
 Native tabs are first-class. Users should be able to keep multiple related PDFs
 open in one window and switch between them without losing the surrounding
@@ -90,15 +89,18 @@ window.
 Sidebar contents, selected PDF, expanded folders, search state, and PDF history
 belong to the active workspace tab.
 
-## Welcome And Home Views
+## Launch Panel And Workspace Home
 
-The general welcome view appears when a window or tab has no workspace. It
-should offer:
+When the app launches without an open workspace, a separate launch panel
+appears. It should offer:
 
 - Recent workspaces.
 - Recent PDFs.
 - Open Workspace.
 - Open PDF.
+
+A regular workspace window or tab always has a workspace. Cancelling the
+picker does not create an empty window.
 
 The workspace home view appears when a tab has a workspace but no selected PDF.
 It should offer:
@@ -167,6 +169,8 @@ macOS sandbox file-access rules.
 - Opening a PDF derives a workspace from the PDF's parent directory.
 - Opening a folder is a first-class action.
 - A workspace may exist without a selected PDF.
+- Regular windows and tabs always have a workspace.
+- The no-workspace experience is a separate launch panel.
 - Native tabs are part of the product.
 - Toolbar and sidebar visibility should behave like native window-shell state.
 - Search and PDF controls are first-class reader interactions.

@@ -32,10 +32,10 @@ final class WorkspaceDocument: NSDocument {
     }
 
     override func makeWindowControllers() {
-        let controller = WindowController()
+        guard let request = openRequest else { return }
+        let controller = WindowController(request: request)
         addWindowController(controller)
         (NSApp.delegate as? AppDelegate)?.configure(controller)
-        controller.open(openRequest)
     }
 
     func open(_ request: OpenRequest) {
@@ -68,13 +68,13 @@ final class WorkspaceDocument: NSDocument {
         selectedPDFStorage.withLock { $0 = request.selectedPDFURL }
     }
 
-    private var openRequest: OpenRequest {
+    private var openRequest: OpenRequest? {
         if let selectedPDFURL {
             return .pdf(selectedPDFURL)
         }
         if let workspaceRootURL {
             return .folder(workspaceRootURL)
         }
-        return .empty
+        return nil
     }
 }

@@ -4,7 +4,6 @@ import Foundation
 /// The browsing state of one native tab or window.
 final class TabSession {
     enum Mode: Equatable {
-        case welcome
         case workspaceHome(URL)
         case reading(URL)
     }
@@ -15,13 +14,24 @@ final class TabSession {
         case history
     }
 
-    private(set) var root: URL?
+    private(set) var root: URL
     private(set) var selection: URL?
     private(set) var pdfSession: PDFSession?
 
     private var history = NavigationHistory()
 
     let changes = PassthroughSubject<Change, Never>()
+
+    init(request: OpenRequest) {
+        root = request.workspaceRootURL
+        selection = request.selectedPDFURL
+        if let selection {
+            pdfSession = PDFSession(url: selection)
+        } else {
+            pdfSession = nil
+        }
+        history.reset(to: selection)
+    }
 
     var canGoBack: Bool { history.canGoBack }
     var canGoForward: Bool { history.canGoForward }
@@ -30,20 +40,14 @@ final class TabSession {
         if let selection {
             return .reading(selection)
         }
-        if let root {
-            return .workspaceHome(root)
-        }
-        return .welcome
+        return .workspaceHome(root)
     }
 
     var windowTitle: String {
         if let selection {
             return selection.lastPathComponent
         }
-        if let root {
-            return root.lastPathComponent.isEmpty ? root.path : root.lastPathComponent
-        }
-        return "PDF Navigator"
+        return root.lastPathComponent.isEmpty ? root.path : root.lastPathComponent
     }
 
     var representedURL: URL? {

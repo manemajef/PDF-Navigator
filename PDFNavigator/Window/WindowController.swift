@@ -2,7 +2,7 @@ import AppKit
 import Combine
 
 final class WindowController: NSWindowController {
-    let session = TabSession()
+    let session: TabSession
     let actions = WindowActions()
 
     private lazy var toolbar = WindowToolbar(target: self)
@@ -16,7 +16,8 @@ final class WindowController: NSWindowController {
         contentController.readerController
     }
 
-    init() {
+    init(request: OpenRequest) {
+        session = TabSession(request: request)
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 700, height: 850),
             styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
@@ -65,9 +66,7 @@ final class WindowController: NSWindowController {
         switch change {
         case .root:
             updateWindowIdentity()
-            if let root = session.root {
-                RecentLocationsStore.shared.noteWorkspace(root)
-            }
+            RecentLocationsStore.shared.noteWorkspace(session.root)
 
         case .selection:
             updateWindowIdentity()
