@@ -46,11 +46,12 @@
 - [x] `PDFSession` owns document, search, matches, and reading position.
 - [x] Native Combine publishers replace custom change notification code.
 - [x] Main menu and toolbar have focused owners.
-- [x] Sidebar presentation, scanning, and item data have substantive boundaries.
+- [x] Navigator controller, scanning, and item data have substantive boundaries.
 
 ## Decided Against for Now
 
 - A global workspace registry keyed by root URL.
 - Shared controllers or mutable session state between tabs with the same root.
+- Splitting `NavigatorController` into forwarding controller/view wrappers.
 - A custom command layer on top of the AppKit responder chain.
 - Replacing the native AppKit split or native tabs with custom SwiftUI versions.

@@ -1,5 +1,6 @@
 import AppKit
 import Combine
+import Observation
 import PDFKit
 
 /// Everything true about one open PDF.
@@ -8,9 +9,11 @@ import PDFKit
 /// owns a `PDFView` and renders whatever this object says; it stores no
 /// document state of its own.
 ///
-/// Future PDF tools (highlights, bookmarks, outline, thumbnails) become a
-/// property and a method here, plus a case in `Change`.
+/// Future PDF tools (highlights, bookmarks, outline, thumbnails) become
+/// properties and methods here. `Change` remains only as the narrow bridge for
+/// imperative updates that `PDFView` must apply.
 
+@Observable
 final class PDFSession {
     enum Change {
         case searchQuery
@@ -25,9 +28,12 @@ final class PDFSession {
     private(set) var matches: [PDFSelection] = []
     private(set) var currentMatchIndex: Int?
 
+    @ObservationIgnored
     let changes = PassthroughSubject<Change, Never>()
 
+    @ObservationIgnored
     private var findObservers: [NSObjectProtocol] = []
+    @ObservationIgnored
     private let positions = ReadingPositionStore()
 
     var hasDocument: Bool {

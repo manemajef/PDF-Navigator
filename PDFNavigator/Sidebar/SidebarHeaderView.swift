@@ -1,22 +1,23 @@
 import SwiftUI
 
+/// SwiftUI chrome hosted above the native AppKit navigator.
 struct SidebarHeaderView: View {
     let title: String
+    let isSearchEnabled: Bool
     let onSearch: () -> Void
 
     init(
         title: String = "Workspace",
+        isSearchEnabled: Bool = true,
         onSearch: @escaping () -> Void = {}
     ) {
         self.title = title
+        self.isSearchEnabled = isSearchEnabled
         self.onSearch = onSearch
     }
 
     var body: some View {
         HStack(spacing: 8) {
-            Image(systemName: "sidebar.left")
-                .foregroundStyle(.secondary)
-
             Text(title)
                 .font(.system(size: 12, weight: .bold))
                 .foregroundStyle(.primary)
@@ -31,18 +32,18 @@ struct SidebarHeaderView: View {
                     .foregroundStyle(.secondary)
             }
             .buttonStyle(.plain)
+            .disabled(!isSearchEnabled)
             .help("Search in PDF (Cmd+F)")
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
-        .background(Color(nsColor: .controlBackgroundColor).opacity(0.5))
     }
 }
 
 #Preview("Sidebar Header View") {
-    VStack {
-        SidebarHeaderView(title: "Micro 3")
-        SidebarHeaderView(title: "Linear Algebra Workspace")
+    VStack(spacing: 8) {
+        SidebarHeaderView(title: "Micro 3", isSearchEnabled: true)
+        SidebarHeaderView(title: "Workspace", isSearchEnabled: false)
     }
     .frame(width: 220)
 }

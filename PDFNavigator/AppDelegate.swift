@@ -145,7 +145,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func openWindow(
         _ request: OpenRequest,
-        tabbedWith sourceWindow: NSWindow? = nil
+        tabbedWith sourceWindow: NSWindow? = nil,
+        activation: TabActivation = .foreground
     ) {
         launchPanelController?.close()
         let document = WorkspaceDocument(request: request)
@@ -158,7 +159,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         if let sourceWindow, let tabWindow = controller.window {
             sourceWindow.addTabbedWindow(tabWindow, ordered: .above)
-            tabWindow.makeKeyAndOrderFront(nil)
+            switch activation {
+            case .foreground:
+                tabWindow.makeKeyAndOrderFront(nil)
+            case .background:
+                sourceWindow.tabGroup?.selectedWindow = sourceWindow
+                sourceWindow.makeKeyAndOrderFront(nil)
+            }
         } else {
             document.showWindows()
         }
@@ -171,13 +178,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func configure(_ controller: WindowController) {
         let actions = controller.actions
 
-        actions.newTab = { [weak self, weak controller] in
+        actions.newTab = { [weak self, weak controller] activation in
             guard let controller, let sourceWindow = controller.window else { return }
-            self?.openWindow(.folder(controller.session.root), tabbedWith: sourceWindow)
+            self?.openWindow(
+                .folder(controller.session.root),
+                tabbedWith: sourceWindow,
+                activation: activation
+            )
         }
-        actions.openInNewTab = { [weak self, weak controller] url in
+        actions.openInNewTab = { [weak self, weak controller] url, activation in
             guard let sourceWindow = controller?.window else { return }
-            self?.openWindow(.pdf(url), tabbedWith: sourceWindow)
+            self?.openWindow(
+                .pdf(url),
+                tabbedWith: sourceWindow,
+                activation: activation
+            )
         }
         actions.chooseLocation = { [weak self, weak controller] in
             guard let self, let request = promptForOpenRequest() else { return }

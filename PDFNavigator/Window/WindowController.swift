@@ -1,20 +1,56 @@
 import AppKit
 import Combine
+import SwiftUI
 
 final class WindowController: NSWindowController {
     let session: TabSession
     let actions = WindowActions()
 
-    private lazy var toolbar = WindowToolbar(target: self)
-    private lazy var contentController = WindowContentController(
-        session: session,
-        actions: actions
-    )
+    private let presentation = WorkspacePresentation()
+    private let readerController = PDFReaderController()
     private var sessionChangesSubscription: AnyCancellable?
 
-    private var reader: PDFReaderController {
-        contentController.readerController
-    }
+    private lazy var commands = WindowCommands(
+        chooseLocation: { [weak actions] in actions?.chooseLocation() },
+        openPDF: { [weak actions] in actions?.openPDF($0) },
+        openInNewTab: { [weak actions] in actions?.openInNewTab($0, $1) },
+        newTab: { [weak actions] in actions?.newTab($0) },
+        revealInFinder: {
+            NSWorkspace.shared.activateFileViewerSelecting([$0])
+        },
+        goToPreviousPage: { [weak readerController] in
+            readerController?.goToPreviousPage()
+        },
+        goToNextPage: { [weak readerController] in
+            readerController?.goToNextPage()
+        },
+        zoomIn: { [weak readerController] in readerController?.zoomIn() },
+        zoomOut: { [weak readerController] in readerController?.zoomOut() },
+        showActualSize: { [weak readerController] in
+            readerController?.showActualSize()
+        },
+        zoomToFit: { [weak readerController] in readerController?.zoomToFit() },
+        openCurrentPDFInDefaultApp: { [weak readerController] in
+            readerController?.openInDefaultApp()
+        },
+        shareCurrentPDF: { [weak self] in
+            guard let self, let contentView = window?.contentView else { return }
+            readerController.share(from: contentView)
+        }
+    )
+
+    private lazy var contentController: NSHostingController<WorkspaceView> = {
+        let controller = NSHostingController(
+            rootView: WorkspaceView(
+                session: session,
+                presentation: presentation,
+                commands: commands,
+                readerController: readerController
+            )
+        )
+        controller.sceneBridgingOptions = [.toolbars]
+        return controller
+    }()
 
     init(request: OpenRequest) {
         session = TabSession(request: request)
@@ -32,6 +68,9 @@ final class WindowController: NSWindowController {
         sessionChangesSubscription = session.changes.sink { [weak self] change in
             self?.apply(change)
         }
+        apply(.root)
+        apply(.selection)
+        apply(.history)
     }
 
     @available(*, unavailable)
@@ -43,6 +82,10 @@ final class WindowController: NSWindowController {
         session.open(request)
     }
 
+    func refreshWindowIdentity() {
+        updateWindowIdentity()
+    }
+
     private func configureWindow() {
         guard let window else { return }
         window.tabbingIdentifier = "WorkspaceWindow"
@@ -50,7 +93,6 @@ final class WindowController: NSWindowController {
         window.toolbarStyle = .unified
         window.autorecalculatesKeyViewLoop = true
 
-        window.toolbar = toolbar.makeToolbar()
         window.contentViewController = contentController
 
         let visibleWidth = NSScreen.main?.visibleFrame.width ?? 1_050
@@ -70,18 +112,12 @@ final class WindowController: NSWindowController {
 
         case .selection:
             updateWindowIdentity()
-            toolbar.updatePDFAvailability(
-                session.pdfSession?.hasDocument == true
-            )
             if let selection = session.selection {
                 RecentLocationsStore.shared.notePDF(selection)
             }
 
         case .history:
-            toolbar.updateNavigation(
-                canGoBack: session.canGoBack,
-                canGoForward: session.canGoForward
-            )
+            break
         }
     }
 
@@ -93,7 +129,7 @@ final class WindowController: NSWindowController {
     // MARK: - Commands
 
     @objc func newTab(_ sender: Any?) {
-        actions.newTab()
+        actions.newTab(.foreground)
     }
 
     @objc func goBack(_ sender: Any?) {
@@ -105,7 +141,7 @@ final class WindowController: NSWindowController {
     }
 
     @objc func toggleSidebar(_ sender: Any?) {
-        contentController.toggleSidebar(sender)
+        presentation.toggleSidebar()
     }
 
     @objc func customizeToolbar(_ sender: Any?) {
@@ -113,19 +149,11 @@ final class WindowController: NSWindowController {
     }
 
     @objc func beginSearch(_ sender: Any?) {
-        toolbar.beginSearch()
-    }
-
-    @objc func searchFieldChanged(_ sender: NSSearchField) {
-        session.pdfSession?.search(sender.stringValue)
-    }
-
-    @objc func searchFieldSubmitted(_ sender: NSSearchField) {
-        session.pdfSession?.selectNextMatch()
+        presentation.isSearchPresented = true
     }
 
     func endSearchInteraction() {
-        toolbar.endSearch()
+        presentation.isSearchPresented = false
         window?.makeFirstResponder(nil)
     }
 
@@ -138,46 +166,42 @@ final class WindowController: NSWindowController {
     }
 
     @objc func goToPreviousPage(_ sender: Any?) {
-        reader.goToPreviousPage()
+        readerController.goToPreviousPage()
     }
 
     @objc func goToNextPage(_ sender: Any?) {
-        reader.goToNextPage()
+        readerController.goToNextPage()
     }
 
     @objc func zoomIn(_ sender: Any?) {
-        reader.zoomIn()
+        readerController.zoomIn()
     }
 
     @objc func zoomOut(_ sender: Any?) {
-        reader.zoomOut()
+        readerController.zoomOut()
     }
 
     @objc func showActualSize(_ sender: Any?) {
-        reader.showActualSize()
+        readerController.showActualSize()
     }
 
     @objc func zoomToFit(_ sender: Any?) {
-        reader.zoomToFit()
+        readerController.zoomToFit()
     }
 
     @objc func openCurrentPDFInDefaultApp(_ sender: Any?) {
-        reader.openInDefaultApp()
+        readerController.openInDefaultApp()
     }
 
     @objc func shareCurrentPDF(_ sender: Any?) {
         guard let contentView = window?.contentView else { return }
-        reader.share(from: contentView)
+        readerController.share(from: contentView)
     }
 }
 
-extension WindowController: NSMenuItemValidation, NSToolbarItemValidation {
+extension WindowController: NSMenuItemValidation {
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
         canPerform(menuItem.action)
-    }
-
-    func validateToolbarItem(_ toolbarItem: NSToolbarItem) -> Bool {
-        canPerform(toolbarItem.action)
     }
 
     private func canPerform(_ action: Selector?) -> Bool {

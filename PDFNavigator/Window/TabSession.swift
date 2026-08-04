@@ -1,7 +1,10 @@
 import Combine
 import Foundation
+import Observation
 
 /// The browsing state of one native tab or window.
+@MainActor
+@Observable
 final class TabSession {
     enum Mode: Equatable {
         case workspaceHome(URL)
@@ -18,8 +21,10 @@ final class TabSession {
     private(set) var selection: URL?
     private(set) var pdfSession: PDFSession?
 
+    @ObservationIgnored
     private var history = NavigationHistory()
 
+    @ObservationIgnored
     let changes = PassthroughSubject<Change, Never>()
 
     init(request: OpenRequest) {

@@ -35,6 +35,7 @@ final class WorkspaceDocument: NSDocument {
         guard let request = openRequest else { return }
         let controller = WindowController(request: request)
         addWindowController(controller)
+        controller.refreshWindowIdentity()
         (NSApp.delegate as? AppDelegate)?.configure(controller)
     }
 

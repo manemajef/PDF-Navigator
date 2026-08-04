@@ -1,5 +1,6 @@
 import SwiftUI
 
+/// SwiftUI chrome hosted below the native AppKit navigator.
 struct SidebarFooterView: View {
     let itemCount: Int?
     let onOpenInFinder: () -> Void
@@ -36,7 +37,6 @@ struct SidebarFooterView: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
-        .background(Color(nsColor: .controlBackgroundColor).opacity(0.4))
     }
 }
 

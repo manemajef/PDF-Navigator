@@ -37,13 +37,15 @@ PDFNavigator/
     WorkspaceHomeView.swift
 
   Sidebar/
-    SidebarView.swift
-    SidebarItemRowView.swift
+    NavigatorController.swift
     NavigatorItem.swift
     DirectoryScanner.swift
+    SidebarHeaderView.swift
+    SidebarFooterView.swift
 
   Reader/
     PDFSession.swift
+    PDFSearchFieldView.swift
     PDFReaderController.swift
     ReadingPositionStore.swift
 
@@ -103,7 +105,7 @@ WindowController
   owns one WindowContentController
 
 WindowContentController
-  owns the SwiftUI sidebar hosting controller
+  owns NavigatorController
   owns PDFReaderController
   owns WorkspaceHomeController
   switches the detail content from TabSession.mode
@@ -168,20 +170,24 @@ window title, represented URL, recents, toolbar state, and visible content.
 - `.reading`: install `PDFReaderController` and display the current
   `PDFSession`.
 
-`WindowToolbar` owns `NSToolbarDelegate`, toolbar item creation, search-field
-delegation, and back/forward enabled state. Persisted toolbar and split-view
-identifiers are compatibility keys and do not need to match current type names.
+`WindowToolbar` owns `NSToolbarDelegate`, toolbar item creation, search
+presentation, and back/forward enabled state. Its search item hosts a SwiftUI
+field bound directly to `PDFSession`; PDFKit performs the actual search.
+Persisted toolbar and split-view identifiers are compatibility keys and do not
+need to match current type names.
 
 ## Navigator
 
-`WindowContentController` hosts `SidebarView` as the native split sidebar.
-`SidebarViewModel` owns its presentation tree, lazy loading, selection, and
-expansion state. `DirectoryScanner` owns filesystem enumeration. `NavigatorItem`
-is the sendable value returned by the scanner.
+`NavigatorController` owns the native source-list sidebar, lazy loading,
+selection, expansion, command-click handling, keyboard navigation, and sidebar
+actions. `DirectoryScanner` owns filesystem enumeration. `NavigatorItem` is the
+sendable value returned by the scanner.
 
 Directory scanning remains lazy. Do not recursively enumerate an arbitrary
-workspace on open. The production sidebar and its `#Preview` use the same
-`SidebarView`; previews replace only URLs and action closures with sample data.
+workspace on open. `NavigatorPreview` wraps the production controller for the
+canvas. `NavigatorController` hosts the transparent SwiftUI
+`SidebarHeaderView` and `SidebarFooterView` around its native outline. AppKit
+continues to own sidebar material, scrolling, selection, and responder behavior.
 
 ## Reader and Search
 
