@@ -144,10 +144,6 @@ final class WindowController: NSWindowController {
         presentation.toggleSidebar()
     }
 
-    @objc func customizeToolbar(_ sender: Any?) {
-        window?.toolbar?.runCustomizationPalette(sender)
-    }
-
     @objc func beginSearch(_ sender: Any?) {
         presentation.isSearchPresented = true
     }
@@ -211,8 +207,7 @@ extension WindowController: NSMenuItemValidation {
         case #selector(goForward(_:)):
             session.canGoForward
         case #selector(toggleSidebar(_:)),
-             #selector(newTab(_:)),
-             #selector(customizeToolbar(_:)):
+             #selector(newTab(_:)):
             true
         case #selector(beginSearch(_:)),
              #selector(selectNextSearchMatch(_:)),

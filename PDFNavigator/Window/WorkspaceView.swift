@@ -23,7 +23,7 @@ struct WorkspaceView: View {
                 readerController: readerController
             )
         }
-        .toolbar {
+        .toolbar(id: "workspaceToolbar") {
             WorkspaceToolbar(session: session, commands: commands)
         }
         .searchable(

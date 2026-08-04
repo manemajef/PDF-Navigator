@@ -10,13 +10,13 @@ struct SidebarView: View {
     var body: some View {
         GeometryReader { geometry in
             VStack(spacing: 0) {
-//                SidebarHeaderView(
-//                    title: workspaceName,
-//                    isSearchEnabled: session.pdfSession?.hasDocument == true
-//                ) {
-//                    presentation.isSearchPresented = true
-//                }
-//                .fixedSize(horizontal: false, vertical: true)
+                SidebarHeaderView(
+                    title: workspaceName,
+                    isSearchEnabled: session.pdfSession?.hasDocument == true
+                ) {
+                    presentation.isSearchPresented = true
+                }
+                .fixedSize(horizontal: false, vertical: true)
 
                 NavigatorView(
                     rootURL: session.root,
@@ -33,7 +33,7 @@ struct SidebarView: View {
                 }
                 .fixedSize(horizontal: false, vertical: true)
             }
-            .padding(.top, geometry.safeAreaInsets.top)
+//            .padding(.top, geometry.safeAreaInsets.top)
         }
     }
 
