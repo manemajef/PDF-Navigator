@@ -11,10 +11,36 @@
 		FB4B27B0301BCF3D003D63FA /* PreviewHost.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PreviewHost.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		FB4B27BB301BCF75003D63FA /* Exceptions for "PDFNavigator" folder in "PDFNavigator" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Mockups/WelcomePageMockup.swift,
+			);
+			target = FB1A58753016B57D00128AF8 /* PDFNavigator */;
+		};
+		FB4B27BD301BCF78003D63FA /* Exceptions for "PDFNavigator" folder in "PreviewHost" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Mockups/WelcomePageMockup.swift,
+			);
+			target = FB4B27AF301BCF3D003D63FA /* PreviewHost */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		FB1A58783016B57D00128AF8 /* PDFNavigator */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				FB4B27BB301BCF75003D63FA /* Exceptions for "PDFNavigator" folder in "PDFNavigator" target */,
+				FB4B27BD301BCF78003D63FA /* Exceptions for "PDFNavigator" folder in "PreviewHost" target */,
+			);
 			path = PDFNavigator;
+			sourceTree = "<group>";
+		};
+		FB4B27B1301BCF3D003D63FA /* PreviewHost */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = PreviewHost;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -37,6 +63,7 @@
 			isa = PBXGroup;
 			children = (
 				FB1A58783016B57D00128AF8 /* PDFNavigator */,
+				FB4B27B1301BCF3D003D63FA /* PreviewHost */,
 				FB1A58773016B57D00128AF8 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -80,6 +107,9 @@
 				FB4B27AE301BCF3D003D63FA /* Resources */,
 			);
 			buildRules = (
+			);
+			fileSystemSynchronizedGroups = (
+				FB4B27B1301BCF3D003D63FA /* PreviewHost */,
 			);
 			name = PreviewHost;
 			productName = PreviewHost;
