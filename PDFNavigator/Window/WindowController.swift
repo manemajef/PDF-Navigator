@@ -71,6 +71,9 @@ final class WindowController: NSWindowController {
 
         case .selection:
             updateWindowIdentity()
+            toolbar.updatePDFAvailability(
+                session.pdfSession?.hasDocument == true
+            )
             if let selection = session.selection {
                 RecentLocationsStore.shared.notePDF(selection)
             }
@@ -104,6 +107,10 @@ final class WindowController: NSWindowController {
 
     @objc func toggleSidebar(_ sender: Any?) {
         contentController.toggleSidebar(sender)
+    }
+
+    @objc func customizeToolbar(_ sender: Any?) {
+        window?.toolbar?.runCustomizationPalette(sender)
     }
 
     @objc func beginSearch(_ sender: Any?) {
@@ -165,16 +172,25 @@ final class WindowController: NSWindowController {
     }
 }
 
-extension WindowController: NSMenuItemValidation {
+extension WindowController: NSMenuItemValidation, NSToolbarItemValidation {
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
-        switch menuItem.action {
+        canPerform(menuItem.action)
+    }
+
+    func validateToolbarItem(_ toolbarItem: NSToolbarItem) -> Bool {
+        canPerform(toolbarItem.action)
+    }
+
+    private func canPerform(_ action: Selector?) -> Bool {
+        switch action {
         case #selector(goBack(_:)):
-            return session.canGoBack
+            session.canGoBack
         case #selector(goForward(_:)):
-            return session.canGoForward
+            session.canGoForward
         case #selector(toggleSidebar(_:)),
-             #selector(newTab(_:)):
-            return true
+             #selector(newTab(_:)),
+             #selector(customizeToolbar(_:)):
+            true
         case #selector(beginSearch(_:)),
              #selector(selectNextSearchMatch(_:)),
              #selector(selectPreviousSearchMatch(_:)),
@@ -186,9 +202,9 @@ extension WindowController: NSMenuItemValidation {
              #selector(zoomToFit(_:)),
              #selector(openCurrentPDFInDefaultApp(_:)),
              #selector(shareCurrentPDF(_:)):
-            return session.pdfSession?.hasDocument == true
+            session.pdfSession?.hasDocument == true
         default:
-            return true
+            true
         }
     }
 }

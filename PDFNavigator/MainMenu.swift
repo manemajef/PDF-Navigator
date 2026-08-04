@@ -80,6 +80,11 @@ final class MainMenu: NSObject, NSMenuDelegate {
             action: #selector(NSWindow.toggleToolbarShown(_:)),
             keyEquivalent: "t"
         ).keyEquivalentModifierMask = [.command, .option]
+        viewMenu.addItem(
+            withTitle: "Customize Toolbar…",
+            action: #selector(WindowController.customizeToolbar(_:)),
+            keyEquivalent: ""
+        )
         viewMenu.addItem(.separator())
         viewMenu.addItem(
             withTitle: "Actual Size",
