@@ -15,9 +15,7 @@ final class WorkspaceSplitController: NSSplitViewController {
     private var inspectorSidebarItem: NSSplitViewItem!
     private var didApplyInitialInspectorVisibility = false
 
-    #if DEBUG
-    private var inspectorSidebarDemoController: NSHostingController<InspectorSidebarDemoView>?
-    #endif
+    private var inspectorController: NSHostingController<PDFInspectorView>?
 
     init(
         session: TabSession,
@@ -103,15 +101,13 @@ final class WorkspaceSplitController: NSSplitViewController {
 
         case .reading:
             guard let pdfSession = session.pdfSession else { return }
-
-            #if DEBUG
-            if DevelopmentConfiguration.showsInspectorSidebarDemo {
-                installInspectorSidebarDemo(for: pdfSession)
-            }
-            #endif
-
             readerController.display(pdfSession)
-            install(readerController, in: detailContainer)
+            installInspector(for: pdfSession)
+            install(
+                readerController,
+                in: detailContainer,
+                underlapsSidebars: true
+            )
         }
     }
 
@@ -120,33 +116,37 @@ final class WorkspaceSplitController: NSSplitViewController {
     }
 
     func toggleInspectorSidebar(_ sender: Any?) {
+        guard session.pdfSession?.hasDocument == true else { return }
         inspectorSidebarItem.animator().isCollapsed.toggle()
     }
 
-    #if DEBUG
-    private func installInspectorSidebarDemo(for session: PDFSession) {
-        let view = InspectorSidebarDemoView(
-            fileName: session.url.lastPathComponent,
-            pageCount: session.document?.pageCount ?? 0,
+    private func installInspector(for session: PDFSession) {
+        let view = PDFInspectorView(
+            session: session,
+            readerState: readerController.presentationState,
             onSelectPage: { [weak readerController] pageIndex in
                 readerController?.goToPage(at: pageIndex)
+            },
+            onSelectOutline: { [weak readerController] outline in
+                readerController?.follow(outline)
             }
         )
 
-        if let inspectorSidebarDemoController {
-            inspectorSidebarDemoController.rootView = view
-            install(inspectorSidebarDemoController, in: inspectorSidebarContainer)
+        if let inspectorController {
+            inspectorController.rootView = view
+            install(inspectorController, in: inspectorSidebarContainer)
         } else {
             let controller = NSHostingController(rootView: view)
-            inspectorSidebarDemoController = controller
+            controller.sizingOptions = []
+            inspectorController = controller
             install(controller, in: inspectorSidebarContainer)
         }
     }
-    #endif
 
     private func install(
         _ controller: NSViewController,
-        in container: NSViewController
+        in container: NSViewController,
+        underlapsSidebars: Bool = false
     ) {
         guard container.children.first !== controller else { return }
 
@@ -159,10 +159,11 @@ final class WorkspaceSplitController: NSSplitViewController {
         controller.view.translatesAutoresizingMaskIntoConstraints = false
         container.view.addSubview(controller.view)
 
-        let leadingAnchor = container === detailContainer
+        let usesDetailSafeArea = container === detailContainer && !underlapsSidebars
+        let leadingAnchor = usesDetailSafeArea
             ? container.view.safeAreaLayoutGuide.leadingAnchor
             : container.view.leadingAnchor
-        let trailingAnchor = container === detailContainer
+        let trailingAnchor = usesDetailSafeArea
             ? container.view.safeAreaLayoutGuide.trailingAnchor
             : container.view.trailingAnchor
 

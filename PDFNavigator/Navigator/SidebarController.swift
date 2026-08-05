@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-/// Native sidebar shell with small SwiftUI header and footer accessories.
+/// Native sidebar shell containing the AppKit navigator and SwiftUI footer.
 final class SidebarController: NSViewController {
     private let session: TabSession
     private let actions: WorkspaceActions

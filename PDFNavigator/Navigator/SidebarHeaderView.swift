@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// SwiftUI chrome hosted above the native AppKit navigator.
+/// Temporarily disconnected SwiftUI header candidate for the AppKit navigator.
 struct SidebarHeaderView: View {
     let title: String
     let isSearchEnabled: Bool

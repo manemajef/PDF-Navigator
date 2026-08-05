@@ -2,7 +2,8 @@
 
 This document is the source of truth for product intent. It describes what the
 app is for, how users expect it to behave, and which decisions define the
-product. Technical implementation details belong in `architecture.md`.
+product. Technical implementation details belong in `architecture.md`, and
+unfinished work belongs in `roadmap.md`.
 
 ## Product Definition
 
@@ -96,8 +97,7 @@ appears. It should offer:
 
 - Recent workspaces.
 - Recent PDFs.
-- Open Workspace.
-- Open PDF.
+- One Open action whose picker accepts either a workspace folder or a PDF.
 
 A regular workspace window or tab always has a workspace. Cancelling the
 picker does not create an empty window.
@@ -107,8 +107,10 @@ It should offer:
 
 - The current workspace name and path.
 - Recently opened PDFs from this workspace.
-- Useful top-level workspace entries.
 - Open Different Workspace as a secondary action.
+
+The sidebar remains the place to browse all workspace entries; the home view
+does not need a second directory browser.
 
 ## Sidebar Requirements
 
@@ -124,6 +126,20 @@ The sidebar is part of the core product, not an optional extra. It should:
 
 The app is not a general-purpose file manager. It should not expose broad file
 operations such as move, delete, rename, or arbitrary file editing.
+
+## Reader Inspector Requirements
+
+The optional reader inspector complements the PDF without replacing the main
+reader. It should provide three views of the selected PDF:
+
+- Page thumbnails that navigate the current reader.
+- The PDF table of contents, when one exists.
+- Document and current-reader information.
+
+The inspector belongs to each native window or tab, follows that tab's selected
+PDF, and remains collapsible like native window-shell state. On supported macOS
+versions, the reader should continue beneath native sidebar and inspector
+material, matching Preview rather than reserving opaque side columns.
 
 ## Reader Requirements
 
@@ -150,9 +166,11 @@ inferred from opened PDFs.
 
 Recent PDFs represent files the user opened or selected.
 
-Restoring a workspace should restore the workspace root, selected PDF if any,
-expanded folders when practical, and reading positions. Restoration must respect
-macOS sandbox file-access rules.
+Reading positions are currently persisted per PDF. Broader workspace
+restoration is planned: it should restore the workspace root, selected PDF if
+any, and expanded folders when practical. That work must respect macOS sandbox
+file-access rules and should not be inferred from the existing raw-URL recents
+store.
 
 ## Non-Goals
 

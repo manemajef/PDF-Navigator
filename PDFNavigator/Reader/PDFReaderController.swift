@@ -7,11 +7,13 @@ import PDFKit
 final class PDFReaderController: NSViewController {
     private let pdfView = PDFView()
 
+    let presentationState = PDFReaderPresentationState()
+
     var onZoomStateChange: (() -> Void)?
 
     private var session: PDFSession?
     private var sessionChangesSubscription: AnyCancellable?
-    private var scaleChangedObserver: NSObjectProtocol?
+    private var pdfViewObservers: [NSObjectProtocol] = []
 
     override func loadView() {
         pdfView.displayMode = .singlePageContinuous
@@ -20,13 +22,13 @@ final class PDFReaderController: NSViewController {
         pdfView.displayBox = .cropBox
         pdfView.autoScales = true
         pdfView.backgroundColor = NSColor.windowBackgroundColor
-        observeScaleChanges()
+        observePDFViewChanges()
         view = pdfView
     }
 
     deinit {
-        if let scaleChangedObserver {
-            NotificationCenter.default.removeObserver(scaleChangedObserver)
+        for observer in pdfViewObservers {
+            NotificationCenter.default.removeObserver(observer)
         }
     }
 
@@ -43,6 +45,7 @@ final class PDFReaderController: NSViewController {
         pdfView.highlightedSelections = nil
         pdfView.clearSelection()
         restorePosition(from: session)
+        updatePresentationState()
     }
 
     override func viewWillDisappear() {
@@ -60,14 +63,26 @@ final class PDFReaderController: NSViewController {
         }
     }
 
-    private func observeScaleChanges() {
-        scaleChangedObserver = NotificationCenter.default.addObserver(
-            forName: .PDFViewScaleChanged,
-            object: pdfView,
-            queue: .main
-        ) { [weak self] _ in
-            self?.onZoomStateChange?()
-        }
+    private func observePDFViewChanges() {
+        let center = NotificationCenter.default
+
+        pdfViewObservers = [
+            center.addObserver(
+                forName: .PDFViewPageChanged,
+                object: pdfView,
+                queue: .main
+            ) { [weak self] _ in
+                self?.updatePresentationState()
+            },
+            center.addObserver(
+                forName: .PDFViewScaleChanged,
+                object: pdfView,
+                queue: .main
+            ) { [weak self] _ in
+                self?.updatePresentationState()
+                self?.onZoomStateChange?()
+            }
+        ]
     }
 
     private func render(_ change: PDFSession.Change, from session: PDFSession) {
@@ -104,6 +119,14 @@ final class PDFReaderController: NSViewController {
         pdfView.go(to: page)
     }
 
+    func follow(_ outline: PDFOutline) {
+        if let destination = outline.destination {
+            pdfView.go(to: destination)
+        } else if let action = outline.action {
+            pdfView.perform(action)
+        }
+    }
+
     func zoomIn() {
         pdfView.autoScales = false
         pdfView.zoomIn(nil)
@@ -120,6 +143,7 @@ final class PDFReaderController: NSViewController {
 
     func zoomToFit() {
         pdfView.autoScales = true
+        updatePresentationState()
     }
 
     var isZoomToFitActive: Bool {
@@ -178,6 +202,24 @@ final class PDFReaderController: NSViewController {
                 pointY: destination.point.y,
                 zoom: pdfView.scaleFactor
             )
+        )
+    }
+
+    private func updatePresentationState() {
+        let currentPageIndex: Int?
+
+        if let document = pdfView.document,
+           let page = pdfView.currentPage {
+            let index = document.index(for: page)
+            currentPageIndex = index == NSNotFound ? nil : index
+        } else {
+            currentPageIndex = nil
+        }
+
+        presentationState.update(
+            currentPageIndex: currentPageIndex,
+            scaleFactor: pdfView.scaleFactor,
+            isZoomToFit: pdfView.autoScales
         )
     }
 }

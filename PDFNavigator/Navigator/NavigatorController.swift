@@ -1,6 +1,6 @@
 import AppKit
 
-/// The native outline implementation used by `NavigatorView`.
+/// The native outline implementation owned by `SidebarController`.
 final class NavigatorController: NSViewController {
     private let scrollView = NSScrollView()
     private let outlineView = NSOutlineView()

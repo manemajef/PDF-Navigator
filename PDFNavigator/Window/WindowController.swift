@@ -228,10 +228,11 @@ extension WindowController: NSMenuItemValidation, NSToolbarItemValidation {
         case #selector(goForward(_:)):
             session.canGoForward
         case #selector(toggleSidebar(_:)),
-             #selector(toggleInspector(_:)),
              #selector(newTab(_:)),
              #selector(customizeToolbar(_:)):
             true
+        case #selector(toggleInspector(_:)):
+            session.pdfSession?.hasDocument == true
         case #selector(showActualSize(_:)):
             session.pdfSession?.hasDocument == true && !readerController.isActualSizeActive
         case #selector(zoomToFit(_:)):

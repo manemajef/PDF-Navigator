@@ -9,9 +9,11 @@ import PDFKit
 /// owns a `PDFView` and renders whatever this object says; it stores no
 /// document state of its own.
 ///
-/// Future PDF tools (highlights, bookmarks, outline, thumbnails) become
-/// properties and methods here. `Change` remains only as the narrow bridge for
-/// imperative updates that `PDFView` must apply.
+/// Future semantic PDF tools (highlights, bookmarks, annotations) become
+/// properties and methods here. Read-only PDFKit data such as pages, outlines,
+/// and metadata can be derived from `document` without copying it into state.
+/// `Change` remains only as the narrow bridge for imperative updates that
+/// `PDFView` must apply.
 
 @Observable
 final class PDFSession {

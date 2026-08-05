@@ -1,31 +1,44 @@
 # PDF Navigator Architecture
 
-This document translates `product-requirements.md` into current technical
-ownership rules. Product terminology comes from the requirements; type names
-describe implementation scope.
+This document translates `product-requirements.md` into the current technical
+ownership model. Product terminology comes from the requirements; type names
+describe implementation scope. This is the project's present landing point,
+not a promise that every current type or boundary is permanent.
 
 ## Direction
 
 PDF Navigator uses an AppKit-first macOS shell:
 
 - AppKit owns application and document opening, native windows and tabs, the
-  native toolbar, menus, the sidebar split, and command routing.
-- PDFKit owns PDF rendering and PDF operations.
-- SwiftUI owns contained presentation regions where declarative layout and
-  previews are useful.
+  native toolbar, menus, split-view geometry, and command routing.
+- SwiftUI is the default for populated presentation surfaces such as the launch
+  panel, workspace home, cards, and small sidebar accessories.
+- AppKit remains appropriate where the native component is the feature: the
+  navigator uses `NSOutlineView`, and the reader uses PDFKit's `PDFView`.
+- PDFKit owns PDF rendering and PDF operations inside the AppKit reader
+  controller.
 
 AppKit is the host and SwiftUI is the guest. The workspace does not use a
 parallel SwiftUI `WindowGroup`, a window-introspection bridge, or SwiftUI
-toolbar publication.
+toolbar publication. "AppKit-first shell" does not mean "AppKit-first
+content": new content regions should start in SwiftUI unless a concrete native
+behavior requires AppKit.
 
 ## Source Structure
 
 ```text
 PDFNavigator/
   AppDelegate.swift
+  DevelopmentConfiguration.swift
   MainMenu.swift
   OpenRequest.swift
   WorkspaceDocument.swift
+
+  Components/
+    FileCardView.swift
+    FolderCardView.swift
+    HoverButtonStyle.swift
+    RecentRowView.swift
 
   Window/
     WindowController.swift
@@ -38,13 +51,18 @@ PDFNavigator/
 
   LaunchPanel/
     LaunchPanelController.swift
+    LaunchPanelHeaderView.swift
     LaunchPanelView.swift
+    RecentPDFsSectionView.swift
+    RecentWorkspacesSectionView.swift
 
   Workspace/
+    FileCardGridView.swift
+    WorkspaceHeaderView.swift
     WorkspaceHomeContentView.swift
     WorkspaceHomeView.swift
 
-  Sidebar/
+  Navigator/
     SidebarController.swift
     NavigatorController.swift
     NavigatorItem.swift
@@ -55,8 +73,15 @@ PDFNavigator/
   Reader/
     PDFSession.swift
     PDFReaderController.swift
+    PDFReaderPresentationState.swift
     PDFReaderPreview.swift
     ReadingPositionStore.swift
+
+    Inspector/
+      PDFInspectorView.swift
+      PDFThumbnailsView.swift
+      PDFOutlineView.swift
+      PDFInfoView.swift
 
   Stores/
     RecentLocationsStore.swift
@@ -65,6 +90,13 @@ PDFNavigator/
 The source root contains application entry, lifecycle, and top-level routing.
 Directories group concrete features or responsibilities. App-wide persistence
 lives in `Stores`; feature-private persistence stays with its feature.
+`PreviewHost/` is a separate, currently unused stock preview target and is not
+part of the production architecture.
+
+`PDFNavigator.xcodeproj` is the authoritative project used by
+`script/build_and_run.sh` and the shared schemes. `PDFNavigator 2.xcodeproj` is
+a stale duplicate whose own schemes still reference `PDFNavigator.xcodeproj`;
+do not use it as architectural or build configuration authority.
 
 ## Runtime Model
 
@@ -103,8 +135,12 @@ There is no global current workspace or current PDF.
 
 ```text
 AppDelegate
-  owns menus, open routing, and native tab attachment
+  retains MainMenu, owns open routing and native tab attachment
   installs per-window WindowRouting callbacks
+
+LaunchPanelController
+  owns the no-workspace AppKit window
+  hosts LaunchPanelView as its SwiftUI content
 
 WorkspaceDocument
   retains the NSDocument-to-window-controller lifecycle relationship
@@ -114,12 +150,13 @@ WindowController
   owns one TabSession, WindowToolbar, and WorkspaceSplitController
 
 WorkspaceSplitController
-  owns the stable AppKit sidebar/detail composition
+  owns the AppKit navigator/detail/inspector composition
   hosts WorkspaceHomeContentView for workspace-home presentation
   installs PDFReaderController directly for reading
+  hosts PDFInspectorView inside the native inspector split item
 
 SidebarController
-  owns the native navigator and hosts SwiftUI header/footer accessories
+  owns the native navigator and hosts the SwiftUI footer accessory
 ```
 
 Each native tab has its own `NSWindow` and `NSWindowController`, so each tab
@@ -127,9 +164,12 @@ also has its own toolbar, split controller, sidebar controller, and reader
 controller. Native tab grouping controls presentation; it does not create a
 shared controller tree.
 
-Controllers read state from `TabSession` and mutate it through session methods.
-They must not cache copies of the workspace root, selected PDF, search state, or
-navigation history.
+`TabSession` and `PDFSession` remain the authoritative state owners. Rendering
+controllers may retain the last values they were given when AppKit needs them
+for diffing or selection (`NavigatorController` does this for its root and
+selected URL), but those copies are presentation inputs rather than a second
+mutable source of truth. Navigation and search state change only through the
+session APIs.
 
 ## AppKit-SwiftUI Contract
 
@@ -142,12 +182,12 @@ The framework boundary uses only Apple-supported interoperability types:
 3. A SwiftUI preview may wrap a production AppKit controller with
    [`NSViewControllerRepresentable`](https://developer.apple.com/documentation/swiftui/nsviewcontrollerrepresentable).
    Production composition installs the AppKit controller directly.
-4. Observable state crosses as `TabSession` or `PDFSession`; both expose domain
-   state rather than framework views.
-5. Intent returns to the shell through `WorkspaceActions`, an immutable closure
-   value containing only Foundation types.
+4. Observable state crosses as `TabSession`, `PDFSession`, or the narrow
+   `PDFReaderPresentationState`; none exposes a framework view.
+5. Intent returns to the shell through `WorkspaceActions`, an immutable,
+   framework-neutral closure value.
 
-`WorkspaceActions` is the complete content-to-shell API:
+`WorkspaceActions` is the complete workspace-content-to-shell API:
 
 ```swift
 struct WorkspaceActions {
@@ -161,7 +201,8 @@ struct WorkspaceActions {
 SwiftUI content must not receive an `NSWindow`, `NSView`, `NSViewController`,
 `NSResponder`, or toolbar object. AppKit constructs hosted roots with explicit
 state and actions. Hosted child views receive only the individual values and
-closures they use.
+closures they use. `URL`, PDFKit data objects, and the small `TabActivation`
+value may cross this boundary; AppKit and SwiftUI view objects may not.
 
 `WindowRouting` is not part of the SwiftUI contract. It is an AppKit-only,
 per-window installation point used because `WorkspaceDocument` creates the
@@ -178,18 +219,20 @@ The workspace shell must not use:
 
 ## Opening
 
-`OpenRequest` is the single input for opening a folder or PDF:
+`OpenRequest` is the single normalized input for opening a folder or PDF:
 
 ```swift
-enum OpenRequest {
-    case folder(URL)
-    case pdf(URL)
+struct OpenRequest {
+    let workspaceRootURL: URL
+    let selectedPDFURL: URL?
 }
 ```
 
 - A folder request uses that folder as the workspace root.
 - A PDF request uses the PDF parent directory as the workspace root and selects
   the PDF.
+- The `folder(_:)`, `pdf(_:)`, and `pdf(_:in:)` factories standardize URLs and
+  preserve an existing workspace root when a PDF opens in a new tab.
 
 `AppDelegate` resolves Finder, menu, recent-item, new-window, and new-tab opens.
 `Cmd-N` presents the location picker and creates an independent window only
@@ -203,9 +246,10 @@ the fact.
 ## `WorkspaceDocument`
 
 `WorkspaceDocument` is a temporary read-only `NSDocument` lifecycle adapter.
-It stores the initial `OpenRequest`, creates a `WindowController`, and lets
-`NSDocumentController` retain the relationship. It does not own live workspace,
-PDF, search, or navigation state and does not support editing or saving.
+It stores the normalized workspace-root and selected-PDF URLs needed to create
+a `WindowController`, and lets `NSDocumentController` retain the relationship.
+It does not own live workspace, PDF, search, or navigation state and does not
+support editing or saving.
 
 Removing it requires a separate window-lifetime refactor and verification of
 Finder opening, independent windows, native tabs, tab detachment, and closing.
@@ -218,8 +262,9 @@ commands, validates menu and toolbar items, and projects `TabSession` changes
 into the title, represented URL, recents, toolbar state, and visible content.
 
 `WindowToolbar` owns `NSToolbarDelegate`, toolbar item creation, search
-presentation, and enabled state. Persisted toolbar and split-view identifiers
-are compatibility keys and do not need to match current type names.
+presentation, and enabled state. Toolbar customization autosaving is enabled in
+Release and intentionally disabled in DEBUG. Persisted toolbar and split-view
+identifiers are compatibility keys and do not need to match current type names.
 
 Menus and toolbar items target the same small `@objc` methods on
 `WindowController`. PDF-to-PDF back/forward navigation belongs to `TabSession`;
@@ -234,9 +279,11 @@ actions. `DirectoryScanner` owns filesystem enumeration. `NavigatorItem` is the
 sendable value returned by the scanner.
 
 Directory scanning remains lazy. Do not recursively enumerate an arbitrary
-workspace on open. `SidebarController` hosts the SwiftUI `SidebarHeaderView`
-and `SidebarFooterView` around the native outline. AppKit continues to own
-sidebar material, scrolling, selection, and responder behavior.
+workspace on open. `SidebarController` currently hosts
+`SidebarFooterView` below the native outline. `SidebarHeaderView` still exists
+in source but is temporarily disconnected; it must not be described as current
+UI. AppKit continues to own sidebar material, scrolling, selection, and
+responder behavior.
 
 ## Reader and Search
 
@@ -247,6 +294,27 @@ reaching into a raw `PDFView`.
 
 `PDFReaderPreview` is a DEBUG-only `NSViewControllerRepresentable` adapter for
 the canvas. It is not part of production composition.
+
+`WorkspaceSplitController` owns the native inspector split item and hosts
+`PDFInspectorView` there. The inspector is SwiftUI because PDFKit supplies its
+document data but the app owns this presentation. Its three sections consume
+the current `PDFDocument` directly:
+
+- `PDFThumbnailsView` renders page thumbnails and returns page-selection intent.
+- `PDFOutlineView` renders the PDF outline and returns outline-selection intent.
+- `PDFInfoView` presents document metadata and current reader status.
+
+The private `PDFView` never crosses into SwiftUI. `PDFReaderController` performs
+page and outline navigation, observes PDFKit page/scale notifications, and
+publishes only `PDFReaderPresentationState` for current-page highlighting and
+reader status. This projection is presentation state, not a second owner of the
+document or reading position.
+
+On macOS 26 and later, the detail split item allows native sidebars and
+inspectors to overlay it and adjusts its safe area. Workspace-home content uses
+that safe area, while `PDFReaderController` is intentionally constrained to the
+full detail bounds so the native materials can sample PDF content underneath.
+Do not replace that geometry with custom blur or opacity layers.
 
 ## Persistence
 

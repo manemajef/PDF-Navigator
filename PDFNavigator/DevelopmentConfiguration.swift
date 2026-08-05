@@ -2,8 +2,6 @@ import Foundation
 
 #if DEBUG
 enum DevelopmentConfiguration {
-    static let showsInspectorSidebarDemo = true
-
     static let repositoryRoot = URL(fileURLWithPath: #filePath)
         .deletingLastPathComponent()
         .deletingLastPathComponent()
@@ -13,5 +11,8 @@ enum DevelopmentConfiguration {
 
     static let demoPDFURL = demoDirURL
         .appendingPathComponent("micro3-sylabus.pdf", isDirectory: false)
+
+    static let demoOutlinePDFURL = demoDirURL
+        .appendingPathComponent("lecs/micro3-lec-8b.pdf", isDirectory: false)
 }
 #endif
