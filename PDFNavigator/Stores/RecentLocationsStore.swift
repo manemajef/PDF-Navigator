@@ -50,4 +50,24 @@ final class RecentLocationsStore {
     private func urls(forKey key: String) -> [URL] {
         defaults.stringArray(forKey: key)?.compactMap(URL.init(string:)) ?? []
     }
+    
+    func recentPDFs(
+        in workspaceRoot: URL,
+        limit: Int = 12
+    ) -> [URL] {
+        guard limit > 0 else { return [] }
+
+        let rootComponents = workspaceRoot
+            .standardizedFileURL
+            .pathComponents
+
+        return recentPDFs.lazy
+            .map(\.standardizedFileURL)
+            .filter { url in
+                url.pathComponents.starts(with: rootComponents)
+                    && FileManager.default.fileExists(atPath: url.path)
+            }
+            .prefix(limit)
+            .map { $0 }
+    }
 }

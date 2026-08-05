@@ -1,33 +1,39 @@
 import SwiftUI
+import AppKit
+import QuickLookThumbnailing
+let USE_HSTACK = false
+let THUMB_WIDTH = USE_HSTACK ? 40 :  180.0
+let THUM_HEIGHT = USE_HSTACK ? 52 : THUMB_WIDTH * 1.4
+let STACK_SPACING = USE_HSTACK ? 12 : 2
+
 
 struct FileCardView: View {
-    let title: String
+    let url: URL
     let subtitle: String?
-    let iconName: String
     let action: () -> Void
 
     init(
-        title: String,
+        url: URL,
         subtitle: String? = nil,
-        iconName: String = "doc.text.fill",
         action: @escaping () -> Void = {}
     ) {
-        self.title = title
+        self.url = url
         self.subtitle = subtitle
-        self.iconName = iconName
         self.action = action
     }
-
+    
+   
     var body: some View {
+        let layout = USE_HSTACK ? AnyLayout(HStackLayout(spacing: 12)) : AnyLayout(VStackLayout(spacing: 2))
         Button(action: action) {
-            HStack(spacing: 12) {
-                Image(systemName: iconName)
-                    .font(.system(size: 24, weight: .regular))
-                    .foregroundStyle(.red.opacity(0.85))
-                    .frame(width: 32, height: 32)
+            /// for alternative compact look use :
+            /// - `HStack` with spacing `12`
+            /// - set THUMB_WIDTH = 40 and THUMB_HEIGHT = 52
+            layout {
+                PDFThumbnailView(url: url)
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(title)
+                    Text(url.lastPathComponent)
                         .font(.system(size: 13, weight: .medium))
                         .foregroundStyle(.primary)
                         .lineLimit(1)
@@ -41,11 +47,14 @@ struct FileCardView: View {
                     }
                 }
 
-                Spacer(minLength: 0)
+                if USE_HSTACK {
+                    Spacer(minLength: 0)
+                    
+                }
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(maxWidth: .infinity, alignment: USE_HSTACK ? .leading : .center)
         }
         .buttonStyle(.hover(cornerRadius: 10))
         .background(
@@ -56,20 +65,50 @@ struct FileCardView: View {
             RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .strokeBorder(Color.primary.opacity(0.06), lineWidth: 1)
         )
+//        .padding()
     }
 }
 
-#Preview("File Card View") {
-    VStack(spacing: 10) {
-        FileCardView(
-            title: "micro3-syllabus.pdf",
-            subtitle: "Opened 2h ago"
-        )
-        FileCardView(
-            title: "a-very-long-paper-title-that-should-truncate-in-the-middle.pdf",
-            subtitle: "Opened yesterday"
-        )
+private struct PDFThumbnailView: View {
+    @Environment(\.displayScale) private var displayScale
+    @State private var image: NSImage?
+    
+    let url: URL
+    
+    var body: some View {
+        Group {
+            if let image {
+                Image(nsImage: image)
+                    .resizable()
+                    .scaledToFit()
+            } else {
+                Image(systemName: "doc.text.fill")
+//                    .font(.system(size:)
+                    .foregroundStyle(.red.opacity(0.85))
+            }
+        }
+        .frame(width: THUMB_WIDTH, height: THUM_HEIGHT)
+        .task(id: url) {
+            image = nil
+            
+            let request = QLThumbnailGenerator.Request(
+                fileAt: url,
+                size: CGSize(width: THUMB_WIDTH, height: THUM_HEIGHT),
+                scale: displayScale,
+                representationTypes: .thumbnail
+            )
+            request.iconMode = true
+            
+            guard let representation = try? await QLThumbnailGenerator.shared.generateBestRepresentation(for: request),
+                  !Task.isCancelled
+            else {
+                return
+            }
+            image = representation.nsImage
+        }
     }
-    .padding(20)
-    .frame(width: 320)
+}
+
+#Preview("File Card") {
+    FileCardView(url: DevelopmentConfiguration.demoPDFURL, action: {})
 }

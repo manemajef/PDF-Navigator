@@ -14,7 +14,7 @@ struct FileCardGridView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Workspace Files")
+            Text("Recent PDF's")
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(.secondary)
 
@@ -23,7 +23,7 @@ struct FileCardGridView: View {
                     Image(systemName: "doc.text.magnifyingglass")
                         .font(.system(size: 32))
                         .foregroundStyle(.tertiary)
-                    Text("No PDF files found in this workspace folder.")
+                    Text("No recently opened PDF's in this workspace")
                         .font(.system(size: 13))
                         .foregroundStyle(.secondary)
                 }
@@ -40,7 +40,7 @@ struct FileCardGridView: View {
                 ) {
                     ForEach(pdfURLs, id: \.self) { url in
                         FileCardView(
-                            title: url.lastPathComponent,
+                            url: url,
                             subtitle: url.deletingLastPathComponent().lastPathComponent,
                             action: { onSelectPDF(url) }
                         )
@@ -51,15 +51,20 @@ struct FileCardGridView: View {
     }
 }
 
+#if DEBUG
 #Preview("File Card Grid View") {
     FileCardGridView(
         pdfURLs: [
-            URL(fileURLWithPath: "/Users/demo/Documents/Micro 3/syllabus.pdf"),
-            URL(fileURLWithPath: "/Users/demo/Documents/Micro 3/lecture-1.pdf"),
-            URL(fileURLWithPath: "/Users/demo/Documents/Micro 3/problem-set-1.pdf"),
-            URL(fileURLWithPath: "/Users/demo/Documents/Micro 3/midterm-review.pdf")
+            DevelopmentConfiguration.demoPDFURL,
+            DevelopmentConfiguration.demoDirURL
+                .appendingPathComponent("lecs/micro3-lec-1.pdf"),
+            DevelopmentConfiguration.demoDirURL
+                .appendingPathComponent("hw/micro3-hw-1.pdf"),
+            DevelopmentConfiguration.demoDirURL
+                .appendingPathComponent("exams/micro3-exam-2026-a1.pdf")
         ]
     )
     .padding(24)
     .frame(width: 650)
 }
+#endif

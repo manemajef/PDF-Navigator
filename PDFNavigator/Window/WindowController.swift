@@ -70,7 +70,6 @@ final class WindowController: NSWindowController {
         window.tabbingMode = .automatic
         window.toolbarStyle = .unified
         window.autorecalculatesKeyViewLoop = true
-
         window.toolbar = toolbar.makeToolbar()
         window.contentViewController = contentController
 

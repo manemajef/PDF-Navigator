@@ -86,6 +86,7 @@ final class WindowToolbar: NSObject, NSToolbarDelegate, NSSearchFieldDelegate {
         _ toolbar: NSToolbar
     ) -> [NSToolbarItem.Identifier] {
         [
+            .flexibleSpace,
             .toggleSidebar,
             .sidebarTrackingSeparator,
             .workspaceNavigation,
@@ -93,8 +94,8 @@ final class WindowToolbar: NSObject, NSToolbarDelegate, NSSearchFieldDelegate {
             .pdfActualSize,
             .pdfZoomToFit,
             .flexibleSpace,
-            .workspaceSearch,
             .workspaceNewTab,
+            .workspaceSearch,
             .inspectorTrackingSeparator,
             .toggleInspector,
         ]
@@ -158,7 +159,7 @@ final class WindowToolbar: NSObject, NSToolbarDelegate, NSSearchFieldDelegate {
             makePDFItem(
                 identifier: identifier,
                 label: "Zoom to Fit",
-                symbolName: "arrow.up.left.and.arrow.down.right",
+                symbolName: "arrow.up.left.and.down.right.magnifyingglass",
                 action: #selector(WindowController.zoomToFit(_:))
             )
         case .pdfOpenExternally:

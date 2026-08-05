@@ -71,9 +71,9 @@ final class WorkspaceSplitController: NSSplitViewController {
         inspectorSidebarItem.minimumThickness = 180
         inspectorSidebarItem.maximumThickness = 300
         inspectorSidebarItem.canCollapse = true
-        inspectorSidebarItem.canCollapseFromWindowResize = false
+        inspectorSidebarItem.canCollapseFromWindowResize = true
         inspectorSidebarItem.allowsFullHeightLayout = true
-        inspectorSidebarItem.titlebarSeparatorStyle = .none
+//        inspectorSidebarItem.titlebarSeparatorStyle = .none
         inspectorSidebarItem.isCollapsed = true
 
         addSplitViewItem(workspaceSidebarItem)

@@ -3,58 +3,81 @@ import SwiftUI
 struct LaunchPanelView: View {
     let recentWorkspaces: [URL]
     let recentPDFs: [URL]
+
     let onOpen: () -> Void
     let onSelectWorkspace: (URL) -> Void
     let onSelectPDF: (URL) -> Void
 
-    init(
-        recentWorkspaces: [URL] = [],
-        recentPDFs: [URL] = [],
-        onOpen: @escaping () -> Void = {},
-        onSelectWorkspace: @escaping (URL) -> Void = { _ in },
-        onSelectPDF: @escaping (URL) -> Void = { _ in }
-    ) {
-        self.recentWorkspaces = recentWorkspaces
-        self.recentPDFs = recentPDFs
-        self.onOpen = onOpen
-        self.onSelectWorkspace = onSelectWorkspace
-        self.onSelectPDF = onSelectPDF
+    var body: some View {
+        HStack(spacing: 0) {
+            mainContent
+
+            Divider()
+
+            recentPDFsColumn
+        }
+        .frame(width: 820, height: 520)
     }
 
-    var body: some View {
-        HStack {
-            ScrollView {
-                VStack(spacing: 24) {
-                    LaunchPanelHeaderView(onOpen: onOpen)
+    // MARK: - Main launch area
 
-                    if !recentWorkspaces.isEmpty {
-                        RecentWorkspacesSectionView(
-                            folderURLs: recentWorkspaces,
-                            onSelectFolder: onSelectWorkspace
-                        )
-                    }
-                }
-                .padding(32)
-                .frame(maxWidth: .infinity)
-            }
-            .background(Color(nsColor: .windowBackgroundColor))
-            .frame(minWidth: 540, minHeight: 520)
+    private var mainContent: some View {
+        ScrollView {
+            VStack(spacing: 24) {
+                LaunchPanelHeaderView(
+                    onOpen: onOpen
+                )
 
-            ScrollView {
-                VStack {
-                    if !recentPDFs.isEmpty {
-                        RecentPDFsSectionView(
-                            pdfURLs: recentPDFs,
-                            onSelectPDF: onSelectPDF
-                        )
-                    }
+                if !recentWorkspaces.isEmpty {
+                    RecentWorkspacesSectionView(
+                        folderURLs: recentWorkspaces,
+                        onSelectFolder: onSelectWorkspace
+                    )
                 }
             }
+            .padding(.horizontal, 48)
+            .padding(.vertical, 40)
+            .frame(
+                maxWidth: .infinity,
+                minHeight: 520,
+                alignment: .top
+            )
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(nsColor: .windowBackgroundColor))
+    }
+
+    // MARK: - Recent PDFs
+
+    private var recentPDFsColumn: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                if recentPDFs.isEmpty {
+                    Text("No Recent PDFs")
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
+                        .frame(
+                            maxWidth: .infinity,
+                            minHeight: 80
+                        )
+                } else {
+                    RecentPDFsSectionView(
+                        pdfURLs: recentPDFs,
+                        onSelectPDF: onSelectPDF
+                    )
+                }
+            }
+            .padding(16)
+        }
+        .frame(width: 290)
+        .frame(maxHeight: .infinity)
+        .background(.thinMaterial)
     }
 }
 
-#Preview("Launch Panel View") {
+// MARK: - Preview
+
+#Preview("Launch Panel") {
     LaunchPanelView(
         recentWorkspaces: [
             URL(fileURLWithPath: "/Users/demo/Documents/Micro 3"),
@@ -65,6 +88,15 @@ struct LaunchPanelView: View {
             URL(fileURLWithPath: "/Users/demo/Documents/Micro 3/syllabus.pdf"),
             URL(fileURLWithPath: "/Users/demo/Documents/Linear Algebra/notes.pdf"),
             URL(fileURLWithPath: "/Users/demo/Documents/lease.pdf")
-        ]
+        ],
+        onOpen: {
+            print("Open workspace")
+        },
+        onSelectWorkspace: { url in
+            print("Selected workspace:", url.path)
+        },
+        onSelectPDF: { url in
+            print("Selected PDF:", url.path)
+        }
     )
 }

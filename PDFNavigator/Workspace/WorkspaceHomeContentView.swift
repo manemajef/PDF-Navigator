@@ -21,20 +21,15 @@ private struct WorkspaceHomeContainerView: View {
     let onOpenDifferent: () -> Void
     let onSelectPDF: (URL) -> Void
 
-    @State private var pdfURLs: [URL] = []
-
     var body: some View {
         WorkspaceHomeView(
             folderURL: rootURL,
-            pdfURLs: pdfURLs,
+            pdfURLs: RecentLocationsStore.shared.recentPDFs(
+                in: rootURL,
+                limit: 12
+            ),
             onOpenDifferent: onOpenDifferent,
             onSelectPDF: onSelectPDF
         )
-        .task(id: rootURL) {
-            pdfURLs = []
-            let items = (try? await DirectoryScanner.items(in: rootURL)) ?? []
-            guard !Task.isCancelled else { return }
-            pdfURLs = items.filter { !$0.isDirectory }.map(\.url)
-        }
     }
 }
