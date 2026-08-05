@@ -20,7 +20,7 @@ struct SidebarHeaderView: View {
         HStack(spacing: 8) {
             Text(title)
                 .font(.system(size: 12, weight: .bold))
-                .foregroundStyle(.primary)
+                .foregroundStyle(.secondary)
                 .lineLimit(1)
                 .truncationMode(.middle)
 

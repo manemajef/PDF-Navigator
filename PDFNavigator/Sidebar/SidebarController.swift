@@ -51,16 +51,16 @@ final class SidebarController: NSViewController {
     override func loadView() {
         let container = NSView()
         addChild(navigatorController)
-        for childView in [headerView, navigatorController.view, footerView] {
+        for childView in [navigatorController.view, footerView] {
             childView.translatesAutoresizingMaskIntoConstraints = false
             container.addSubview(childView)
         }
 
         NSLayoutConstraint.activate([
-            headerView.topAnchor.constraint(equalTo: container.topAnchor),
-            headerView.leadingAnchor.constraint(equalTo: container.leadingAnchor),
-            headerView.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-            navigatorController.view.topAnchor.constraint(equalTo: headerView.bottomAnchor),
+//            headerView.topAnchor.constraint(equalTo: container.topAnchor),
+//            headerView.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+//            headerView.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            navigatorController.view.topAnchor.constraint(equalTo: container.topAnchor),
             navigatorController.view.leadingAnchor.constraint(equalTo: container.leadingAnchor),
             navigatorController.view.trailingAnchor.constraint(equalTo: container.trailingAnchor),
             footerView.topAnchor.constraint(equalTo: navigatorController.view.bottomAnchor),
@@ -72,11 +72,11 @@ final class SidebarController: NSViewController {
     }
 
     func update() {
-        headerView.rootView = SidebarHeaderView(
-            title: Self.workspaceName(session.root),
-            isSearchEnabled: session.pdfSession?.hasDocument == true,
-            onSearch: actions.beginSearch
-        )
+//        headerView.rootView = SidebarHeaderView(
+//            title: Self.workspaceName(session.root),
+//            isSearchEnabled: session.pdfSession?.hasDocument == true,
+//            onSearch: actions.beginSearch
+//        )
         footerView.rootView = makeFooter()
         navigatorController.update(
             rootURL: session.root,
