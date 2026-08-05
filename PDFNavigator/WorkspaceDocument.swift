@@ -68,14 +68,14 @@ final class WorkspaceDocument: NSDocument {
         workspaceRootStorage.withLock { $0 = request.workspaceRootURL }
         selectedPDFStorage.withLock { $0 = request.selectedPDFURL }
     }
-
     private var openRequest: OpenRequest? {
+        guard let workspaceRootURL else { return nil }
+
         if let selectedPDFURL {
-            return .pdf(selectedPDFURL)
+            return .pdf(selectedPDFURL, in: workspaceRootURL)
         }
-        if let workspaceRootURL {
-            return .folder(workspaceRootURL)
-        }
-        return nil
+
+        return .folder(workspaceRootURL)
     }
+
 }

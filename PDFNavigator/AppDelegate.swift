@@ -187,9 +187,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             )
         }
         routing.openInNewTab = { [weak self, weak controller] url, activation in
-            guard let sourceWindow = controller?.window else { return }
+            guard let controller, let sourceWindow = controller.window else { return }
             self?.openWindow(
-                .pdf(url),
+                .pdf(url, in: controller.session.root),
                 tabbedWith: sourceWindow,
                 activation: activation
             )

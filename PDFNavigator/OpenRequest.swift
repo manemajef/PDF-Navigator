@@ -1,24 +1,21 @@
 import Foundation
 
-enum OpenRequest {
-    case folder(URL)
-    case pdf(URL)
+struct OpenRequest {
+    let workspaceRootURL: URL
+    let selectedPDFURL: URL?
 
-    nonisolated var workspaceRootURL: URL {
-        switch self {
-        case .folder(let url):
-            url.standardizedFileURL
-        case .pdf(let url):
-            url.standardizedFileURL.deletingLastPathComponent()
-        }
+    nonisolated static func folder(_ url: URL) -> Self {
+        Self(
+            workspaceRootURL: url.standardizedFileURL, selectedPDFURL: nil
+        )
     }
 
-    nonisolated var selectedPDFURL: URL? {
-        switch self {
-        case .folder:
-            nil
-        case .pdf(let url):
-            url.standardizedFileURL
-        }
+    nonisolated static func pdf(_ url: URL) -> Self {
+        let pdfURL = url.standardizedFileURL
+        return pdf(pdfURL, in: pdfURL.deletingLastPathComponent())
+    }
+
+    nonisolated static func pdf(_ url: URL, in workspaceRootURL: URL) -> Self {
+        Self(workspaceRootURL: workspaceRootURL, selectedPDFURL: url.standardizedFileURL)
     }
 }
