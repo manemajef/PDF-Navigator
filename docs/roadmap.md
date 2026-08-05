@@ -2,9 +2,11 @@
 
 ## Principles
 
-- AppKit owns windows, native tabs, toolbar, menus, sidebar, and PDFKit
-  integration.
-- The responder chain is the command layer; do not add a parallel command API.
+- AppKit owns application and document opening, native windows and tabs, the
+  toolbar, menus, sidebar split, native navigator, and PDFKit integration.
+- The responder chain owns menu and toolbar commands. `WorkspaceActions` is the
+  narrow content-to-shell intent boundary, not a parallel command system.
+- SwiftUI stays inside AppKit-hosted presentation regions.
 - Workspace means a directory. `TabSession` owns one tab's navigation state.
 - Refactor around real ownership boundaries, not file length alone.
 - Prefer deletion and native framework behavior over compatibility wrappers.
@@ -32,21 +34,24 @@
 
 ## Features
 
-- [ ] Optional toolbar items for existing reader commands.
 - [ ] Sidebar action bar for parent navigation and folder search.
-- [ ] Show in Finder from the navigator.
 - [ ] Workspace restoration, including expanded directories where practical.
 
 ## Completed Foundations
 
 - [x] AppKit window, native-tab, toolbar, sidebar split, menu, and PDFKit shell.
 - [x] Separate launch-panel and workspace-home surfaces.
-- [x] Separate recent workspaces and recent PDFs, capped at five on home views.
+- [x] Separate recent workspaces and recent PDFs, capped at 20 in the shared
+  recents store and exposed in the launch panel and Open Recent menu.
 - [x] `TabSession` owns root, selection, PDF session, and navigation history.
 - [x] `PDFSession` owns document, search, matches, and reading position.
 - [x] Native Combine publishers replace custom change notification code.
 - [x] Main menu and toolbar have focused owners.
 - [x] Navigator controller, scanning, and item data have substantive boundaries.
+- [x] AppKit hosts SwiftUI through `NSHostingController`/`NSHostingView`; the
+  framework-neutral `WorkspaceActions` contract carries content intent.
+- [x] Reader commands are available as optional native toolbar items.
+- [x] Navigator files and the workspace root can be revealed in Finder.
 
 ## Decided Against for Now
 

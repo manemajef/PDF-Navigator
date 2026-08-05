@@ -47,6 +47,16 @@ The intended architecture is AppKit-first for the macOS shell:
 - SwiftUI is optional for contained views such as welcome screens, settings,
   and simple panels.
 
+The framework boundary is strict:
+
+- Embed SwiftUI with `NSHostingController` or `NSHostingView`.
+- Pass observable domain state and the framework-neutral `WorkspaceActions`
+  value into hosted content.
+- Do not expose AppKit windows, views, controllers, responders, or toolbar
+  objects to SwiftUI.
+- Keep `NSViewControllerRepresentable` adapters preview-only when production
+  AppKit composition can install the controller directly.
+
 Do not expand stale SwiftUI `WindowGroup`/`WindowBridge` patterns unless the
 task explicitly targets the current implementation as a short-term fix.
 
