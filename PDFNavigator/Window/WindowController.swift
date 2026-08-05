@@ -64,6 +64,14 @@ final class WindowController: NSWindowController {
         updateWindowIdentity()
     }
 
+    var isZoomToFitActive: Bool {
+        readerController.isZoomToFitActive
+    }
+
+    var isActualSizeActive: Bool {
+        readerController.isActualSizeActive
+    }
+
     private func configureWindow() {
         guard let window else { return }
         window.tabbingIdentifier = "WorkspaceWindow"
@@ -173,18 +181,22 @@ final class WindowController: NSWindowController {
 
     @objc func zoomIn(_ sender: Any?) {
         readerController.zoomIn()
+        toolbar.updateZoomControls()
     }
 
     @objc func zoomOut(_ sender: Any?) {
         readerController.zoomOut()
+        toolbar.updateZoomControls()
     }
 
     @objc func showActualSize(_ sender: Any?) {
         readerController.showActualSize()
+        toolbar.updateZoomControls()
     }
 
     @objc func zoomToFit(_ sender: Any?) {
         readerController.zoomToFit()
+        toolbar.updateZoomControls()
     }
 
     @objc func openCurrentPDFInDefaultApp(_ sender: Any?) {
@@ -217,6 +229,10 @@ extension WindowController: NSMenuItemValidation, NSToolbarItemValidation {
              #selector(newTab(_:)),
              #selector(customizeToolbar(_:)):
             true
+        case #selector(showActualSize(_:)):
+            session.pdfSession?.hasDocument == true && !readerController.isActualSizeActive
+        case #selector(zoomToFit(_:)):
+            session.pdfSession?.hasDocument == true && !readerController.isZoomToFitActive
         case #selector(beginSearch(_:)),
              #selector(selectNextSearchMatch(_:)),
              #selector(selectPreviousSearchMatch(_:)),
@@ -224,8 +240,6 @@ extension WindowController: NSMenuItemValidation, NSToolbarItemValidation {
              #selector(goToNextPage(_:)),
              #selector(zoomIn(_:)),
              #selector(zoomOut(_:)),
-             #selector(showActualSize(_:)),
-             #selector(zoomToFit(_:)),
              #selector(openCurrentPDFInDefaultApp(_:)),
              #selector(shareCurrentPDF(_:)):
             session.pdfSession?.hasDocument == true

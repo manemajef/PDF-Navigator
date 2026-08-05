@@ -102,6 +102,14 @@ final class PDFReaderController: NSViewController {
         pdfView.autoScales = true
     }
 
+    var isZoomToFitActive: Bool {
+        pdfView.autoScales
+    }
+
+    var isActualSizeActive: Bool {
+        !pdfView.autoScales && abs(pdfView.scaleFactor - pdfView.printSizeScaleFactor) < 0.001
+    }
+
     func openInDefaultApp() {
         guard let session else { return }
         NSWorkspace.shared.open(session.url)
