@@ -176,9 +176,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func configure(_ controller: WindowController) {
-        let actions = controller.actions
+        let routing = controller.routing
 
-        actions.newTab = { [weak self, weak controller] activation in
+        routing.newTab = { [weak self, weak controller] activation in
             guard let controller, let sourceWindow = controller.window else { return }
             self?.openWindow(
                 .folder(controller.session.root),
@@ -186,7 +186,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 activation: activation
             )
         }
-        actions.openInNewTab = { [weak self, weak controller] url, activation in
+        routing.openInNewTab = { [weak self, weak controller] url, activation in
             guard let sourceWindow = controller?.window else { return }
             self?.openWindow(
                 .pdf(url),
@@ -194,12 +194,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 activation: activation
             )
         }
-        actions.chooseLocation = { [weak self, weak controller] in
+        routing.chooseLocation = { [weak self, weak controller] in
             guard let self, let request = promptForOpenRequest() else { return }
             open(request, replacing: controller)
-        }
-        actions.openPDF = { [weak self, weak controller] url in
-            self?.open(.pdf(url), replacing: controller)
         }
     }
 }

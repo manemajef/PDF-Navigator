@@ -1,56 +1,34 @@
 import AppKit
 import Combine
-import SwiftUI
 
 final class WindowController: NSWindowController {
     let session: TabSession
-    let actions = WindowActions()
+    let routing = WindowRouting()
 
-    private let presentation = WorkspacePresentation()
     private let readerController = PDFReaderController()
     private var sessionChangesSubscription: AnyCancellable?
+    private lazy var toolbar = WindowToolbar(target: self)
 
-    private lazy var commands = WindowCommands(
-        chooseLocation: { [weak actions] in actions?.chooseLocation() },
-        openPDF: { [weak actions] in actions?.openPDF($0) },
-        openInNewTab: { [weak actions] in actions?.openInNewTab($0, $1) },
-        newTab: { [weak actions] in actions?.newTab($0) },
+    private lazy var workspaceActions = WorkspaceActions(
+        chooseLocation: { [weak routing] in routing?.chooseLocation() },
+        openInNewTab: { [weak routing] in routing?.openInNewTab($0, $1) },
         revealInFinder: {
             NSWorkspace.shared.activateFileViewerSelecting([$0])
         },
-        goToPreviousPage: { [weak readerController] in
-            readerController?.goToPreviousPage()
-        },
-        goToNextPage: { [weak readerController] in
-            readerController?.goToNextPage()
-        },
-        zoomIn: { [weak readerController] in readerController?.zoomIn() },
-        zoomOut: { [weak readerController] in readerController?.zoomOut() },
-        showActualSize: { [weak readerController] in
-            readerController?.showActualSize()
-        },
-        zoomToFit: { [weak readerController] in readerController?.zoomToFit() },
-        openCurrentPDFInDefaultApp: { [weak readerController] in
-            readerController?.openInDefaultApp()
-        },
-        shareCurrentPDF: { [weak self] in
-            guard let self, let contentView = window?.contentView else { return }
-            readerController.share(from: contentView)
+        beginSearch: {
+            NSApp.sendAction(
+                #selector(WindowController.beginSearch(_:)),
+                to: nil,
+                from: nil
+            )
         }
     )
 
-    private lazy var contentController: NSHostingController<WorkspaceView> = {
-        let controller = NSHostingController(
-            rootView: WorkspaceView(
-                session: session,
-                presentation: presentation,
-                commands: commands,
-                readerController: readerController
-            )
-        )
-        controller.sceneBridgingOptions = [.toolbars]
-        return controller
-    }()
+    private lazy var contentController = WorkspaceSplitController(
+        session: session,
+        actions: workspaceActions,
+        readerController: readerController
+    )
 
     init(request: OpenRequest) {
         session = TabSession(request: request)
@@ -93,6 +71,7 @@ final class WindowController: NSWindowController {
         window.toolbarStyle = .unified
         window.autorecalculatesKeyViewLoop = true
 
+        window.toolbar = toolbar.makeToolbar()
         window.contentViewController = contentController
 
         let visibleWidth = NSScreen.main?.visibleFrame.width ?? 1_050
@@ -107,17 +86,25 @@ final class WindowController: NSWindowController {
     private func apply(_ change: TabSession.Change) {
         switch change {
         case .root:
+            contentController.renderMode()
             updateWindowIdentity()
             RecentLocationsStore.shared.noteWorkspace(session.root)
 
         case .selection:
+            contentController.renderMode()
             updateWindowIdentity()
+            toolbar.updatePDFAvailability(
+                session.pdfSession?.hasDocument == true
+            )
             if let selection = session.selection {
                 RecentLocationsStore.shared.notePDF(selection)
             }
 
         case .history:
-            break
+            toolbar.updateNavigation(
+                canGoBack: session.canGoBack,
+                canGoForward: session.canGoForward
+            )
         }
     }
 
@@ -129,7 +116,7 @@ final class WindowController: NSWindowController {
     // MARK: - Commands
 
     @objc func newTab(_ sender: Any?) {
-        actions.newTab(.foreground)
+        routing.newTab(.foreground)
     }
 
     @objc func goBack(_ sender: Any?) {
@@ -141,15 +128,27 @@ final class WindowController: NSWindowController {
     }
 
     @objc func toggleSidebar(_ sender: Any?) {
-        presentation.toggleSidebar()
+        contentController.toggleSidebar(sender)
+    }
+
+    @objc func customizeToolbar(_ sender: Any?) {
+        window?.toolbar?.runCustomizationPalette(sender)
     }
 
     @objc func beginSearch(_ sender: Any?) {
-        presentation.isSearchPresented = true
+        toolbar.beginSearch()
+    }
+
+    @objc func searchFieldChanged(_ sender: NSSearchField) {
+        session.pdfSession?.search(sender.stringValue)
+    }
+
+    @objc func searchFieldSubmitted(_ sender: NSSearchField) {
+        session.pdfSession?.selectNextMatch()
     }
 
     func endSearchInteraction() {
-        presentation.isSearchPresented = false
+        toolbar.endSearch()
         window?.makeFirstResponder(nil)
     }
 
@@ -195,9 +194,13 @@ final class WindowController: NSWindowController {
     }
 }
 
-extension WindowController: NSMenuItemValidation {
+extension WindowController: NSMenuItemValidation, NSToolbarItemValidation {
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
         canPerform(menuItem.action)
+    }
+
+    func validateToolbarItem(_ toolbarItem: NSToolbarItem) -> Bool {
+        canPerform(toolbarItem.action)
     }
 
     private func canPerform(_ action: Selector?) -> Bool {
@@ -207,7 +210,8 @@ extension WindowController: NSMenuItemValidation {
         case #selector(goForward(_:)):
             session.canGoForward
         case #selector(toggleSidebar(_:)),
-             #selector(newTab(_:)):
+             #selector(newTab(_:)),
+             #selector(customizeToolbar(_:)):
             true
         case #selector(beginSearch(_:)),
              #selector(selectNextSearchMatch(_:)),

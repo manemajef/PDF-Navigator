@@ -1,26 +1,17 @@
 import SwiftUI
 
-struct WorkspaceDetailView: View {
+/// SwiftUI content hosted in the AppKit workspace detail pane.
+struct WorkspaceHomeContentView: View {
     let session: TabSession
-    let commands: WindowCommands
-    let readerController: PDFReaderController
+    let actions: WorkspaceActions
 
     var body: some View {
-        switch session.mode {
-        case .workspaceHome(let root):
+        if case .workspaceHome(let root) = session.mode {
             WorkspaceHomeContainerView(
                 rootURL: root,
-                onOpenDifferent: commands.chooseLocation,
+                onOpenDifferent: actions.chooseLocation,
                 onSelectPDF: session.select
             )
-
-        case .reading:
-            if let pdfSession = session.pdfSession {
-                PDFReaderView(
-                    controller: readerController,
-                    pdfSession: pdfSession
-                )
-            }
         }
     }
 }
