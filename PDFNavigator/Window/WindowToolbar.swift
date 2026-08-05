@@ -16,7 +16,9 @@ final class WindowToolbar: NSObject, NSToolbarDelegate, NSSearchFieldDelegate {
         toolbar.delegate = self
         toolbar.displayMode = .iconOnly
         toolbar.allowsUserCustomization = true
+        #if !DEBUG
         toolbar.autosavesConfiguration = true
+        #endif
         self.toolbar = toolbar
         return toolbar
     }
@@ -91,8 +93,10 @@ final class WindowToolbar: NSObject, NSToolbarDelegate, NSSearchFieldDelegate {
             .pdfZoomControll,
             .space,
             .workspaceNewTab,
+            .flexibleSpace,
             .workspaceSearch,
-            .toggleInspector
+            .toggleInspector,
+
         ]
     }
 
