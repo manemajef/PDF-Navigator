@@ -7,8 +7,11 @@ import PDFKit
 final class PDFReaderController: NSViewController {
     private let pdfView = PDFView()
 
+    var onZoomStateChange: (() -> Void)?
+
     private var session: PDFSession?
     private var sessionChangesSubscription: AnyCancellable?
+    private var scaleChangedObserver: NSObjectProtocol?
 
     override func loadView() {
         pdfView.displayMode = .singlePageContinuous
@@ -17,7 +20,14 @@ final class PDFReaderController: NSViewController {
         pdfView.displayBox = .cropBox
         pdfView.autoScales = true
         pdfView.backgroundColor = NSColor.windowBackgroundColor
+        observeScaleChanges()
         view = pdfView
+    }
+
+    deinit {
+        if let scaleChangedObserver {
+            NotificationCenter.default.removeObserver(scaleChangedObserver)
+        }
     }
 
     func display(_ session: PDFSession) {
@@ -47,6 +57,16 @@ final class PDFReaderController: NSViewController {
                 return
             }
             self.render(change, from: session)
+        }
+    }
+
+    private func observeScaleChanges() {
+        scaleChangedObserver = NotificationCenter.default.addObserver(
+            forName: .PDFViewScaleChanged,
+            object: pdfView,
+            queue: .main
+        ) { [weak self] _ in
+            self?.onZoomStateChange?()
         }
     }
 

@@ -42,6 +42,9 @@ final class WindowController: NSWindowController {
         window.animationBehavior = .default
         super.init(window: window)
 
+        readerController.onZoomStateChange = { [weak self] in
+            self?.toolbar.updateZoomControls()
+        }
         configureWindow()
         sessionChangesSubscription = session.changes.sink { [weak self] change in
             self?.apply(change)
