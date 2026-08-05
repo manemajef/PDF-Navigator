@@ -8,6 +8,8 @@ final class WorkspaceSplitController: NSSplitViewController {
     private let readerController: PDFReaderController
     private let workspaceSidebarController: SidebarController
     private let workspaceController: NSHostingController<WorkspaceHomeContentView>
+    private let inspectorPresentationState = PDFInspectorPresentationState()
+    private let onInspectorPresentationChange: (Bool, PDFInspectorSection) -> Void
     private let detailContainer = NSViewController()
     private let inspectorSidebarContainer = NSViewController()
 
@@ -20,10 +22,12 @@ final class WorkspaceSplitController: NSSplitViewController {
     init(
         session: TabSession,
         actions: WorkspaceActions,
-        readerController: PDFReaderController
+        readerController: PDFReaderController,
+        onInspectorPresentationChange: @escaping (Bool, PDFInspectorSection) -> Void
     ) {
         self.session = session
         self.readerController = readerController
+        self.onInspectorPresentationChange = onInspectorPresentationChange
 
         workspaceSidebarController = SidebarController(session: session, actions: actions)
         workspaceController = NSHostingController(
@@ -97,6 +101,7 @@ final class WorkspaceSplitController: NSSplitViewController {
         switch session.mode {
         case .workspaceHome:
             inspectorSidebarItem.isCollapsed = true
+            notifyInspectorPresentation(isVisible: false)
             install(workspaceController, in: detailContainer)
 
         case .reading:
@@ -117,18 +122,42 @@ final class WorkspaceSplitController: NSSplitViewController {
 
     func toggleInspectorSidebar(_ sender: Any?) {
         guard session.pdfSession?.hasDocument == true else { return }
-        inspectorSidebarItem.animator().isCollapsed.toggle()
+        let isVisible = inspectorSidebarItem.isCollapsed
+        inspectorSidebarItem.animator().isCollapsed = !isVisible
+        notifyInspectorPresentation(isVisible: isVisible)
+    }
+
+    func toggleInspectorSection(_ section: PDFInspectorSection) {
+        guard session.pdfSession?.hasDocument == true else { return }
+
+        let isCurrentPanel = switch section {
+        case .thumbnails:
+            inspectorPresentationState.section != .info
+        case .outline, .info:
+            inspectorPresentationState.section == section
+        }
+        let shouldCollapse = !inspectorSidebarItem.isCollapsed
+            && isCurrentPanel
+        inspectorSidebarItem.animator().isCollapsed = shouldCollapse
+        if !shouldCollapse {
+            inspectorPresentationState.section = section
+        }
+        notifyInspectorPresentation(isVisible: !shouldCollapse)
     }
 
     private func installInspector(for session: PDFSession) {
         let view = PDFInspectorView(
             session: session,
             readerState: readerController.presentationState,
+            presentationState: inspectorPresentationState,
             onSelectPage: { [weak readerController] pageIndex in
                 readerController?.goToPage(at: pageIndex)
             },
             onSelectOutline: { [weak readerController] outline in
                 readerController?.follow(outline)
+            },
+            onSectionChange: { [weak self] _ in
+                self?.notifyInspectorPresentation()
             }
         )
 
@@ -141,6 +170,13 @@ final class WorkspaceSplitController: NSSplitViewController {
             inspectorController = controller
             install(controller, in: inspectorSidebarContainer)
         }
+    }
+
+    private func notifyInspectorPresentation(isVisible: Bool? = nil) {
+        onInspectorPresentationChange(
+            isVisible ?? !inspectorSidebarItem.isCollapsed,
+            inspectorPresentationState.section
+        )
     }
 
     private func install(

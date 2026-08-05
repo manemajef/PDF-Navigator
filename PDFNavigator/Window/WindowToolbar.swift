@@ -6,13 +6,15 @@ final class WindowToolbar: NSObject, NSToolbarDelegate, NSSearchFieldDelegate {
     private var hasPDF = false
     private var canGoBack = false
     private var canGoForward = false
+    private var isInspectorVisible = false
+    private var inspectorSection = PDFInspectorSection.thumbnails
 
     init(target: WindowController) {
         self.target = target
     }
 
     func makeToolbar() -> NSToolbar {
-        let toolbar = NSToolbar(identifier: "WorkspaceToolbarV7")
+        let toolbar = NSToolbar(identifier: "WorkspaceToolbarV8")
         toolbar.delegate = self
         toolbar.displayMode = .iconOnly
         toolbar.allowsUserCustomization = true
@@ -61,6 +63,21 @@ final class WindowToolbar: NSObject, NSToolbarDelegate, NSSearchFieldDelegate {
         group.updateSubitems(using: spec, target: target)
     }
 
+    func updateInspectorPresentation(
+        isVisible: Bool,
+        section: PDFInspectorSection
+    ) {
+        self.isInspectorVisible = isVisible
+        inspectorSection = section
+
+        guard
+            let group = toolbar?.items.first(where: { $0.itemIdentifier == .readerPanels }) as? NSToolbarItemGroup,
+            let spec = groupItemSpecs[.readerPanels]
+        else { return }
+
+        group.updateSubitems(using: spec, target: target)
+    }
+
     func beginSearch() {
         guard hasPDF else { return }
         searchItem?.beginSearchInteraction()
@@ -81,7 +98,7 @@ final class WindowToolbar: NSObject, NSToolbarDelegate, NSSearchFieldDelegate {
             .workspaceNewTab, .workspaceSearch, .pdfPageNavigation,.pdfZoomControll,
             .pdfZoomIn, .pdfZoomOut, .pdfActualSize, .pdfZoomToFit,
             .pdfOpenExternally, .pdfShare, .space, .flexibleSpace,
-            .inspectorTrackingSeparator, .toggleInspector
+            .inspectorTrackingSeparator, .readerPanels
         ]
     }
 
@@ -91,12 +108,12 @@ final class WindowToolbar: NSObject, NSToolbarDelegate, NSSearchFieldDelegate {
             .workspaceNavigation,
             .flexibleSpace,
             .pdfZoomControll,
-            .space,
+            .readerPanels,
+            .pdfShare,
+            .pdfOpenExternally,
             .workspaceNewTab,
-            .flexibleSpace,
+            .space,
             .workspaceSearch,
-            .toggleInspector,
-
         ]
     }
 
@@ -169,6 +186,7 @@ final class WindowToolbar: NSObject, NSToolbarDelegate, NSSearchFieldDelegate {
     fileprivate struct GroupItemSpec {
         let label: String
         var isNavigational: Bool = false
+        var selectedIndex: (() -> Int)? = nil
         let subitems: [GroupSubitemSpec]
     }
 
@@ -181,7 +199,6 @@ final class WindowToolbar: NSObject, NSToolbarDelegate, NSSearchFieldDelegate {
 
     private static let standardItemSpecs: [NSToolbarItem.Identifier: StandardItemSpec] = [
         .workspaceNewTab: .init(label: "New Tab", symbol: "plus.rectangle.on.rectangle", action: #selector(WindowController.newTab(_:))),
-        .toggleInspector: .init(label: "Inspector", symbol: "sidebar.right", action: #selector(WindowController.toggleInspector(_:))),
         .pdfZoomIn: .init(label: "Zoom In", symbol: "plus.magnifyingglass", action: #selector(WindowController.zoomIn(_:)), requiresPDF: true),
         .pdfZoomOut: .init(label: "Zoom Out", symbol: "minus.magnifyingglass", action: #selector(WindowController.zoomOut(_:)), requiresPDF: true),
         .pdfActualSize: .init(label: "Actual Size", symbol: "1.magnifyingglass", action: #selector(WindowController.showActualSize(_:)), requiresPDF: true),
@@ -218,11 +235,25 @@ final class WindowToolbar: NSObject, NSToolbarDelegate, NSSearchFieldDelegate {
                     return hasPDF && target?.isActualSizeActive == false
                 })
             ]
+        ),
+        .readerPanels: GroupItemSpec(
+            label: "Reader Panels",
+            selectedIndex: { [weak self] in
+                guard let self, hasPDF, isInspectorVisible else { return -1 }
+                return switch inspectorSection {
+                case .thumbnails, .outline: 0
+                case .info: 1
+                }
+            },
+            subitems: [
+                .init(symbol: "square.grid.2x2", tooltip: "Thumbnails", action: #selector(WindowController.toggleThumbnailsPanel(_:)), isEnabled: { [weak self] in self?.hasPDF ?? false }),
+                .init(symbol: "info.circle", tooltip: "Inspector", action: #selector(WindowController.toggleInfoPanel(_:)), isEnabled: { [weak self] in self?.hasPDF ?? false })
+            ]
         )
     ]}
 
     private var pdfItemIdentifiers: Set<NSToolbarItem.Identifier> {
-        var set: Set<NSToolbarItem.Identifier> = [.workspaceSearch, .pdfPageNavigation, .pdfZoomControll]
+        var set: Set<NSToolbarItem.Identifier> = [.workspaceSearch, .pdfPageNavigation, .pdfZoomControll, .readerPanels]
         for (id, spec) in Self.standardItemSpecs where spec.requiresPDF {
             set.insert(id)
         }
@@ -299,7 +330,7 @@ private extension NSToolbarItemGroup {
         let group = NSToolbarItemGroup(
             itemIdentifier: identifier,
             images: images,
-            selectionMode: .momentary,
+            selectionMode: spec.selectedIndex == nil ? .momentary : .selectOne,
             labels: spec.subitems.map(\.tooltip),
             target: nil,
             action: nil
@@ -321,6 +352,11 @@ private extension NSToolbarItemGroup {
             subitem.autovalidates = false
             subitem.isEnabled = subSpec.isEnabled()
         }
+        let desiredSelection = spec.selectedIndex?() ?? -1
+        selectedIndex = desiredSelection
+        for index in subitems.indices {
+            setSelected(index == desiredSelection, at: index)
+        }
     }
 }
 
@@ -335,6 +371,6 @@ private extension NSToolbarItem.Identifier {
     static let pdfZoomToFit = Self("PDFZoomToFit")
     static let pdfOpenExternally = Self("PDFOpenExternally")
     static let pdfShare = Self("PDFShare")
-    static let toggleInspector = Self("ToggleInspector")
     static let pdfZoomControll = Self("PDFZoomControll")
+    static let readerPanels = Self("ReaderPanels")
 }

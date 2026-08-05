@@ -1,43 +1,49 @@
 import PDFKit
+import Observation
 import SwiftUI
 
-/// SwiftUI content hosted by the native AppKit inspector split item.
-struct PDFInspectorView: View {
-    private enum Section: String, CaseIterable, Identifiable {
-        case thumbnails
-        case outline
-        case info
+enum PDFInspectorSection: String, CaseIterable, Identifiable {
+    case thumbnails
+    case outline
+    case info
 
-        var id: Self { self }
+    var id: Self { self }
 
-        var title: String {
-            switch self {
-            case .thumbnails: "Thumbnails"
-            case .outline: "Contents"
-            case .info: "Info"
-            }
-        }
-
-        var symbol: String {
-            switch self {
-            case .thumbnails: "square.grid.2x2"
-            case .outline: "list.bullet.indent"
-            case .info: "info.circle"
-            }
+    var title: String {
+        switch self {
+        case .thumbnails: "Thumbnails"
+        case .outline: "Contents"
+        case .info: "Info"
         }
     }
 
+    var symbol: String {
+        switch self {
+        case .thumbnails: "square.grid.2x2"
+        case .outline: "list.bullet.indent"
+        case .info: "info.circle"
+        }
+    }
+}
+
+@Observable
+final class PDFInspectorPresentationState {
+    var section = PDFInspectorSection.thumbnails
+}
+
+/// SwiftUI content hosted by the native AppKit inspector split item.
+struct PDFInspectorView: View {
     let session: PDFSession
     let readerState: PDFReaderPresentationState
+    @Bindable var presentationState: PDFInspectorPresentationState
     let onSelectPage: (Int) -> Void
     let onSelectOutline: (PDFOutline) -> Void
-
-    @State private var section = Section.thumbnails
+    let onSectionChange: (PDFInspectorSection) -> Void
 
     var body: some View {
         VStack(spacing: 0) {
-            Picker("Inspector", selection: $section) {
-                ForEach(Section.allCases) { section in
+            Picker("Inspector", selection: $presentationState.section) {
+                ForEach(PDFInspectorSection.allCases) { section in
                     Label(section.title, systemImage: section.symbol)
                         .labelStyle(.iconOnly)
                         .tag(section)
@@ -45,13 +51,13 @@ struct PDFInspectorView: View {
             }
             .pickerStyle(.segmented)
             .labelsHidden()
-            .help(section.title)
+            .help(presentationState.section.title)
             .padding(10)
 
             Divider()
 
             if let document = session.document {
-                switch section {
+                switch presentationState.section {
                 case .thumbnails:
                     PDFThumbnailsView(
                         document: document,
@@ -79,6 +85,9 @@ struct PDFInspectorView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .onChange(of: presentationState.section) { _, section in
+            onSectionChange(section)
+        }
     }
 }
 
@@ -94,8 +103,10 @@ struct PDFInspectorView: View {
     return PDFInspectorView(
         session: PDFSession(url: DevelopmentConfiguration.demoPDFURL),
         readerState: readerState,
+        presentationState: PDFInspectorPresentationState(),
         onSelectPage: { _ in },
-        onSelectOutline: { _ in }
+        onSelectOutline: { _ in },
+        onSectionChange: { _ in }
     )
     .frame(width: 240, height: 620)
 }

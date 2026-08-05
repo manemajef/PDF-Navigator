@@ -27,7 +27,13 @@ final class WindowController: NSWindowController {
     private lazy var contentController = WorkspaceSplitController(
         session: session,
         actions: workspaceActions,
-        readerController: readerController
+        readerController: readerController,
+        onInspectorPresentationChange: { [weak self] isVisible, section in
+            self?.toolbar.updateInspectorPresentation(
+                isVisible: isVisible,
+                section: section
+            )
+        }
     )
 
     init(request: OpenRequest) {
@@ -145,6 +151,14 @@ final class WindowController: NSWindowController {
         contentController.toggleInspectorSidebar(sender)
     }
 
+    @objc func toggleThumbnailsPanel(_ sender: Any?) {
+        contentController.toggleInspectorSection(.thumbnails)
+    }
+
+    @objc func toggleInfoPanel(_ sender: Any?) {
+        contentController.toggleInspectorSection(.info)
+    }
+
     @objc func customizeToolbar(_ sender: Any?) {
         window?.toolbar?.runCustomizationPalette(sender)
     }
@@ -232,6 +246,9 @@ extension WindowController: NSMenuItemValidation, NSToolbarItemValidation {
              #selector(customizeToolbar(_:)):
             true
         case #selector(toggleInspector(_:)):
+            session.pdfSession?.hasDocument == true
+        case #selector(toggleThumbnailsPanel(_:)),
+             #selector(toggleInfoPanel(_:)):
             session.pdfSession?.hasDocument == true
         case #selector(showActualSize(_:)):
             session.pdfSession?.hasDocument == true && !readerController.isActualSizeActive
