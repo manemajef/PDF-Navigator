@@ -76,6 +76,11 @@ final class MainMenu: NSObject, NSMenuDelegate {
             keyEquivalent: "s"
         ).keyEquivalentModifierMask = [.command, .shift]
         viewMenu.addItem(
+            withTitle: "Toggle Inspector",
+            action: #selector(WindowController.toggleInspector(_:)),
+            keyEquivalent: "i"
+        ).keyEquivalentModifierMask = [.command, .shift]
+        viewMenu.addItem(
             withTitle: "Toggle Toolbar",
             action: #selector(NSWindow.toggleToolbarShown(_:)),
             keyEquivalent: "t"

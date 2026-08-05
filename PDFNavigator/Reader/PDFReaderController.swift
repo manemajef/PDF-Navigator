@@ -79,6 +79,11 @@ final class PDFReaderController: NSViewController {
         pdfView.goToNextPage(nil)
     }
 
+    func goToPage(at pageIndex: Int) {
+        guard let page = pdfView.document?.page(at: pageIndex) else { return }
+        pdfView.go(to: page)
+    }
+
     func zoomIn() {
         pdfView.autoScales = false
         pdfView.zoomIn(nil)

@@ -22,29 +22,35 @@ struct LaunchPanelView: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 24) {
-                LaunchPanelHeaderView(onOpen: onOpen)
+        HStack {
+            ScrollView {
+                VStack(spacing: 24) {
+                    LaunchPanelHeaderView(onOpen: onOpen)
 
-                if !recentWorkspaces.isEmpty {
-                    RecentWorkspacesSectionView(
-                        folderURLs: recentWorkspaces,
-                        onSelectFolder: onSelectWorkspace
-                    )
+                    if !recentWorkspaces.isEmpty {
+                        RecentWorkspacesSectionView(
+                            folderURLs: recentWorkspaces,
+                            onSelectFolder: onSelectWorkspace
+                        )
+                    }
                 }
+                .padding(32)
+                .frame(maxWidth: .infinity)
+            }
+            .background(Color(nsColor: .windowBackgroundColor))
+            .frame(minWidth: 540, minHeight: 520)
 
-                if !recentPDFs.isEmpty {
-                    RecentPDFsSectionView(
-                        pdfURLs: recentPDFs,
-                        onSelectPDF: onSelectPDF
-                    )
+            ScrollView {
+                VStack {
+                    if !recentPDFs.isEmpty {
+                        RecentPDFsSectionView(
+                            pdfURLs: recentPDFs,
+                            onSelectPDF: onSelectPDF
+                        )
+                    }
                 }
             }
-            .padding(32)
-            .frame(maxWidth: .infinity)
         }
-        .background(Color(nsColor: .windowBackgroundColor))
-        .frame(minWidth: 540, minHeight: 520)
     }
 }
 

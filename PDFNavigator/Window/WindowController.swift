@@ -128,7 +128,11 @@ final class WindowController: NSWindowController {
     }
 
     @objc func toggleSidebar(_ sender: Any?) {
-        contentController.toggleSidebar(sender)
+        contentController.toggleWorkspaceSidebar(sender)
+    }
+
+    @objc func toggleInspector(_ sender: Any?) {
+        contentController.toggleInspectorSidebar(sender)
     }
 
     @objc func customizeToolbar(_ sender: Any?) {
@@ -210,6 +214,7 @@ extension WindowController: NSMenuItemValidation, NSToolbarItemValidation {
         case #selector(goForward(_:)):
             session.canGoForward
         case #selector(toggleSidebar(_:)),
+             #selector(toggleInspector(_:)),
              #selector(newTab(_:)),
              #selector(customizeToolbar(_:)):
             true

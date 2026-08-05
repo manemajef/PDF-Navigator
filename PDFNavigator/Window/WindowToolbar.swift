@@ -1,5 +1,6 @@
 import AppKit
 
+/// The native window toolbar and its item state.
 final class WindowToolbar: NSObject, NSToolbarDelegate, NSSearchFieldDelegate {
     private weak var target: WindowController?
     private weak var toolbar: NSToolbar?
@@ -12,7 +13,7 @@ final class WindowToolbar: NSObject, NSToolbarDelegate, NSSearchFieldDelegate {
     }
 
     func makeToolbar() -> NSToolbar {
-        let toolbar = NSToolbar(identifier: "WorkspaceToolbarV6")
+        let toolbar = NSToolbar(identifier: "WorkspaceToolbarV7")
         toolbar.delegate = self
         toolbar.displayMode = .iconOnly
         toolbar.allowsUserCustomization = true
@@ -39,6 +40,7 @@ final class WindowToolbar: NSObject, NSToolbarDelegate, NSSearchFieldDelegate {
         for item in toolbar?.items ?? [] {
             if pdfItemIdentifiers.contains(item.itemIdentifier) {
                 item.isHidden = !hasPDF
+                item.isEnabled = hasPDF
             }
         }
     }
@@ -61,7 +63,6 @@ final class WindowToolbar: NSObject, NSToolbarDelegate, NSSearchFieldDelegate {
         _ toolbar: NSToolbar
     ) -> [NSToolbarItem.Identifier] {
         [
-            .flexibleSpace,
             .toggleSidebar,
             .sidebarTrackingSeparator,
             .workspaceNavigation,
@@ -75,7 +76,9 @@ final class WindowToolbar: NSObject, NSToolbarDelegate, NSSearchFieldDelegate {
             .pdfOpenExternally,
             .pdfShare,
             .space,
-            .flexibleSpace
+            .flexibleSpace,
+            .inspectorTrackingSeparator,
+            .toggleInspector,
         ]
     }
 
@@ -83,7 +86,6 @@ final class WindowToolbar: NSObject, NSToolbarDelegate, NSSearchFieldDelegate {
         _ toolbar: NSToolbar
     ) -> [NSToolbarItem.Identifier] {
         [
-            .flexibleSpace,
             .toggleSidebar,
             .sidebarTrackingSeparator,
             .workspaceNavigation,
@@ -93,7 +95,23 @@ final class WindowToolbar: NSObject, NSToolbarDelegate, NSSearchFieldDelegate {
             .flexibleSpace,
             .workspaceSearch,
             .workspaceNewTab,
+            .inspectorTrackingSeparator,
+            .toggleInspector,
         ]
+    }
+
+    func toolbarWillAddItem(_ notification: Notification) {
+        guard
+            let item = notification.userInfo?[NSToolbarUserInfoKey.itemKey]
+                as? NSToolbarItem,
+            item.itemIdentifier == NSToolbarItem.Identifier.toggleSidebar
+        else { return }
+
+        item.target = target
+        item.action = #selector(WindowController.toggleSidebar(_:))
+        item.label = "Navigator"
+        item.paletteLabel = "Navigator"
+        item.toolTip = "Toggle Navigator"
     }
 
     func toolbar(
@@ -157,6 +175,13 @@ final class WindowToolbar: NSObject, NSToolbarDelegate, NSSearchFieldDelegate {
                 symbolName: "square.and.arrow.up",
                 action: #selector(WindowController.shareCurrentPDF(_:))
             )
+        case .toggleInspector:
+            makeItem(
+                identifier: identifier,
+                label: "Inspector",
+                symbolName: "sidebar.right",
+                action: #selector(WindowController.toggleInspector(_:))
+            )
         default:
             nil
         }
@@ -171,7 +196,7 @@ final class WindowToolbar: NSObject, NSToolbarDelegate, NSSearchFieldDelegate {
             .pdfActualSize,
             .pdfZoomToFit,
             .pdfOpenExternally,
-            .pdfShare
+            .pdfShare,
         ]
     }
 
@@ -321,4 +346,5 @@ private extension NSToolbarItem.Identifier {
     static let pdfZoomToFit = Self("PDFZoomToFit")
     static let pdfOpenExternally = Self("PDFOpenExternally")
     static let pdfShare = Self("PDFShare")
+    static let toggleInspector = Self("ToggleInspector")
 }

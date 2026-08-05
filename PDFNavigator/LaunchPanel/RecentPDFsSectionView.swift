@@ -24,7 +24,7 @@ struct RecentPDFsSectionView: View {
                     Text("No recent PDFs.")
                         .font(.system(size: 12))
                         .foregroundStyle(.tertiary)
-                        .frame(maxWidth: .infinity, minHeight: 60)
+                        .frame(maxWidth: 20, minHeight: 60)
                 } else {
                     ForEach(pdfURLs, id: \.self) { url in
                         RecentRowView(
@@ -45,7 +45,6 @@ struct RecentPDFsSectionView: View {
                     .strokeBorder(Color.primary.opacity(0.06), lineWidth: 1)
             )
         }
-        .frame(maxWidth: 460)
     }
 }
 

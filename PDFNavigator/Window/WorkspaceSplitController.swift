@@ -1,13 +1,23 @@
 import AppKit
+import PDFKit
 import SwiftUI
 
-/// Native window geometry with a SwiftUI home and a direct PDFKit reader.
+/// Native three-column geometry: Navigator | workspace/reader | Inspector.
 final class WorkspaceSplitController: NSSplitViewController {
     private let session: TabSession
     private let readerController: PDFReaderController
-    private let sidebarController: SidebarController
+    private let workspaceSidebarController: SidebarController
     private let workspaceController: NSHostingController<WorkspaceHomeContentView>
     private let detailContainer = NSViewController()
+    private let inspectorSidebarContainer = NSViewController()
+
+    private var workspaceSidebarItem: NSSplitViewItem!
+    private var inspectorSidebarItem: NSSplitViewItem!
+    private var didApplyInitialInspectorVisibility = false
+
+    #if DEBUG
+    private var inspectorSidebarDemoController: NSHostingController<InspectorSidebarDemoView>?
+    #endif
 
     init(
         session: TabSession,
@@ -17,7 +27,7 @@ final class WorkspaceSplitController: NSSplitViewController {
         self.session = session
         self.readerController = readerController
 
-        sidebarController = SidebarController(session: session, actions: actions)
+        workspaceSidebarController = SidebarController(session: session, actions: actions)
         workspaceController = NSHostingController(
             rootView: WorkspaceHomeContentView(
                 session: session,
@@ -36,68 +46,131 @@ final class WorkspaceSplitController: NSSplitViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
 
-        let sidebar = NSSplitViewItem(sidebarWithViewController: sidebarController)
-        sidebar.minimumThickness = 180
-        sidebar.maximumThickness = 360
-        sidebar.canCollapse = true
-        sidebar.canCollapseFromWindowResize = false
-        sidebar.allowsFullHeightLayout = true
-        sidebar.titlebarSeparatorStyle = .none
+        workspaceSidebarItem = NSSplitViewItem(
+            sidebarWithViewController: workspaceSidebarController
+        )
+        workspaceSidebarItem.minimumThickness = 180
+        workspaceSidebarItem.maximumThickness = 360
+        workspaceSidebarItem.canCollapse = true
+        workspaceSidebarItem.canCollapseFromWindowResize = false
+        workspaceSidebarItem.allowsFullHeightLayout = true
+        workspaceSidebarItem.titlebarSeparatorStyle = .none
 
         detailContainer.view = NSView()
-        let detail = NSSplitViewItem(viewController: detailContainer)
-        detail.minimumThickness = 420
-        detail.titlebarSeparatorStyle = .shadow
+        let detailItem = NSSplitViewItem(viewController: detailContainer)
+        detailItem.minimumThickness = 420
+        detailItem.titlebarSeparatorStyle = .automatic
         if #available(macOS 26.0, *) {
-            detail.automaticallyAdjustsSafeAreaInsets = true
+            detailItem.automaticallyAdjustsSafeAreaInsets = true
         }
 
-        addSplitViewItem(sidebar)
-        addSplitViewItem(detail)
-        splitView.autosaveName = "WorkspaceSplitView"
+        inspectorSidebarContainer.view = NSView()
+        inspectorSidebarItem = NSSplitViewItem(
+            inspectorWithViewController: inspectorSidebarContainer
+        )
+        inspectorSidebarItem.minimumThickness = 180
+        inspectorSidebarItem.maximumThickness = 300
+        inspectorSidebarItem.canCollapse = true
+        inspectorSidebarItem.canCollapseFromWindowResize = false
+        inspectorSidebarItem.allowsFullHeightLayout = true
+        inspectorSidebarItem.titlebarSeparatorStyle = .none
+        inspectorSidebarItem.isCollapsed = true
+
+        addSplitViewItem(workspaceSidebarItem)
+        addSplitViewItem(detailItem)
+        addSplitViewItem(inspectorSidebarItem)
+        splitView.autosaveName = "WorkspaceSplitView-v3"
 
         renderMode()
     }
 
+    override func viewDidAppear() {
+        super.viewDidAppear()
+
+        guard !didApplyInitialInspectorVisibility else { return }
+        didApplyInitialInspectorVisibility = true
+        inspectorSidebarItem.isCollapsed = true
+    }
+
     func renderMode() {
         loadViewIfNeeded()
-        sidebarController.update()
+        workspaceSidebarController.update()
 
         switch session.mode {
         case .workspaceHome:
-            install(workspaceController)
+            inspectorSidebarItem.isCollapsed = true
+            install(workspaceController, in: detailContainer)
 
         case .reading:
             guard let pdfSession = session.pdfSession else { return }
+
+            #if DEBUG
+            if DevelopmentConfiguration.showsInspectorSidebarDemo {
+                installInspectorSidebarDemo(for: pdfSession)
+            }
+            #endif
+
             readerController.display(pdfSession)
-            install(readerController)
+            install(readerController, in: detailContainer)
         }
     }
 
-    private func install(_ controller: NSViewController) {
-        guard detailContainer.children.first !== controller else { return }
+    func toggleWorkspaceSidebar(_ sender: Any?) {
+        workspaceSidebarItem.animator().isCollapsed.toggle()
+    }
 
-        for child in detailContainer.children {
+    func toggleInspectorSidebar(_ sender: Any?) {
+        inspectorSidebarItem.animator().isCollapsed.toggle()
+    }
+
+    #if DEBUG
+    private func installInspectorSidebarDemo(for session: PDFSession) {
+        let view = InspectorSidebarDemoView(
+            fileName: session.url.lastPathComponent,
+            pageCount: session.document?.pageCount ?? 0,
+            onSelectPage: { [weak readerController] pageIndex in
+                readerController?.goToPage(at: pageIndex)
+            }
+        )
+
+        if let inspectorSidebarDemoController {
+            inspectorSidebarDemoController.rootView = view
+            install(inspectorSidebarDemoController, in: inspectorSidebarContainer)
+        } else {
+            let controller = NSHostingController(rootView: view)
+            inspectorSidebarDemoController = controller
+            install(controller, in: inspectorSidebarContainer)
+        }
+    }
+    #endif
+
+    private func install(
+        _ controller: NSViewController,
+        in container: NSViewController
+    ) {
+        guard container.children.first !== controller else { return }
+
+        for child in container.children {
             child.view.removeFromSuperview()
             child.removeFromParent()
         }
 
-        detailContainer.addChild(controller)
+        container.addChild(controller)
         controller.view.translatesAutoresizingMaskIntoConstraints = false
-        detailContainer.view.addSubview(controller.view)
+        container.view.addSubview(controller.view)
+
+        let leadingAnchor = container === detailContainer
+            ? container.view.safeAreaLayoutGuide.leadingAnchor
+            : container.view.leadingAnchor
+        let trailingAnchor = container === detailContainer
+            ? container.view.safeAreaLayoutGuide.trailingAnchor
+            : container.view.trailingAnchor
+
         NSLayoutConstraint.activate([
-            controller.view.topAnchor.constraint(
-                equalTo: detailContainer.view.topAnchor
-            ),
-            controller.view.leadingAnchor.constraint(
-                equalTo: detailContainer.view.leadingAnchor
-            ),
-            controller.view.trailingAnchor.constraint(
-                equalTo: detailContainer.view.trailingAnchor
-            ),
-            controller.view.bottomAnchor.constraint(
-                equalTo: detailContainer.view.bottomAnchor
-            ),
+            controller.view.topAnchor.constraint(equalTo: container.view.topAnchor),
+            controller.view.leadingAnchor.constraint(equalTo: leadingAnchor),
+            controller.view.trailingAnchor.constraint(equalTo: trailingAnchor),
+            controller.view.bottomAnchor.constraint(equalTo: container.view.bottomAnchor),
         ])
     }
 }
