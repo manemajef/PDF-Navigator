@@ -96,7 +96,7 @@ final class WindowToolbar: NSObject, NSToolbarDelegate, NSSearchFieldDelegate {
             .flexibleSpace,
             .workspaceNewTab,
             .workspaceSearch,
-            .inspectorTrackingSeparator,
+//            .inspectorTrackingSeparator,
             .toggleInspector,
         ]
     }
