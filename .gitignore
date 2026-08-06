@@ -4,4 +4,8 @@ DEMO_DIR/
 PDFNavigator.app
 icon/
 .build/
+.codex/
+.claude/
+.DS_Store
 xcuserdata/
+DEBUG_PDFNavigator.app
