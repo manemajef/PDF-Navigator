@@ -25,12 +25,14 @@ struct FileCardView: View {
    
     var body: some View {
         let layout = USE_HSTACK ? AnyLayout(HStackLayout(spacing: 12)) : AnyLayout(VStackLayout(spacing: 2))
-        Button(action: action) {
+        Button(action: action){
             /// for alternative compact look use :
             /// - `HStack` with spacing `12`
             /// - set THUMB_WIDTH = 40 and THUMB_HEIGHT = 52
             layout {
-                PDFThumbnailView(url: url)
+                
+                    PDFThumbnailView(url: url)
+                
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(url.lastPathComponent)
@@ -56,15 +58,9 @@ struct FileCardView: View {
             .padding(.vertical, 10)
             .frame(maxWidth: .infinity, alignment: USE_HSTACK ? .leading : .center)
         }
-        .buttonStyle(.hover(cornerRadius: 10))
-        .background(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color(nsColor: .controlBackgroundColor).opacity(0.5))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .strokeBorder(Color.primary.opacity(0.06), lineWidth: 1)
-        )
+        .buttonStyle(.plain)
+       
+        
 //        .padding()
     }
 }
@@ -109,6 +105,8 @@ private struct PDFThumbnailView: View {
     }
 }
 
-#Preview("File Card") {
-    FileCardView(url: DevelopmentConfiguration.demoPDFURL, action: {})
-}
+#if DEBUG
+    #Preview("File Card") {
+        FileCardView(url: DevelopmentConfiguration.demoPDFURL, action: {})
+    }
+#endif
