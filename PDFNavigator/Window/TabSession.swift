@@ -41,10 +41,6 @@ final class TabSession {
     var canGoBack: Bool { history.canGoBack }
     var canGoForward: Bool { history.canGoForward }
     var canGoToWorkspaceHome: Bool { selection != nil }
-    var canGoToEnclosingFolder: Bool {
-        let location = selection ?? root
-        return location.deletingLastPathComponent() != location
-    }
 
     var mode: Mode {
         if let selection {
@@ -93,13 +89,6 @@ final class TabSession {
 
     func goToWorkspaceHome() {
         navigate(to: .folder(root))
-    }
-
-    func goToEnclosingFolder() {
-        let location = selection ?? root
-        let enclosingFolder = location.deletingLastPathComponent()
-        guard enclosingFolder != location else { return }
-        navigate(to: .folder(enclosingFolder))
     }
 
     func goBack() {

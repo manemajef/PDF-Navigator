@@ -144,11 +144,6 @@ final class MainMenu: NSObject, NSMenuDelegate {
             action: #selector(WindowController.goToWorkspaceHome(_:)),
             keyEquivalent: ""
         )
-        goMenu.addItem(
-            withTitle: "Enclosing Folder",
-            action: #selector(WindowController.goToEnclosingFolder(_:)),
-            keyEquivalent: ""
-        )
         goMenu.addItem(.separator())
         goMenu.addItem(
             withTitle: "Previous Page",

@@ -13,6 +13,7 @@ struct PDFOutlineView: View {
                 "No Table of Contents",
                 systemImage: "list.bullet.indent"
             )
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             List {
                 OutlineGroup(nodes, children: \.children) { node in

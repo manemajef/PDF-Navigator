@@ -176,10 +176,6 @@ final class WindowController: NSWindowController {
         session.goToWorkspaceHome()
     }
 
-    @objc func goToEnclosingFolder(_ sender: Any?) {
-        session.goToEnclosingFolder()
-    }
-
     @objc func toggleSidebar(_ sender: Any?) {
         contentController.toggleWorkspaceSidebar(sender)
     }
@@ -291,8 +287,6 @@ extension WindowController: NSMenuItemValidation, NSToolbarItemValidation {
             session.canGoForward
         case #selector(goToWorkspaceHome(_:)):
             session.canGoToWorkspaceHome
-        case #selector(goToEnclosingFolder(_:)):
-            session.canGoToEnclosingFolder
         case #selector(toggleSidebar(_:)),
              #selector(newTab(_:)),
              #selector(customizeToolbar(_:)):
