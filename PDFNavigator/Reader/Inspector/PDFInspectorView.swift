@@ -12,7 +12,7 @@ enum PDFInspectorSection: String, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .thumbnails: "Thumbnails"
-        case .outline: "Contents"
+        case .outline: "Table of Contents"
         case .info: "Info"
         }
     }

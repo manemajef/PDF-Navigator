@@ -31,8 +31,8 @@ workspace from the PDF's parent directory and selects the opened PDF.
 As a user, I want to open a PDF with the app, then use the sidebar to navigate
 between other PDFs in the same directory tree.
 
-As a user, I want back and forward navigation to switch between PDFs I recently
-visited in the current workspace tab.
+As a user, I want back and forward navigation to move between the workspace
+home and PDFs I recently visited in the current tab.
 
 As a user, I want to open a related PDF in a new tab so I can compare files,
 for example an exam and its solution.
@@ -51,7 +51,7 @@ macOS and consistent with apps like Finder, Preview, Safari, and Xcode.
 | Selected PDF | The PDF currently displayed in a workspace tab. Optional. |
 | Workspace tab | One native tab containing one workspace context. |
 | Window shell | The native macOS window chrome: toolbar, tab bar, sidebar visibility, size, and position. |
-| PDF navigation history | Back/forward history between selected PDFs in one tab. |
+| Workspace navigation history | Back/forward history between workspace homes and selected PDFs in one tab. |
 | PDF page history | PDFKit's internal document/page navigation inside the selected PDF. |
 
 Workspace navigation and PDF page navigation are separate product concepts.
@@ -87,8 +87,8 @@ Toolbar visibility, sidebar visibility, window size, and window position are
 window-shell state. They should feel shared across tabs in the same native
 window.
 
-Sidebar contents, selected PDF, expanded folders, search state, and PDF history
-belong to the active workspace tab.
+Sidebar contents, selected PDF, expanded folders, search state, and workspace
+navigation history belong to the active workspace tab.
 
 ## Launch Panel And Workspace Home
 
@@ -136,6 +136,10 @@ reader. It should provide three views of the selected PDF:
 - The PDF table of contents, when one exists.
 - Document and current-reader information.
 
+The reader-panel toolbar control mirrors these three sections. Exactly the
+visible section is highlighted; when the inspector is collapsed, none is
+highlighted. Inspector controls are unavailable when no PDF is selected.
+
 The inspector belongs to each native window or tab, follows that tab's selected
 PDF, and remains collapsible like native window-shell state. On supported macOS
 versions, the reader should continue beneath native sidebar and inspector
@@ -148,6 +152,9 @@ The reader should be Preview-like and PDFKit-powered. It should support:
 - Reading PDFs.
 - Page navigation.
 - Zoom in, zoom out, actual size, and zoom to fit.
+- Default to zoom to fit when displaying a PDF.
+- Leave fit mode after any manual zoom, including a trackpad pinch, until the
+  user chooses Zoom to Fit again.
 - Search within the current PDF.
 - Highlighting search matches.
 - Restoring last reading position per PDF.

@@ -81,6 +81,22 @@ final class PDFReaderController: NSViewController {
             ) { [weak self] _ in
                 self?.updatePresentationState()
                 self?.onZoomStateChange?()
+            },
+            center.addObserver(
+                forName: NSScrollView.willStartLiveMagnifyNotification,
+                object: nil,
+                queue: .main
+            ) { [weak self] notification in
+                guard let self,
+                      let scrollView = notification.object as? NSScrollView,
+                      scrollView === pdfView.documentView?.enclosingScrollView
+                else {
+                    return
+                }
+
+                pdfView.autoScales = false
+                updatePresentationState()
+                onZoomStateChange?()
             }
         ]
     }

@@ -136,12 +136,7 @@ final class WorkspaceSplitController: NSSplitViewController {
     func toggleInspectorSection(_ section: PDFInspectorSection) {
         guard session.pdfSession?.hasDocument == true else { return }
 
-        let isCurrentPanel = switch section {
-        case .thumbnails:
-            inspectorPresentationState.section != .info
-        case .outline, .info:
-            inspectorPresentationState.section == section
-        }
+        let isCurrentPanel = inspectorPresentationState.section == section
         let shouldCollapse = !inspectorSidebarItem.isCollapsed
             && isCurrentPanel
         prepareCollapseBehavior(for: inspectorSidebarItem)

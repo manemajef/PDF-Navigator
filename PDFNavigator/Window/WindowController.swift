@@ -49,7 +49,7 @@ final class WindowController: NSWindowController {
         super.init(window: window)
 
         readerController.onZoomStateChange = { [weak self] in
-            self?.toolbar.updateZoomControls()
+            self?.updateZoomControls()
         }
         configureWindow()
         sessionChangesSubscription = session.changes.sink { [weak self] change in
@@ -120,6 +120,7 @@ final class WindowController: NSWindowController {
             toolbar.updatePDFAvailability(
                 session.pdfSession?.hasDocument == true
             )
+            updateZoomControls()
             if let selection = session.selection {
                 RecentLocationsStore.shared.notePDF(selection)
             }
@@ -171,6 +172,14 @@ final class WindowController: NSWindowController {
         session.goForward()
     }
 
+    @objc func goToWorkspaceHome(_ sender: Any?) {
+        session.goToWorkspaceHome()
+    }
+
+    @objc func goToEnclosingFolder(_ sender: Any?) {
+        session.goToEnclosingFolder()
+    }
+
     @objc func toggleSidebar(_ sender: Any?) {
         contentController.toggleWorkspaceSidebar(sender)
     }
@@ -181,6 +190,10 @@ final class WindowController: NSWindowController {
 
     @objc func toggleThumbnailsPanel(_ sender: Any?) {
         contentController.toggleInspectorSection(.thumbnails)
+    }
+
+    @objc func toggleOutlinePanel(_ sender: Any?) {
+        contentController.toggleInspectorSection(.outline)
     }
 
     @objc func toggleInfoPanel(_ sender: Any?) {
@@ -226,22 +239,22 @@ final class WindowController: NSWindowController {
 
     @objc func zoomIn(_ sender: Any?) {
         readerController.zoomIn()
-        toolbar.updateZoomControls()
+        updateZoomControls()
     }
 
     @objc func zoomOut(_ sender: Any?) {
         readerController.zoomOut()
-        toolbar.updateZoomControls()
+        updateZoomControls()
     }
 
     @objc func showActualSize(_ sender: Any?) {
         readerController.showActualSize()
-        toolbar.updateZoomControls()
+        updateZoomControls()
     }
 
     @objc func zoomToFit(_ sender: Any?) {
         readerController.zoomToFit()
-        toolbar.updateZoomControls()
+        updateZoomControls()
     }
 
     @objc func openCurrentPDFInDefaultApp(_ sender: Any?) {
@@ -251,6 +264,13 @@ final class WindowController: NSWindowController {
     @objc func shareCurrentPDF(_ sender: Any?) {
         guard let contentView = window?.contentView else { return }
         readerController.share(from: contentView)
+    }
+
+    private func updateZoomControls() {
+        toolbar.updateZoomControls(
+            isZoomToFitActive: readerController.isZoomToFitActive,
+            isActualSizeActive: readerController.isActualSizeActive
+        )
     }
 }
 
@@ -269,6 +289,10 @@ extension WindowController: NSMenuItemValidation, NSToolbarItemValidation {
             session.canGoBack
         case #selector(goForward(_:)):
             session.canGoForward
+        case #selector(goToWorkspaceHome(_:)):
+            session.canGoToWorkspaceHome
+        case #selector(goToEnclosingFolder(_:)):
+            session.canGoToEnclosingFolder
         case #selector(toggleSidebar(_:)),
              #selector(newTab(_:)),
              #selector(customizeToolbar(_:)):
@@ -276,6 +300,7 @@ extension WindowController: NSMenuItemValidation, NSToolbarItemValidation {
         case #selector(toggleInspector(_:)):
             session.pdfSession?.hasDocument == true
         case #selector(toggleThumbnailsPanel(_:)),
+             #selector(toggleOutlinePanel(_:)),
              #selector(toggleInfoPanel(_:)):
             session.pdfSession?.hasDocument == true
         case #selector(showActualSize(_:)):

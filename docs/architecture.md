@@ -267,9 +267,9 @@ Release and intentionally disabled in DEBUG. Persisted toolbar and split-view
 identifiers are compatibility keys and do not need to match current type names.
 
 Menus and toolbar items target the same small `@objc` methods on
-`WindowController`. PDF-to-PDF back/forward navigation belongs to `TabSession`;
-page navigation inside the current PDF belongs to `PDFReaderController` and
-PDFKit.
+`WindowController`. Back/forward navigation among workspace homes and selected
+PDFs belongs to `TabSession`; page navigation inside the current PDF belongs to
+`PDFReaderController` and PDFKit.
 
 ## Navigator
 
@@ -304,11 +304,18 @@ the current `PDFDocument` directly:
 - `PDFOutlineView` renders the PDF outline and returns outline-selection intent.
 - `PDFInfoView` presents document metadata and current reader status.
 
+`WorkspaceSplitController` reports the inspector's visibility and active
+section to `WindowToolbar`. The native reader-panel group uses those values to
+select exactly one matching segment, or no segment while the inspector is
+collapsed.
+
 The private `PDFView` never crosses into SwiftUI. `PDFReaderController` performs
 page and outline navigation, observes PDFKit page/scale notifications, and
 publishes only `PDFReaderPresentationState` for current-page highlighting and
-reader status. This projection is presentation state, not a second owner of the
-document or reading position.
+reader status. Trackpad magnification belongs to PDFKit's nested scroll view,
+so the controller observes its magnification-start notification and leaves
+`autoScales` before publishing the new zoom mode. This projection is
+presentation state, not a second owner of the document or reading position.
 
 On macOS 26 and later, the detail split item allows native sidebars and
 inspectors to overlay it and adjusts its safe area. Workspace-home content uses

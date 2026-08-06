@@ -58,7 +58,19 @@ final class MainMenu: NSObject, NSMenuDelegate {
         let openRecentMenu = NSMenu(title: "Open Recent")
         openRecentMenu.delegate = self
         openRecentItem.submenu = openRecentMenu
+
+        let recentWorkspaceItem = NSMenuItem(
+            title: "Recent Workspaces",
+            action: nil,
+            keyEquivalent: ""
+        )
+        let recentWorkspaceMenu = NSMenu(title: "Recent Workspaces")
+        recentWorkspaceMenu.delegate = self
+        recentWorkspaceItem.submenu = recentWorkspaceMenu
+
         fileMenu.addItem(openRecentItem)
+        fileMenu.addItem(.separator())
+        fileMenu.addItem(recentWorkspaceItem)
         fileMenu.addItem(.separator())
         fileMenu.addItem(
             withTitle: "Close Window",
@@ -112,27 +124,38 @@ final class MainMenu: NSObject, NSMenuDelegate {
             keyEquivalent: "-"
         )
 
-        let navigateMenuItem = NSMenuItem()
-        mainMenu.addItem(navigateMenuItem)
-        let navigateMenu = NSMenu(title: "Navigate")
-        navigateMenuItem.submenu = navigateMenu
-        navigateMenu.addItem(
+        let goMenuItem = NSMenuItem()
+        mainMenu.addItem(goMenuItem)
+        let goMenu = NSMenu(title: "Go")
+        goMenuItem.submenu = goMenu
+        goMenu.addItem(
             withTitle: "Back",
             action: #selector(WindowController.goBack(_:)),
             keyEquivalent: "["
         )
-        navigateMenu.addItem(
+        goMenu.addItem(
             withTitle: "Forward",
             action: #selector(WindowController.goForward(_:)),
             keyEquivalent: "]"
         )
-        navigateMenu.addItem(.separator())
-        navigateMenu.addItem(
+        goMenu.addItem(.separator())
+        goMenu.addItem(
+            withTitle: "Workspace Home",
+            action: #selector(WindowController.goToWorkspaceHome(_:)),
+            keyEquivalent: ""
+        )
+        goMenu.addItem(
+            withTitle: "Enclosing Folder",
+            action: #selector(WindowController.goToEnclosingFolder(_:)),
+            keyEquivalent: ""
+        )
+        goMenu.addItem(.separator())
+        goMenu.addItem(
             withTitle: "Previous Page",
             action: #selector(WindowController.goToPreviousPage(_:)),
             keyEquivalent: ""
         )
-        navigateMenu.addItem(
+        goMenu.addItem(
             withTitle: "Next Page",
             action: #selector(WindowController.goToNextPage(_:)),
             keyEquivalent: ""
@@ -206,26 +229,34 @@ final class MainMenu: NSObject, NSMenuDelegate {
     }
 
     func menuNeedsUpdate(_ menu: NSMenu) {
-        guard menu.title == "Open Recent" else { return }
         menu.removeAllItems()
 
-        appendRecentSection(
-            title: "Workspaces",
-            urls: recentLocations.recentWorkspaces,
-            action: #selector(openRecentWorkspace(_:)),
-            to: menu
-        )
-        menu.addItem(.separator())
-        appendRecentSection(
-            title: "PDFs",
-            urls: recentLocations.recentPDFs,
-            action: #selector(openRecentPDF(_:)),
-            to: menu
-        )
+        let clearAction: Selector
+        switch menu.title {
+        case "Open Recent":
+            appendRecentItems(
+                recentLocations.recentPDFs,
+                action: #selector(openRecentPDF(_:)),
+                to: menu
+            )
+            clearAction = #selector(clearRecentPDFs(_:))
+
+        case "Recent Workspaces":
+            appendRecentItems(
+                recentLocations.recentWorkspaces,
+                action: #selector(openRecentWorkspace(_:)),
+                to: menu
+            )
+            clearAction = #selector(clearRecentWorkspaces(_:))
+
+        default:
+            return
+        }
+
         menu.addItem(.separator())
         menu.addItem(
             withTitle: "Clear Menu",
-            action: #selector(clearRecentLocations(_:)),
+            action: clearAction,
             keyEquivalent: ""
         ).target = self
     }
@@ -248,19 +279,19 @@ final class MainMenu: NSObject, NSMenuDelegate {
         onOpenRecentPDF(url)
     }
 
-    @objc private func clearRecentLocations(_ sender: Any?) {
-        recentLocations.clear()
+    @objc private func clearRecentPDFs(_ sender: Any?) {
+        recentLocations.clearPDFs()
     }
 
-    private func appendRecentSection(
-        title: String,
-        urls: [URL],
+    @objc private func clearRecentWorkspaces(_ sender: Any?) {
+        recentLocations.clearWorkspaces()
+    }
+
+    private func appendRecentItems(
+        _ urls: [URL],
         action: Selector,
         to menu: NSMenu
     ) {
-        let header = menu.addItem(withTitle: title, action: nil, keyEquivalent: "")
-        header.isEnabled = false
-
         if urls.isEmpty {
             let emptyItem = menu.addItem(withTitle: "None", action: nil, keyEquivalent: "")
             emptyItem.isEnabled = false

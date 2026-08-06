@@ -35,11 +35,16 @@ final class TabSession {
         } else {
             pdfSession = nil
         }
-        history.reset(to: selection)
+        history.reset(to: request)
     }
 
     var canGoBack: Bool { history.canGoBack }
     var canGoForward: Bool { history.canGoForward }
+    var canGoToWorkspaceHome: Bool { selection != nil }
+    var canGoToEnclosingFolder: Bool {
+        let location = selection ?? root
+        return location.deletingLastPathComponent() != location
+    }
 
     var mode: Mode {
         if let selection {
@@ -67,7 +72,7 @@ final class TabSession {
         } else {
             pdfSession = nil
         }
-        history.reset(to: selection)
+        history.reset(to: request)
 
         changes.send(.root)
         changes.send(.selection)
@@ -80,27 +85,52 @@ final class TabSession {
 
         selection = url
         pdfSession = PDFSession(url: url)
-        history.visit(url)
+        history.visit(.pdf(url, in: root))
 
         changes.send(.selection)
         changes.send(.history)
     }
 
+    func goToWorkspaceHome() {
+        navigate(to: .folder(root))
+    }
+
+    func goToEnclosingFolder() {
+        let location = selection ?? root
+        let enclosingFolder = location.deletingLastPathComponent()
+        guard enclosingFolder != location else { return }
+        navigate(to: .folder(enclosingFolder))
+    }
+
     func goBack() {
-        guard let url = history.goBack() else { return }
-        applyHistorySelection(url)
+        guard let request = history.goBack() else { return }
+        apply(request)
     }
 
     func goForward() {
-        guard let url = history.goForward() else { return }
-        applyHistorySelection(url)
+        guard let request = history.goForward() else { return }
+        apply(request)
     }
 
-    private func applyHistorySelection(_ url: URL) {
-        let url = url.standardizedFileURL
-        selection = url
-        pdfSession = PDFSession(url: url)
+    private func navigate(to request: OpenRequest) {
+        let currentRequest = OpenRequest(
+            workspaceRootURL: root,
+            selectedPDFURL: selection
+        )
+        guard request != currentRequest else { return }
+        history.visit(request)
+        apply(request)
+    }
 
+    private func apply(_ request: OpenRequest) {
+        let rootChanged = root != request.workspaceRootURL
+        root = request.workspaceRootURL
+        selection = request.selectedPDFURL
+        pdfSession = selection.map(PDFSession.init(url:))
+
+        if rootChanged {
+            changes.send(.root)
+        }
         changes.send(.selection)
         changes.send(.history)
     }

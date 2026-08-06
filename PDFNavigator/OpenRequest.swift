@@ -1,6 +1,6 @@
 import Foundation
 
-struct OpenRequest {
+struct OpenRequest: Equatable {
     let workspaceRootURL: URL
     let selectedPDFURL: URL?
 

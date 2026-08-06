@@ -31,8 +31,11 @@ final class RecentLocationsStore {
         NSDocumentController.shared.noteNewRecentDocumentURL(url)
     }
 
-    func clear() {
+    func clearWorkspaces() {
         defaults.removeObject(forKey: recentWorkspacesKey)
+    }
+
+    func clearPDFs() {
         defaults.removeObject(forKey: recentPDFsKey)
         NSDocumentController.shared.clearRecentDocuments(nil)
     }
