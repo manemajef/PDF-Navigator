@@ -37,7 +37,7 @@ struct WorkspaceHomeView: View {
                     pdfURLs: pdfURLs,
                     onSelectPDF: onSelectPDF
                 )
-                .padding(36)
+                .padding()
             }
 
             Spacer(minLength: 0)
@@ -58,13 +58,18 @@ struct WorkspaceHomeView: View {
 
 #Preview("Workspace Home View") {
     WorkspaceHomeView(
-        folderURL: URL(fileURLWithPath: "/Users/demo/Documents/Micro 3"),
-        pdfURLs: [
-            URL(fileURLWithPath: "/Users/demo/Documents/Micro 3/syllabus.pdf"),
-            URL(fileURLWithPath: "/Users/demo/Documents/Micro 3/lecture-01-game-theory.pdf"),
-            URL(fileURLWithPath: "/Users/demo/Documents/Micro 3/problem-set-1.pdf"),
-            URL(fileURLWithPath: "/Users/demo/Documents/Micro 3/midterm-2023-solutions.pdf")
-        ]
+        folderURL:                 DevelopmentConfiguration.demoDirURL
+,
+            pdfURLs: [
+                DevelopmentConfiguration.demoPDFURL,
+                DevelopmentConfiguration.demoDirURL
+                    .appendingPathComponent("lecs/micro3-lec-1.pdf"),
+                DevelopmentConfiguration.demoDirURL
+                    .appendingPathComponent("hw/micro3-hw-1.pdf"),
+                DevelopmentConfiguration.demoDirURL
+                    .appendingPathComponent("exams/micro3-exam-2026-a1.pdf")
+            ]
+        
     )
     .frame(width: 700, height: 600)
 }

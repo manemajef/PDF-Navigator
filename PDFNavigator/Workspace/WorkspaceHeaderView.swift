@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct WorkspaceHeaderView: View {
     let folderName: String
@@ -17,13 +18,15 @@ struct WorkspaceHeaderView: View {
 
     var body: some View {
         HStack(spacing: 14) {
-            Image(systemName: "folder.fill")
-                .font(.system(size: 34))
-                .foregroundStyle(Color.accentColor.gradient)
+            Image(nsImage: NSWorkspace.shared.icon(for: .folder)
+                  )
+            .resizable()
+            .scaledToFit()
+            .frame(width: 52)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(folderName)
-                    .font(.system(size: 22, weight: .semibold))
+                    .font(.system(size: 16, weight: .semibold))
                     .foregroundStyle(.primary)
 
                 Text(folderPath)
@@ -36,7 +39,7 @@ struct WorkspaceHeaderView: View {
             Spacer()
 
             Button("Open Different…", action: onOpenDifferent)
-                .controlSize(.regular)
+                .controlSize(.large)
         }
     }
 }

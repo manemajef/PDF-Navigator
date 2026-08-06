@@ -34,7 +34,7 @@ struct FileCardGridView: View {
                 )
             } else {
                 LazyVGrid(
-                    columns: [GridItem(.adaptive(minimum: 220), spacing: 12)],
+                    columns: [GridItem(.adaptive(minimum: 130), spacing: 12)],
                     alignment: .leading,
                     spacing: 12
                 ) {
