@@ -17,6 +17,8 @@ final class WorkspaceSplitController: NSSplitViewController {
     private var inspectorSidebarItem: NSSplitViewItem!
     private var didApplyInitialInspectorVisibility = false
 
+    private let readerWidthForContentResize: CGFloat = 760
+
     private var inspectorController: NSHostingController<PDFInspectorView>?
 
     init(
@@ -57,6 +59,7 @@ final class WorkspaceSplitController: NSSplitViewController {
         workspaceSidebarItem.canCollapseFromWindowResize = true
         workspaceSidebarItem.allowsFullHeightLayout = true
         workspaceSidebarItem.titlebarSeparatorStyle = .none
+        workspaceSidebarItem.collapseBehavior = .useConstraints
 
         detailContainer.view = NSView()
         let detailItem = NSSplitViewItem(viewController: detailContainer)
@@ -77,6 +80,7 @@ final class WorkspaceSplitController: NSSplitViewController {
         inspectorSidebarItem.allowsFullHeightLayout = false
 //        inspectorSidebarItem.titlebarSeparatorStyle = .none
         inspectorSidebarItem.isCollapsed = true
+        inspectorSidebarItem.collapseBehavior = .useConstraints
 
         addSplitViewItem(workspaceSidebarItem)
         addSplitViewItem(detailItem)
@@ -117,12 +121,14 @@ final class WorkspaceSplitController: NSSplitViewController {
     }
 
     func toggleWorkspaceSidebar(_ sender: Any?) {
+        prepareCollapseBehavior(for: workspaceSidebarItem)
         workspaceSidebarItem.animator().isCollapsed.toggle()
     }
 
     func toggleInspectorSidebar(_ sender: Any?) {
         guard session.pdfSession?.hasDocument == true else { return }
         let isVisible = inspectorSidebarItem.isCollapsed
+        prepareCollapseBehavior(for: inspectorSidebarItem)
         inspectorSidebarItem.animator().isCollapsed = !isVisible
         notifyInspectorPresentation(isVisible: isVisible)
     }
@@ -138,6 +144,7 @@ final class WorkspaceSplitController: NSSplitViewController {
         }
         let shouldCollapse = !inspectorSidebarItem.isCollapsed
             && isCurrentPanel
+        prepareCollapseBehavior(for: inspectorSidebarItem)
         inspectorSidebarItem.animator().isCollapsed = shouldCollapse
         if !shouldCollapse {
             inspectorPresentationState.section = section
@@ -170,6 +177,36 @@ final class WorkspaceSplitController: NSSplitViewController {
             inspectorController = controller
             install(controller, in: inspectorSidebarContainer)
         }
+    }
+
+    private func prepareCollapseBehavior(for item: NSSplitViewItem) {
+        guard item === workspaceSidebarItem || item === inspectorSidebarItem else { return }
+
+        guard item.isCollapsed else {
+            item.collapseBehavior = .preferResizingSiblingsWithFixedSplitView
+            return
+        }
+
+        let otherItem = item === workspaceSidebarItem
+            ? inspectorSidebarItem
+            : workspaceSidebarItem
+        let threshold = readerWidthForContentResize
+            + (otherItem?.isCollapsed == true ? restoredWidth(of: otherItem) : 0)
+        let projectedReaderWidth = detailWidth - restoredWidth(of: item)
+
+        item.collapseBehavior = projectedReaderWidth < threshold
+            ? .preferResizingSplitViewWithFixedSiblings
+            : .preferResizingSiblingsWithFixedSplitView
+    }
+
+    private var detailWidth: CGFloat {
+        detailContainer.view.layoutSubtreeIfNeeded()
+        return detailContainer.view.bounds.width
+    }
+
+    private func restoredWidth(of item: NSSplitViewItem?) -> CGFloat {
+        guard let item else { return 0 }
+        return max(item.viewController.view.bounds.width, item.minimumThickness)
     }
 
     private func notifyInspectorPresentation(isVisible: Bool? = nil) {
