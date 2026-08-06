@@ -8,58 +8,53 @@ struct LaunchPanelView: View {
     let onSelectWorkspace: (URL) -> Void
     let onSelectPDF: (URL) -> Void
 
+    @State private var showingWorkspaces = true
+
     var body: some View {
         HStack(spacing: 0) {
             mainContent
 
             Divider()
 
-            recentPDFsColumn
+            recentItemsColumn
         }
-        .frame(width: 820, height: 520)
+        .frame(width: 680, height: 420)
     }
 
     // MARK: - Main launch area
 
     private var mainContent: some View {
-        ScrollView {
-            VStack(spacing: 24) {
-                LaunchPanelHeaderView(
-                    onOpen: onOpen
-                )
+        VStack {
+            Spacer()
 
-                if !recentWorkspaces.isEmpty {
-                    RecentWorkspacesSectionView(
-                        folderURLs: recentWorkspaces,
-                        onSelectFolder: onSelectWorkspace
-                    )
+            LaunchPanelHeaderView(
+                showingWorkspaces: showingWorkspaces,
+                onOpen: onOpen,
+                onToggleShowingWorkspaces: {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        showingWorkspaces.toggle()
+                    }
                 }
-            }
-            .padding(.horizontal, 48)
-            .padding(.vertical, 40)
-            .frame(
-                maxWidth: .infinity,
-                minHeight: 520,
-                alignment: .top
             )
+
+            Spacer()
         }
+        .padding(.horizontal, 40)
+        .padding(.vertical, 32)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color(nsColor: .windowBackgroundColor))
     }
 
-    // MARK: - Recent PDFs
+    // MARK: - Recent items
 
-    private var recentPDFsColumn: some View {
+    private var recentItemsColumn: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                if recentPDFs.isEmpty {
-                    Text("No Recent PDFs")
-                        .font(.system(size: 12))
-                        .foregroundStyle(.secondary)
-                        .frame(
-                            maxWidth: .infinity,
-                            minHeight: 80
-                        )
+                if showingWorkspaces {
+                    RecentWorkspacesSectionView(
+                        folderURLs: recentWorkspaces,
+                        onSelectFolder: onSelectWorkspace
+                    )
                 } else {
                     RecentPDFsSectionView(
                         pdfURLs: recentPDFs,

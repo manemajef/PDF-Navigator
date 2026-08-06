@@ -13,33 +13,39 @@ struct RecentWorkspacesSectionView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 6) {
             Text("Recent Workspaces")
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(.secondary)
                 .padding(.leading, 8)
 
-            if folderURLs.isEmpty {
-                Text("No recent workspaces.")
-                    .font(.system(size: 12))
-                    .foregroundStyle(.tertiary)
-                    .frame(maxWidth: .infinity, minHeight: 50)
-            } else {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(folderURLs, id: \.self) { url in
-                            FolderCardView(
-                                name: url.lastPathComponent,
-                                subtitle: url.deletingLastPathComponent().lastPathComponent,
-                                action: { onSelectFolder(url) }
-                            )
-                        }
+            VStack(spacing: 2) {
+                if folderURLs.isEmpty {
+                    Text("No recent workspaces.")
+                        .font(.system(size: 12))
+                        .foregroundStyle(.tertiary)
+                        .frame(maxWidth: .infinity, minHeight: 60)
+                } else {
+                    ForEach(folderURLs, id: \.self) { url in
+                        RecentRowView(
+                            title: url.lastPathComponent,
+                            subtitle: url.deletingLastPathComponent().lastPathComponent,
+                            iconName: "folder",
+                            action: { onSelectFolder(url) }
+                        )
                     }
-                    .padding(6)
                 }
             }
+            .padding(6)
+//            .background(
+//                RoundedRectangle(cornerRadius: 10, style: .continuous)
+//                    .fill(Color(nsColor: .controlBackgroundColor).opacity(0.6))
+//            )
+//            .overlay(
+//                RoundedRectangle(cornerRadius: 10, style: .continuous)
+//                    .strokeBorder(Color.primary.opacity(0.06), lineWidth: 1)
+//            )
         }
-        .frame(maxWidth: 460)
     }
 }
 

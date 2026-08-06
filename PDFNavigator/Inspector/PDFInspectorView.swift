@@ -11,17 +11,23 @@ enum PDFInspectorSection: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .thumbnails: "Thumbnails"
-        case .outline: "Table of Contents"
-        case .info: "Info"
+        case .thumbnails:
+            "Thumbnails"
+        case .outline:
+            "Table of Contents"
+        case .info:
+            "Info"
         }
     }
 
     var symbol: String {
         switch self {
-        case .thumbnails: "square.grid.2x2"
-        case .outline: "list.bullet.indent"
-        case .info: "info.circle"
+        case .thumbnails:
+            "square.grid.2x2"
+        case .outline:
+            "list.bullet.indent"
+        case .info:
+            "info.circle"
         }
     }
 }
@@ -35,21 +41,36 @@ final class PDFInspectorPresentationState {
 struct PDFInspectorView: View {
     let session: PDFSession
     let readerState: PDFReaderPresentationState
+
     @Bindable var presentationState: PDFInspectorPresentationState
+
     let onSelectPage: (Int) -> Void
     let onSelectOutline: (PDFOutline) -> Void
     let onSectionChange: (PDFInspectorSection) -> Void
 
+    private var inspectorPicker: some View {
+        Picker("Inspector", selection: $presentationState.section) {
+            ForEach(PDFInspectorSection.allCases) { section in
+                Label(section.title, systemImage: section.symbol)
+                    .labelStyle(.iconOnly)
+                    .tag(section)
+            }
+        }
+    }
+
     var body: some View {
         VStack(spacing: 0) {
-            Picker("Inspector", selection: $presentationState.section) {
-                ForEach(PDFInspectorSection.allCases) { section in
-                    Label(section.title, systemImage: section.symbol)
-                        .labelStyle(.iconOnly)
-                        .tag(section)
+            Group {
+                if #available(macOS 27.0, *) {
+                    inspectorPicker
+                        .pickerStyle(.tabs)
+                        .controlSize(.large)
+                } else {
+                    inspectorPicker
+                        .pickerStyle(.palette)
+                        .controlSize(.large)
                 }
             }
-            .pickerStyle(.segmented)
             .labelsHidden()
             .help(presentationState.section.title)
             .padding(10)
@@ -94,6 +115,7 @@ struct PDFInspectorView: View {
 #if DEBUG
 #Preview("PDF Inspector") {
     let readerState = PDFReaderPresentationState()
+
     readerState.update(
         currentPageIndex: 0,
         scaleFactor: 1,
@@ -101,7 +123,9 @@ struct PDFInspectorView: View {
     )
 
     return PDFInspectorView(
-        session: PDFSession(url: DevelopmentConfiguration.demoPDFURL),
+        session: PDFSession(
+            url: DevelopmentConfiguration.demoPDFURL
+        ),
         readerState: readerState,
         presentationState: PDFInspectorPresentationState(),
         onSelectPage: { _ in },

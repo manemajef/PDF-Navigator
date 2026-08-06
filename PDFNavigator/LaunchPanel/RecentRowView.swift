@@ -4,24 +4,27 @@ struct RecentRowView: View {
     let title: String
     let subtitle: String?
     let timestamp: String?
+    let iconName: String
     let action: () -> Void
 
     init(
         title: String,
         subtitle: String? = nil,
         timestamp: String? = nil,
+        iconName: String = "doc.text",
         action: @escaping () -> Void = {}
     ) {
         self.title = title
         self.subtitle = subtitle
         self.timestamp = timestamp
+        self.iconName = iconName
         self.action = action
     }
 
     var body: some View {
         Button(action: action) {
             HStack(spacing: 10) {
-                Image(systemName: "doc.text")
+                Image(systemName: iconName)
                     .font(.system(size: 14))
                     .foregroundStyle(.secondary)
                     .frame(width: 18)
@@ -53,7 +56,7 @@ struct RecentRowView: View {
             .padding(.vertical, 6)
             .contentShape(Rectangle())
         }
-        .buttonStyle(.hover(cornerRadius: 6))
+        .buttonStyle(.plain)
     }
 }
 

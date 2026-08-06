@@ -7,17 +7,25 @@ final class LaunchPanelController: NSWindowController {
     var onSelectPDF: ((URL) -> Void)?
 
     init() {
-        let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 560, height: 560),
-            styleMask: [.titled, .closable, .fullSizeContentView],
+        let panel = NSPanel(
+            contentRect: NSRect(x: 0, y: 0, width: 680, height: 420),
+            styleMask: [.titled, .closable, .fullSizeContentView, .utilityWindow],
             backing: .buffered,
             defer: false
         )
-        window.title = "PDF Navigator"
-        window.titlebarAppearsTransparent = true
-        window.isMovableByWindowBackground = true
-        window.center()
-        super.init(window: window)
+        panel.title = ""
+        panel.titleVisibility = .hidden
+        panel.titlebarAppearsTransparent = true
+        panel.isMovableByWindowBackground = true
+        panel.isFloatingPanel = true
+        panel.level = .floating
+        panel.hidesOnDeactivate = false
+        panel.center()
+
+        panel.standardWindowButton(.miniaturizeButton)?.isHidden = true
+        panel.standardWindowButton(.zoomButton)?.isHidden = true
+
+        super.init(window: panel)
 
         configureContent()
     }
