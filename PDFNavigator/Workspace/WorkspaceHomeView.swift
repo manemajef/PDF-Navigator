@@ -56,6 +56,7 @@ struct WorkspaceHomeView: View {
     }
 }
 
+#if DEBUG
 #Preview("Workspace Home View") {
     WorkspaceHomeView(
         folderURL:                 DevelopmentConfiguration.demoDirURL
@@ -73,3 +74,5 @@ struct WorkspaceHomeView: View {
     )
     .frame(width: 700, height: 600)
 }
+#endif
+
