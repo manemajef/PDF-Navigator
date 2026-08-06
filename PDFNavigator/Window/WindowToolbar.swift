@@ -1,4 +1,8 @@
 import AppKit
+//let defaultToolbarIdentifiers: [NSToolbarItem.Identifier] = [
+//    .
+//    
+//]
 
 final class WindowToolbar: NSObject, NSToolbarDelegate, NSSearchFieldDelegate {
     private weak var target: WindowController?
@@ -98,7 +102,7 @@ final class WindowToolbar: NSObject, NSToolbarDelegate, NSSearchFieldDelegate {
             .workspaceNewTab, .workspaceSearch, .pdfPageNavigation,.pdfZoomControll,
             .pdfZoomIn, .pdfZoomOut, .pdfActualSize, .pdfZoomToFit,
             .pdfOpenExternally, .pdfShare, .space, .flexibleSpace,
-            .inspectorTrackingSeparator, .readerPanels
+            .inspectorTrackingSeparator, .readerPanels, .toggleInspector
         ]
     }
 
@@ -108,12 +112,12 @@ final class WindowToolbar: NSObject, NSToolbarDelegate, NSSearchFieldDelegate {
             .workspaceNavigation,
             .flexibleSpace,
             .pdfZoomControll,
-            .readerPanels,
-            .pdfShare,
             .pdfOpenExternally,
-            .workspaceNewTab,
+            .pdfShare,
             .space,
+            .workspaceNewTab,
             .workspaceSearch,
+            .toggleInspector,
         ]
     }
 
@@ -198,13 +202,48 @@ final class WindowToolbar: NSObject, NSToolbarDelegate, NSSearchFieldDelegate {
     }
 
     private static let standardItemSpecs: [NSToolbarItem.Identifier: StandardItemSpec] = [
-        .workspaceNewTab: .init(label: "New Tab", symbol: "plus.rectangle.on.rectangle", action: #selector(WindowController.newTab(_:))),
-        .pdfZoomIn: .init(label: "Zoom In", symbol: "plus.magnifyingglass", action: #selector(WindowController.zoomIn(_:)), requiresPDF: true),
-        .pdfZoomOut: .init(label: "Zoom Out", symbol: "minus.magnifyingglass", action: #selector(WindowController.zoomOut(_:)), requiresPDF: true),
-        .pdfActualSize: .init(label: "Actual Size", symbol: "1.magnifyingglass", action: #selector(WindowController.showActualSize(_:)), requiresPDF: true),
-        .pdfZoomToFit: .init(label: "Zoom to Fit", symbol: "arrow.up.left.and.down.right.magnifyingglass", action: #selector(WindowController.zoomToFit(_:)), requiresPDF: true),
-        .pdfOpenExternally: .init(label: "Open in Default App", symbol: "arrow.up.forward.app", action: #selector(WindowController.openCurrentPDFInDefaultApp(_:)), requiresPDF: true),
-        .pdfShare: .init(label: "Share", symbol: "square.and.arrow.up", action: #selector(WindowController.shareCurrentPDF(_:)), requiresPDF: true)
+        .workspaceNewTab: .init(
+            label: "New Tab",
+            symbol: "plus.rectangle.on.rectangle",
+            action: #selector(WindowController.newTab(_:))
+        ),
+        
+        .pdfZoomIn: .init(
+            label: "Zoom In",
+            symbol: "plus.magnifyingglass",
+            action: #selector(WindowController.zoomIn(_:)),
+            requiresPDF: true),
+        
+        .pdfZoomOut: .init(
+            label: "Zoom Out",
+            symbol: "minus.magnifyingglass",
+            action: #selector(WindowController.zoomOut(_:)),
+            requiresPDF: true),
+        
+        .pdfActualSize: .init(
+            label: "Actual Size",
+            symbol: "1.magnifyingglass",
+            action: #selector(WindowController.showActualSize(_:)),
+            requiresPDF: true),
+        
+        .pdfZoomToFit: .init(
+            label: "Zoom to Fit",
+            symbol: "arrow.up.left.and.down.right.magnifyingglass",
+            action: #selector(WindowController.zoomToFit(_:)),
+            requiresPDF: true),
+        
+        .pdfOpenExternally: .init(
+            label: "Open in Default App",
+            symbol: "arrow.up.forward.app",
+            action: #selector(WindowController.openCurrentPDFInDefaultApp(_:)),
+            requiresPDF: true),
+        
+        .pdfShare: .init(
+            label: "Share",
+            symbol: "square.and.arrow.up",
+            action: #selector(WindowController.shareCurrentPDF(_:)),
+            requiresPDF: true),
+        
     ]
 
     private var groupItemSpecs: [NSToolbarItem.Identifier: GroupItemSpec] {[
@@ -212,30 +251,63 @@ final class WindowToolbar: NSObject, NSToolbarDelegate, NSSearchFieldDelegate {
             label: "Navigation",
             isNavigational: true,
             subitems: [
-                .init(symbol: "chevron.backward", tooltip: "Back", action: #selector(WindowController.goBack(_:)), isEnabled: { [weak self] in self?.canGoBack ?? false }),
-                .init(symbol: "chevron.forward", tooltip: "Forward", action: #selector(WindowController.goForward(_:)), isEnabled: { [weak self] in self?.canGoForward ?? false })
+                .init(
+                    symbol: "chevron.backward",
+                    tooltip: "Back",
+                    action: #selector(WindowController.goBack(_:)),
+                    isEnabled: { [weak self] in self?.canGoBack ?? false }
+                ),
+                .init(
+                    symbol: "chevron.forward",
+                    tooltip: "Forward",
+                    action: #selector(WindowController.goForward(_:)),
+                    isEnabled: { [weak self] in self?.canGoForward ?? false }
+                )
             ]
         ),
+        
         .pdfPageNavigation: GroupItemSpec(
             label: "Page Navigation",
             subitems: [
-                .init(symbol: "chevron.up", tooltip: "Previous Page", action: #selector(WindowController.goToPreviousPage(_:)), isEnabled: { [weak self] in self?.hasPDF ?? false }),
-                .init(symbol: "chevron.down", tooltip: "Next Page", action: #selector(WindowController.goToNextPage(_:)), isEnabled: { [weak self] in self?.hasPDF ?? false })
+                .init(
+                    symbol: "chevron.up",
+                    tooltip: "Previous Page",
+                    action: #selector(WindowController.goToPreviousPage(_:)),
+                    isEnabled: { [weak self] in self?.hasPDF ?? false }
+                ),
+                
+                .init(
+                    symbol: "chevron.down",
+                    tooltip: "Next Page",
+                    action: #selector(WindowController.goToNextPage(_:)),
+                    isEnabled: { [weak self] in self?.hasPDF ?? false }
+                )
             ]
         ),
+        
         .pdfZoomControll: GroupItemSpec(
             label: "Zoom Controll",
             subitems: [
-                .init(symbol: "arrow.up.left.and.down.right.magnifyingglass", tooltip: "Zoom to Fit", action: #selector(WindowController.zoomToFit(_:)), isEnabled: { [weak self] in
+                .init(
+                    symbol: "arrow.up.left.and.down.right.magnifyingglass",
+                    tooltip: "Zoom to Fit",
+                    action: #selector(WindowController.zoomToFit(_:)),
+                    isEnabled: { [weak self] in
                     guard let self else { return false }
                     return hasPDF && target?.isZoomToFitActive == false
                 }),
-                .init(symbol: "1.magnifyingglass", tooltip: "Actual Size", action: #selector(WindowController.showActualSize(_:)), isEnabled: { [weak self] in
+                
+                .init(
+                    symbol: "1.magnifyingglass",
+                    tooltip: "Actual Size",
+                    action: #selector(WindowController.showActualSize(_:)),
+                    isEnabled: { [weak self] in
                     guard let self else { return false }
                     return hasPDF && target?.isActualSizeActive == false
                 })
             ]
         ),
+        
         .readerPanels: GroupItemSpec(
             label: "Reader Panels",
             selectedIndex: { [weak self] in
@@ -246,8 +318,18 @@ final class WindowToolbar: NSObject, NSToolbarDelegate, NSSearchFieldDelegate {
                 }
             },
             subitems: [
-                .init(symbol: "square.grid.2x2", tooltip: "Thumbnails", action: #selector(WindowController.toggleThumbnailsPanel(_:)), isEnabled: { [weak self] in self?.hasPDF ?? false }),
-                .init(symbol: "info.circle", tooltip: "Inspector", action: #selector(WindowController.toggleInfoPanel(_:)), isEnabled: { [weak self] in self?.hasPDF ?? false })
+                .init(
+                    symbol: "square.grid.2x2",
+                    tooltip: "Thumbnails",
+                    action: #selector(WindowController.toggleThumbnailsPanel(_:)),
+                    isEnabled: { [weak self] in self?.hasPDF ?? false }
+                ),
+                .init(
+                    symbol: "info",
+                    tooltip: "Inspector",
+                    action: #selector(WindowController.toggleInfoPanel(_:)),
+                    isEnabled: { [weak self] in self?.hasPDF ?? false }
+                )
             ]
         )
     ]}
