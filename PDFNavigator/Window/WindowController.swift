@@ -89,6 +89,14 @@ final class WindowController: NSWindowController {
         window.autorecalculatesKeyViewLoop = true
         window.toolbar = toolbar.makeToolbar()
         window.contentViewController = contentController
+        window.titlebarSeparatorStyle = .shadow
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(updateTitlebarAppearance(_:)),
+            name: NSWindow.didUpdateNotification,
+            object: window
+        )
+        updateTitlebarAppearance()
 
         let visibleWidth = NSScreen.main?.visibleFrame.width ?? 1_050
         let documentWidth = min(
@@ -127,6 +135,26 @@ final class WindowController: NSWindowController {
     private func updateWindowIdentity() {
         window?.title = session.windowTitle
         window?.representedURL = session.representedURL
+    }
+
+    @objc private func updateTitlebarAppearance(
+        _ notification: Notification? = nil
+    ) {
+        guard let window else { return }
+
+        let hasTabBar = window.tabGroup?.isTabBarVisible == true
+        let hasToolbar = window.toolbar?.isVisible == true
+        let isTitlebarOnly = !hasTabBar && !hasToolbar
+
+        if window.titlebarAppearsTransparent != isTitlebarOnly {
+            window.titlebarAppearsTransparent = isTitlebarOnly
+        }
+
+        let titleVisibility: NSWindow.TitleVisibility =
+            isTitlebarOnly ? .hidden : .visible
+        if window.titleVisibility != titleVisibility {
+            window.titleVisibility = titleVisibility
+        }
     }
 
     // MARK: - Commands
