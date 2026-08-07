@@ -173,6 +173,10 @@ final class WindowController: NSWindowController {
         routing.newTab(.foreground)
     }
 
+    @objc func openNewWorkspace(_ sender: Any?) {
+        routing.chooseLocation()
+    }
+
     @objc func goBack(_ sender: Any?) {
         session.goBack()
     }
@@ -298,6 +302,7 @@ extension WindowController: NSMenuItemValidation, NSToolbarItemValidation {
             session.canGoToWorkspaceHome
         case #selector(toggleSidebar(_:)),
              #selector(newTab(_:)),
+             #selector(openNewWorkspace(_:)),
              #selector(customizeToolbar(_:)):
             true
         case #selector(toggleInspector(_:)):

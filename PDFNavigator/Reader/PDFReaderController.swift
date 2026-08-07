@@ -33,6 +33,7 @@ final class PDFReaderController: NSViewController {
         pdfView.displayMode = .singlePageContinuous
         pdfView.displayDirection = .vertical
         pdfView.displaysPageBreaks = true
+        pdfView.pageBreakMargins = NSEdgeInsets(top: 4, left: 6, bottom: 4, right: 6)
         pdfView.displayBox = .cropBox
         pdfView.autoScales = true
         pdfView.backgroundColor = NSColor.windowBackgroundColor

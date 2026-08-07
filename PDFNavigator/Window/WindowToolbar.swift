@@ -113,8 +113,8 @@ final class WindowToolbar: NSObject, NSToolbarDelegate, NSSearchFieldDelegate {
     func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
         [
             .toggleSidebar, .sidebarTrackingSeparator, .workspaceNavigation,
-            .workspaceHome, .workspaceNewTab, .workspaceSearch,
-            .pdfPageNavigation,.pdfZoomControll,
+            .workspaceHome, .workspaceNewTab, .openNewWorkspace, .workspaceSearch,
+            .pdfPageNavigation, .pdfZoomControll,
             .pdfZoomIn, .pdfZoomOut, .pdfActualSize, .pdfZoomToFit,
             .pdfOpenExternally, .pdfShare, .space, .flexibleSpace,
             .inspectorTrackingSeparator, .readerPanels, .toggleInspector
@@ -127,9 +127,8 @@ final class WindowToolbar: NSObject, NSToolbarDelegate, NSSearchFieldDelegate {
             .workspaceNavigation,
             .flexibleSpace,
             .pdfZoomControll,
-            .pdfOpenExternally,
-            .pdfShare,
             .space,
+            .pdfZoomToFit,
             .workspaceNewTab,
             .workspaceSearch,
             .toggleInspector,
@@ -223,6 +222,12 @@ final class WindowToolbar: NSObject, NSToolbarDelegate, NSSearchFieldDelegate {
             action: #selector(WindowController.newTab(_:))
         ),
 
+        .openNewWorkspace: .init(
+            label: "Open Workspace",
+            symbol: "folder.badge.plus",
+            action: #selector(WindowController.openNewWorkspace(_:))
+        ),
+
         .workspaceHome: .init(
             label: "Workspace Home",
             symbol: "house",
@@ -248,8 +253,8 @@ final class WindowToolbar: NSObject, NSToolbarDelegate, NSSearchFieldDelegate {
             requiresPDF: true),
         
         .pdfZoomToFit: .init(
-            label: "Zoom to Fit",
-            symbol: "arrow.up.left.and.down.right.magnifyingglass",
+            label: "Scale to Fit",
+            symbol: "arrow.down.left.and.arrow.up.right",
             action: #selector(WindowController.zoomToFit(_:)),
             requiresPDF: true),
         
@@ -307,25 +312,29 @@ final class WindowToolbar: NSObject, NSToolbarDelegate, NSSearchFieldDelegate {
         ),
         
         .pdfZoomControll: GroupItemSpec(
-            label: "Zoom Controll",
+            label: "Zoom",
             subitems: [
                 .init(
-                    symbol: "arrow.up.left.and.down.right.magnifyingglass",
-                    tooltip: "Zoom to Fit",
-                    action: #selector(WindowController.zoomToFit(_:)),
-                    isEnabled: { [weak self] in
-                    guard let self else { return false }
-                    return hasPDF && !isZoomToFitActive
-                }),
-                
+                    symbol: "minus.magnifyingglass",
+                    tooltip: "Zoom Out",
+                    action: #selector(WindowController.zoomOut(_:)),
+                    isEnabled: { [weak self] in self?.hasPDF ?? false }
+                ),
                 .init(
                     symbol: "1.magnifyingglass",
                     tooltip: "Actual Size",
                     action: #selector(WindowController.showActualSize(_:)),
                     isEnabled: { [weak self] in
-                    guard let self else { return false }
-                    return hasPDF && !isActualSizeActive
-                })
+                        guard let self else { return false }
+                        return hasPDF && !isActualSizeActive
+                    }
+                ),
+                .init(
+                    symbol: "plus.magnifyingglass",
+                    tooltip: "Zoom In",
+                    action: #selector(WindowController.zoomIn(_:)),
+                    isEnabled: { [weak self] in self?.hasPDF ?? false }
+                )
             ]
         ),
         
@@ -477,6 +486,7 @@ private extension NSToolbarItem.Identifier {
     static let workspaceNavigation = Self("WorkspaceNavigation")
     static let workspaceHome = Self("WorkspaceHome")
     static let workspaceNewTab = Self("WorkspaceNewTab")
+    static let openNewWorkspace = Self("OpenNewWorkspace")
     static let workspaceSearch = Self("WorkspaceSearch")
     static let pdfPageNavigation = Self("PDFPageNavigation")
     static let pdfZoomIn = Self("PDFZoomIn")
