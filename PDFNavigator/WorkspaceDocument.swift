@@ -41,11 +41,39 @@ final class WorkspaceDocument: NSDocument {
 
     func open(_ request: OpenRequest) {
         apply(request)
+        invalidateRestorableState()
         (windowControllers.first as? WindowController)?.open(request)
     }
 
+    override func encodeRestorableState(with coder: NSCoder) {
+        super.encodeRestorableState(with: coder)
+        if let workspaceRootURL {
+            coder.encode(workspaceRootURL, forKey: "workspaceRootURL")
+        }
+        if let selectedPDFURL {
+            coder.encode(selectedPDFURL, forKey: "selectedPDFURL")
+        }
+    }
+
+    override func restoreState(with coder: NSCoder) {
+        super.restoreState(with: coder)
+        let rootURL = coder.decodeObject(of: NSURL.self, forKey: "workspaceRootURL") as URL?
+        let pdfURL = coder.decodeObject(of: NSURL.self, forKey: "selectedPDFURL") as URL?
+        if let rootURL {
+            let request: OpenRequest = pdfURL.map { .pdf($0, in: rootURL) } ?? .folder(rootURL)
+            apply(request)
+            (windowControllers.first as? WindowController)?.open(request)
+        }
+    }
+
     override nonisolated func read(from url: URL, ofType typeName: String) throws {
-        apply(.pdf(url))
+        let standardized = url.standardizedFileURL
+        var isDir: ObjCBool = false
+        if FileManager.default.fileExists(atPath: standardized.path, isDirectory: &isDir), isDir.boolValue {
+            apply(.folder(standardized))
+        } else {
+            apply(.pdf(standardized))
+        }
     }
 
     override nonisolated func data(ofType typeName: String) throws -> Data {
@@ -67,6 +95,9 @@ final class WorkspaceDocument: NSDocument {
     private nonisolated func apply(_ request: OpenRequest) {
         workspaceRootStorage.withLock { $0 = request.workspaceRootURL }
         selectedPDFStorage.withLock { $0 = request.selectedPDFURL }
+        Task { @MainActor in
+            self.fileURL = request.workspaceRootURL
+        }
     }
     private var openRequest: OpenRequest? {
         guard let workspaceRootURL else { return nil }
