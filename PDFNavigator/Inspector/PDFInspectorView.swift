@@ -61,21 +61,36 @@ struct PDFInspectorView: View {
     var body: some View {
         VStack(spacing: 0) {
             Group {
+                
                 if #available(macOS 27.0, *) {
                     inspectorPicker
                         .pickerStyle(.tabs)
                         .controlSize(.large)
-                } else {
+                        .buttonSizing(.flexible)
+                } else if #available(macOS 26.0, *) {
+                    inspectorPicker
+                        .pickerStyle(.segmented)
+                        .controlSize(.large)
+                        .buttonSizing(.flexible)
+                    
+                }
+                else {
                     inspectorPicker
                         .pickerStyle(.palette)
                         .controlSize(.large)
+                        
                 }
             }
             .labelsHidden()
             .help(presentationState.section.title)
-            .padding(10)
+            .padding(.top, 10)
+            .padding(.horizontal, 10)
+            .padding(.bottom, 5)
+            
+            .opacity(0.8)
+           
 
-            Divider()
+//            Divider()
 
             if let document = session.document {
                 switch presentationState.section {
