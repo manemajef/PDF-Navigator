@@ -219,7 +219,7 @@ final class WindowToolbar: NSObject, NSToolbarDelegate, NSSearchFieldDelegate {
     private static let standardItemSpecs: [NSToolbarItem.Identifier: StandardItemSpec] = [
         .workspaceNewTab: .init(
             label: "New Tab",
-            symbol: "plus.rectangle.on.rectangle",
+            symbol: "plus.square.on.square",
             action: #selector(WindowController.newTab(_:))
         ),
 

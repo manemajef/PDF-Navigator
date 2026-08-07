@@ -51,6 +51,9 @@ final class WindowController: NSWindowController {
         readerController.onZoomStateChange = { [weak self] in
             self?.updateZoomControls()
         }
+        readerController.onPageChange = { [weak self] in
+            self?.updateWindowIdentity()
+        }
         configureWindow()
         sessionChangesSubscription = session.changes.sink { [weak self] change in
             self?.apply(change)
@@ -136,6 +139,10 @@ final class WindowController: NSWindowController {
     private func updateWindowIdentity() {
         window?.title = session.windowTitle
         window?.representedURL = session.representedURL
+        window?.subtitle = session.pdfSession?.hasDocument == true
+            ? (readerController.pageSubtitle ?? "")
+            : ""
+        updateTitlebarAppearance()
     }
 
     @objc private func updateTitlebarAppearance(
@@ -146,13 +153,15 @@ final class WindowController: NSWindowController {
         let hasTabBar = window.tabGroup?.isTabBarVisible == true
         let hasToolbar = window.toolbar?.isVisible == true
         let isTitlebarOnly = !hasTabBar && !hasToolbar
+        let hasPDF = session.pdfSession?.hasDocument == true
 
-        if window.titlebarAppearsTransparent != isTitlebarOnly {
-            window.titlebarAppearsTransparent = isTitlebarOnly
+        let shouldBeTransparent = !hasPDF && isTitlebarOnly
+        if window.titlebarAppearsTransparent != shouldBeTransparent {
+            window.titlebarAppearsTransparent = shouldBeTransparent
         }
 
         let titleVisibility: NSWindow.TitleVisibility =
-            isTitlebarOnly ? .hidden : .visible
+            (!hasPDF && isTitlebarOnly) ? .hidden : .visible
         if window.titleVisibility != titleVisibility {
             window.titleVisibility = titleVisibility
         }

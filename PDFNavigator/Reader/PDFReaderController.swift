@@ -10,6 +10,20 @@ final class PDFReaderController: NSViewController {
     let presentationState = PDFReaderPresentationState()
 
     var onZoomStateChange: (() -> Void)?
+    var onPageChange: (() -> Void)?
+
+    var pageSubtitle: String? {
+        guard let document = pdfView.document, document.pageCount > 0 else { return nil }
+        let pageCount = document.pageCount
+        let pageNumber: Int
+        if let currentPage = pdfView.currentPage {
+            let index = document.index(for: currentPage)
+            pageNumber = (index == NSNotFound) ? 1 : (index + 1)
+        } else {
+            pageNumber = 1
+        }
+        return "Page \(pageNumber) of \(pageCount)"
+    }
 
     private var session: PDFSession?
     private var sessionChangesSubscription: AnyCancellable?
@@ -237,6 +251,7 @@ final class PDFReaderController: NSViewController {
             scaleFactor: pdfView.scaleFactor,
             isZoomToFit: pdfView.autoScales
         )
+        onPageChange?()
     }
 }
 
