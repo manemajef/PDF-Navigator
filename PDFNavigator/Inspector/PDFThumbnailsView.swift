@@ -56,9 +56,9 @@ private struct PDFThumbnailCell: View {
             }
             .aspectRatio(pageAspectRatio, contentMode: .fit)
             .background(.background)
-            .clipShape(.rect(cornerRadius: 3))
+            .clipShape(.rect(cornerRadius: 8))
             .overlay {
-                RoundedRectangle(cornerRadius: 3)
+                RoundedRectangle(cornerRadius: 8)
                     .strokeBorder(
                         isSelected ? Color.accentColor : Color(nsColor: .separatorColor),
                         lineWidth: isSelected ? 2 : 1
