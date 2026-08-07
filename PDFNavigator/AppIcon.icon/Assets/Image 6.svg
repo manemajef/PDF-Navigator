@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<!-- Created with Linearity Curve (http://linearity.io/curve) -->
+<svg height="100%" stroke-miterlimit="10" style="fill-rule:nonzero;clip-rule:evenodd;stroke-linecap:round;stroke-linejoin:round;" version="1.1" viewBox="449.074 67.8646 436.092 437.369" width="100%" xml:space="preserve" xmlns="http://www.w3.org/2000/svg" xmlns:vectornator="http://vectornator.io" xmlns:xlink="http://www.w3.org/1999/xlink">
+<defs>
+<filter color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse" height="437.369" id="Filter" width="436.092" x="449.074" y="67.8646">
+<feComponentTransfer in="SourceGraphic" result="Alpha">
+<feFuncA slope="0.903912" type="linear"/>
+</feComponentTransfer>
+<feDropShadow dx="2.26817e-15" dy="37.042" flood-color="#000000" flood-opacity="0.333" in="Alpha" result="Shadow" stdDeviation="18.521"/>
+</filter>
+</defs>
+<g id="Layer">
+<path d="M532.068 113.953C518.55 100.385 495.376 109.958 495.376 129.112L495.376 400.412C495.376 412.274 504.992 421.889 516.853 421.889L787.149 421.889C806.264 421.889 815.855 398.795 802.364 385.254L532.068 113.953Z" fill="#ffffff" fill-rule="nonzero" filter="url(#Filter)" stroke="none"/>
+</g>
+</svg>

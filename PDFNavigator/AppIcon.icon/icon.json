@@ -1,34 +1,23 @@
 {
   "fill" : {
-    "linear-gradient" : [
-      "display-p3:0.76025,0.89161,0.95990,1.00000",
-      "extended-gray:1.00000,1.00000"
-    ],
-    "orientation" : {
-      "start" : {
-        "x" : 0.5,
-        "y" : 1
-      },
-      "stop" : {
-        "x" : 0.5,
-        "y" : 0
-      }
-    }
+    "automatic-gradient" : "display-p3:0.17652,0.41052,0.75978,1.00000"
   },
   "groups" : [
     {
-      "hidden" : false,
       "layers" : [
         {
-          "image-name" : "Untitled.png",
-          "name" : "Untitled",
+          "fill" : {
+            "automatic-gradient" : "extended-gray:1.00000,0.90000"
+          },
+          "image-name" : "Image 6.svg",
+          "name" : "Image 6",
           "position-specializations" : [
             {
               "value" : {
                 "scale" : 1,
                 "translation-in-points" : [
-                  40.5,
-                  86.5
+                  185.84035796668877,
+                  -337.71322464872003
                 ]
               }
             },
@@ -37,67 +26,124 @@
               "value" : {
                 "scale" : 0.9,
                 "translation-in-points" : [
-                  40.5,
-                  86.5
+                  175.371807692174,
+                  -301.3195057884756
                 ]
               }
             }
           ]
         },
         {
-          "hidden" : true,
-          "image-name" : "pdf3.png",
-          "name" : "pdf3",
-          "position" : {
-            "scale" : 1,
-            "translation-in-points" : [
-              49.73217444170541,
-              86.5
-            ]
-          }
-        }
-      ],
-      "shadow" : {
-        "kind" : "neutral",
-        "opacity" : 0.6
-      },
-      "translucency" : {
-        "enabled" : true,
-        "value" : 0.2
-      }
-    },
-    {
-      "layers" : [
-
-      ],
-      "shadow" : {
-        "kind" : "neutral",
-        "opacity" : 0.6
-      },
-      "translucency" : {
-        "enabled" : true,
-        "value" : 0.2
-      }
-    },
-    {
-      "hidden" : true,
-      "layers" : [
-        {
-          "image-name" : "pdf3 2.png",
-          "name" : "pdf3 2",
-          "position" : {
-            "scale" : 1,
-            "translation-in-points" : [
-              49.73217444170541,
-              86.5
-            ]
-          }
+          "fill" : {
+            "automatic-gradient" : "extended-gray:1.00000,0.95000"
+          },
+          "image-name" : "Image.png",
+          "name" : "Image",
+          "position-specializations" : [
+            {
+              "idiom" : "square",
+              "value" : {
+                "scale" : 0.4,
+                "translation-in-points" : [
+                  -28.88326690427084,
+                  -65.56780977106519
+                ]
+              }
+            }
+          ]
         },
         {
-          "image-name" : "Untitled 2.png",
-          "name" : "Untitled 2"
+          "fill" : {
+            "automatic-gradient" : "extended-gray:1.00000,0.40000"
+          },
+          "image-name" : "Image 5.svg",
+          "name" : "Image 5",
+          "position-specializations" : [
+            {
+              "value" : {
+                "scale" : 1,
+                "translation-in-points" : [
+                  28.720214378100536,
+                  28.945529867468622
+                ]
+              }
+            },
+            {
+              "idiom" : "square",
+              "value" : {
+                "scale" : 0.9,
+                "translation-in-points" : [
+                  28.720214378100536,
+                  28.945529867468622
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "fill" : {
+            "automatic-gradient" : "extended-gray:1.00000,0.60000"
+          },
+          "image-name" : "Image 4.svg",
+          "name" : "Image 4",
+          "position-specializations" : [
+            {
+              "value" : {
+                "scale" : 1,
+                "translation-in-points" : [
+                  28.720214378100536,
+                  28.945529867468622
+                ]
+              }
+            },
+            {
+              "idiom" : "square",
+              "value" : {
+                "scale" : 0.9,
+                "translation-in-points" : [
+                  28.720214378100536,
+                  28.945529867468622
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "fill" : {
+            "automatic-gradient" : "extended-gray:1.00000,0.80000"
+          },
+          "image-name" : "Image 3.svg",
+          "name" : "Image 3",
+          "position-specializations" : [
+            {
+              "value" : {
+                "scale" : 1,
+                "translation-in-points" : [
+                  28.720214378100536,
+                  28.945529867468622
+                ]
+              }
+            },
+            {
+              "idiom" : "square",
+              "value" : {
+                "scale" : 0.9,
+                "translation-in-points" : [
+                  28.720214378100536,
+                  28.945529867468622
+                ]
+              }
+            }
+          ]
         }
       ],
+      "position" : {
+        "scale" : 1,
+        "translation-in-points" : [
+          22.508346201041604,
+          82.5045921807307
+        ]
+      },
       "shadow" : {
         "kind" : "neutral",
         "opacity" : 0.6

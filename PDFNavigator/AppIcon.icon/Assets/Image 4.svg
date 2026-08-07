@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<!-- Created with Linearity Curve (http://linearity.io/curve) -->
+<svg height="100%" stroke-miterlimit="10" style="fill-rule:nonzero;clip-rule:evenodd;stroke-linecap:round;stroke-linejoin:round;" version="1.1" viewBox="-89.9618 63.6366 1203.92 1178.97" width="100%" xml:space="preserve" xmlns="http://www.w3.org/2000/svg" xmlns:vectornator="http://vectornator.io" xmlns:xlink="http://www.w3.org/1999/xlink">
+<defs>
+<filter color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse" height="963.394" id="Filter" width="746.275" x="103.19" y="84.3628">
+<feComponentTransfer in="SourceGraphic" result="Alpha">
+<feFuncA slope="0.8" type="linear"/>
+</feComponentTransfer>
+<feDropShadow dx="3.84231e-15" dy="62.7497" flood-color="#000000" flood-opacity="0.333" in="Alpha" result="Shadow" stdDeviation="31.3749"/>
+</filter>
+</defs>
+<g id="Layer">
+<clipPath clip-rule="nonzero" id="ClipPath">
+<path d="M38.0382 89.2366L38.0382 1012.21L985.962 1012.21L985.962 89.2366L38.0382 89.2366ZM451.482 314.122C569.713 314.122 665.552 407.438 665.552 522.557C665.552 637.677 569.713 731.021 451.482 731.021C333.251 731.021 237.412 637.677 237.412 522.557C237.412 407.438 333.251 314.122 451.482 314.122Z"/>
+</clipPath>
+<g clip-path="url(#ClipPath)">
+<path d="M543.392 114.756C534.01 105.342 514.34 100.05 501.049 100.05L231.627 100.05C204.013 100.05 181.627 122.436 181.627 150.05L181.627 856.57C181.627 884.184 204.013 906.57 231.627 906.57L721.028 906.57C748.642 906.57 771.028 884.184 771.028 856.57L771.028 370.353C771.028 357.382 752.788 333.93 743.771 324.606L543.392 114.756Z" fill="#ffffff" fill-rule="nonzero" filter="url(#Filter)" stroke="none"/>
+</g>
+</g>
+</svg>

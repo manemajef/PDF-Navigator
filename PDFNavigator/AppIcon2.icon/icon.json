@@ -1,0 +1,117 @@
+{
+  "fill" : {
+    "linear-gradient" : [
+      "display-p3:0.76025,0.89161,0.95990,1.00000",
+      "extended-gray:1.00000,1.00000"
+    ],
+    "orientation" : {
+      "start" : {
+        "x" : 0.5,
+        "y" : 1
+      },
+      "stop" : {
+        "x" : 0.5,
+        "y" : 0
+      }
+    }
+  },
+  "groups" : [
+    {
+      "hidden" : false,
+      "layers" : [
+        {
+          "image-name" : "Untitled.png",
+          "name" : "Untitled",
+          "position-specializations" : [
+            {
+              "value" : {
+                "scale" : 1,
+                "translation-in-points" : [
+                  40.5,
+                  86.5
+                ]
+              }
+            },
+            {
+              "idiom" : "square",
+              "value" : {
+                "scale" : 0.9,
+                "translation-in-points" : [
+                  40.5,
+                  86.5
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "hidden" : true,
+          "image-name" : "pdf3.png",
+          "name" : "pdf3",
+          "position" : {
+            "scale" : 1,
+            "translation-in-points" : [
+              49.73217444170541,
+              86.5
+            ]
+          }
+        }
+      ],
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.6
+      },
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.2
+      }
+    },
+    {
+      "layers" : [
+
+      ],
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.6
+      },
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.2
+      }
+    },
+    {
+      "hidden" : true,
+      "layers" : [
+        {
+          "image-name" : "pdf3 2.png",
+          "name" : "pdf3 2",
+          "position" : {
+            "scale" : 1,
+            "translation-in-points" : [
+              49.73217444170541,
+              86.5
+            ]
+          }
+        },
+        {
+          "image-name" : "Untitled 2.png",
+          "name" : "Untitled 2"
+        }
+      ],
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.6
+      },
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.2
+      }
+    }
+  ],
+  "supported-platforms" : {
+    "circles" : [
+      "watchOS"
+    ],
+    "squares" : "shared"
+  }
+}
