@@ -2,6 +2,7 @@ import AppKit
 import UniformTypeIdentifiers
 
 @main
+@MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var isShowingOpenPanel = false
     private let recentLocations = RecentLocationsStore.shared
@@ -40,13 +41,60 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         mainMenu.install()
         NSApp.activate(ignoringOtherApps: true)
 
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(windowWillClose(_:)),
+            name: NSWindow.willCloseNotification,
+            object: nil
+        )
+
+        restoreWindowsIfAllowed()
+
         DispatchQueue.main.async { [weak self] in
             let hasVisibleDocumentWindows = NSApp.windows.contains { window in
                 window.isVisible && window != self?.launchPanelController?.window
             }
             if !hasVisibleDocumentWindows {
+                #if DEBUG
+                if FileManager.default.fileExists(atPath: DevelopmentConfiguration.demoPDFURL.path) {
+                    self?.openWindow(.pdf(DevelopmentConfiguration.demoPDFURL))
+                } else if FileManager.default.fileExists(atPath: DevelopmentConfiguration.demoDirURL.path) {
+                    self?.openWindow(.folder(DevelopmentConfiguration.demoDirURL))
+                } else {
+                    self?.showLaunchPanel()
+                }
+                #else
                 self?.showLaunchPanel()
+                #endif
             }
+        }
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        if WindowStateStore.shared.shouldRestoreWindows {
+            WindowStateStore.shared.saveCurrentWindows(from: NSApp.windows)
+        } else {
+            WindowStateStore.shared.clearSavedWindows()
+        }
+    }
+
+    @objc private func windowWillClose(_ notification: Notification) {
+        guard let closingWindow = notification.object as? NSWindow,
+              closingWindow.windowController is WindowController else { return }
+        let remainingWindows = NSApp.windows.filter { $0 != closingWindow }
+        if WindowStateStore.shared.shouldRestoreWindows {
+            WindowStateStore.shared.saveCurrentWindows(from: remainingWindows)
+        }
+    }
+
+    @discardableResult
+    private func restoreWindowsIfAllowed() -> Bool {
+        guard WindowStateStore.shared.shouldRestoreWindows else {
+            WindowStateStore.shared.clearSavedWindows()
+            return false
+        }
+        return WindowStateStore.shared.restoreWindows { [weak self] request, sourceWindow, activation in
+            self?.openWindow(request, tabbedWith: sourceWindow, activation: activation)
         }
     }
 
@@ -61,6 +109,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationOpenUntitledFile(_ sender: NSApplication) -> Bool {
+        #if DEBUG
+        if FileManager.default.fileExists(atPath: DevelopmentConfiguration.demoPDFURL.path) {
+            openWindow(.pdf(DevelopmentConfiguration.demoPDFURL))
+            return true
+        } else if FileManager.default.fileExists(atPath: DevelopmentConfiguration.demoDirURL.path) {
+            openWindow(.folder(DevelopmentConfiguration.demoDirURL))
+            return true
+        }
+        #endif
         showLaunchPanel()
         return true
     }
@@ -70,6 +127,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         hasVisibleWindows: Bool
     ) -> Bool {
         if !hasVisibleWindows {
+            #if DEBUG
+            if FileManager.default.fileExists(atPath: DevelopmentConfiguration.demoPDFURL.path) {
+                openWindow(.pdf(DevelopmentConfiguration.demoPDFURL))
+                return false
+            } else if FileManager.default.fileExists(atPath: DevelopmentConfiguration.demoDirURL.path) {
+                openWindow(.folder(DevelopmentConfiguration.demoDirURL))
+                return false
+            }
+            #endif
             showLaunchPanel()
             return false
         }
@@ -147,18 +213,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.keyWindow?.windowController as? WindowController
     }
 
+    @discardableResult
     private func openWindow(
         _ request: OpenRequest,
         tabbedWith sourceWindow: NSWindow? = nil,
         activation: TabActivation = .foreground
-    ) {
+    ) -> WindowController? {
         launchPanelController?.close()
         let document = WorkspaceDocument(request: request)
         NSDocumentController.shared.addDocument(document)
         document.makeWindowControllers()
 
         guard let controller = document.windowControllers.first as? WindowController else {
-            return
+            return nil
         }
 
         if let sourceWindow, let tabWindow = controller.window {
@@ -177,6 +244,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         DispatchQueue.main.async { [weak controller] in
             controller?.endSearchInteraction()
         }
+
+        return controller
     }
 
     func configure(_ controller: WindowController) {

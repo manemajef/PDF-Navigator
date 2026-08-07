@@ -1,5 +1,6 @@
 import AppKit
 
+@MainActor
 final class MainMenu: NSObject, NSMenuDelegate {
     private let recentLocations: RecentLocationsStore
     private let onNewWindow: () -> Void

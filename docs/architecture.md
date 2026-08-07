@@ -85,6 +85,7 @@ PDFNavigator/
 
   Stores/
     RecentLocationsStore.swift
+    WindowStateStore.swift
 ```
 
 The source root contains application entry, lifecycle, and top-level routing.
@@ -328,6 +329,7 @@ Do not replace that geometry with custom blur or opacity layers.
 Persist concepts with their owner:
 
 - Recent workspaces and PDFs: `RecentLocationsStore`.
+- Window and tab restoration: `WindowStateStore`.
 - Reading positions: `ReadingPositionStore`.
 - Toolbar customization: native `NSToolbar` autosaving.
 - Sidebar width: native split-view autosaving.
