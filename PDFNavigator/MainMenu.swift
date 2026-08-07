@@ -4,6 +4,7 @@ final class MainMenu: NSObject, NSMenuDelegate {
     private let recentLocations: RecentLocationsStore
     private let onNewWindow: () -> Void
     private let onOpen: () -> Void
+    private let onShowLaunchPanel: () -> Void
     private let onOpenRecentWorkspace: (URL) -> Void
     private let onOpenRecentPDF: (URL) -> Void
 
@@ -11,12 +12,14 @@ final class MainMenu: NSObject, NSMenuDelegate {
         recentLocations: RecentLocationsStore,
         onNewWindow: @escaping () -> Void,
         onOpen: @escaping () -> Void,
+        onShowLaunchPanel: @escaping () -> Void,
         onOpenRecentWorkspace: @escaping (URL) -> Void,
         onOpenRecentPDF: @escaping (URL) -> Void
     ) {
         self.recentLocations = recentLocations
         self.onNewWindow = onNewWindow
         self.onOpen = onOpen
+        self.onShowLaunchPanel = onShowLaunchPanel
         self.onOpenRecentWorkspace = onOpenRecentWorkspace
         self.onOpenRecentPDF = onOpenRecentPDF
     }
@@ -194,6 +197,16 @@ final class MainMenu: NSObject, NSMenuDelegate {
         let windowMenu = NSMenu(title: "Window")
         windowMenuItem.submenu = windowMenu
         NSApp.windowsMenu = windowMenu
+
+        let welcomeItem = windowMenu.addItem(
+            withTitle: "Welcome to PDF Navigator",
+            action: #selector(showLaunchPanel(_:)),
+            keyEquivalent: "1"
+        )
+        welcomeItem.keyEquivalentModifierMask = [.command, .shift]
+        welcomeItem.target = self
+        windowMenu.addItem(.separator())
+
         windowMenu.addItem(
             withTitle: "Minimize",
             action: #selector(NSWindow.performMiniaturize(_:)),
@@ -262,6 +275,10 @@ final class MainMenu: NSObject, NSMenuDelegate {
 
     @objc private func open(_ sender: Any?) {
         onOpen()
+    }
+
+    @objc private func showLaunchPanel(_ sender: Any?) {
+        onShowLaunchPanel()
     }
 
     @objc private func openRecentWorkspace(_ sender: NSMenuItem) {

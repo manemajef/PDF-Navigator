@@ -9,7 +9,7 @@ final class LaunchPanelController: NSWindowController {
     init() {
         let panel = NSPanel(
             contentRect: NSRect(x: 0, y: 0, width: 680, height: 420),
-            styleMask: [.titled, .closable, .fullSizeContentView, .utilityWindow],
+            styleMask: [.titled, .closable, .fullSizeContentView],
             backing: .buffered,
             defer: false
         )
@@ -17,9 +17,11 @@ final class LaunchPanelController: NSWindowController {
         panel.titleVisibility = .hidden
         panel.titlebarAppearsTransparent = true
         panel.isMovableByWindowBackground = true
-        panel.isFloatingPanel = true
-        panel.level = .floating
         panel.hidesOnDeactivate = false
+        panel.isReleasedWhenClosed = false
+        panel.setContentSize(NSSize(width: 680, height: 420))
+        panel.minSize = NSSize(width: 680, height: 420)
+        panel.maxSize = NSSize(width: 680, height: 420)
         panel.center()
 
         panel.standardWindowButton(.miniaturizeButton)?.isHidden = true
@@ -35,6 +37,13 @@ final class LaunchPanelController: NSWindowController {
         fatalError("init(coder:) is unavailable")
     }
 
+    override func showWindow(_ sender: Any?) {
+        window?.center()
+        super.showWindow(sender)
+        window?.makeKeyAndOrderFront(sender)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
     func refresh() {
         configureContent()
     }
@@ -42,8 +51,8 @@ final class LaunchPanelController: NSWindowController {
     private func configureContent() {
         let store = RecentLocationsStore.shared
         let view = LaunchPanelView(
-            recentWorkspaces: store.recentWorkspaces,
-            recentPDFs: store.recentPDFs,
+            recentWorkspaces: Array(store.recentWorkspaces.prefix(10)),
+            recentPDFs: Array(store.recentPDFs.prefix(10)),
             onOpen: { [weak self] in
                 self?.onOpen?()
             },
@@ -57,5 +66,6 @@ final class LaunchPanelController: NSWindowController {
 
         let hostingController = NSHostingController(rootView: view)
         window?.contentViewController = hostingController
+        window?.setContentSize(NSSize(width: 680, height: 420))
     }
 }

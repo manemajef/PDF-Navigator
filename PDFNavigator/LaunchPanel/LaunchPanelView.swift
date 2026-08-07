@@ -14,7 +14,7 @@ struct LaunchPanelView: View {
         HStack(spacing: 0) {
             mainContent
 
-            Divider()
+//            Divider()
 
             recentItemsColumn
         }
@@ -51,19 +51,26 @@ struct LaunchPanelView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
                 if showingWorkspaces {
-                    RecentWorkspacesSectionView(
-                        folderURLs: recentWorkspaces,
-                        onSelectFolder: onSelectWorkspace
+                    RecentSectionView(
+                        title: "Recent Workspaces",
+                        urls: recentWorkspaces,
+                        iconName: "folder",
+                        emptyText: "No recent workspaces.",
+                        onSelectURL: onSelectWorkspace
                     )
                 } else {
-                    RecentPDFsSectionView(
-                        pdfURLs: recentPDFs,
-                        onSelectPDF: onSelectPDF
+                    RecentSectionView(
+                        title: "Recent PDFs",
+                        urls: recentPDFs,
+                        iconName: "doc.text",
+                        emptyText: "No recent PDFs.",
+                        onSelectURL: onSelectPDF
                     )
                 }
             }
             .padding(16)
         }
+        .scrollBounceBehavior(.basedOnSize)
         .frame(width: 290)
         .frame(maxHeight: .infinity)
         .background(.thinMaterial)
@@ -72,6 +79,7 @@ struct LaunchPanelView: View {
 
 // MARK: - Preview
 
+#if DEBUG
 #Preview("Launch Panel") {
     LaunchPanelView(
         recentWorkspaces: [
@@ -95,3 +103,4 @@ struct LaunchPanelView: View {
         }
     )
 }
+#endif

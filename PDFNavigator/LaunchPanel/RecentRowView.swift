@@ -60,6 +60,7 @@ struct RecentRowView: View {
     }
 }
 
+#if DEBUG
 #Preview("Recent Row View") {
     VStack(spacing: 4) {
         RecentRowView(
@@ -76,3 +77,4 @@ struct RecentRowView: View {
     .padding(12)
     .frame(width: 400)
 }
+#endif

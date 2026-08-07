@@ -17,6 +17,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             guard let self, let request = promptForOpenRequest() else { return }
             open(request, replacing: activeWindowController)
         },
+        onShowLaunchPanel: { [weak self] in
+            self?.showLaunchPanel()
+        },
         onOpenRecentWorkspace: { [weak self] url in
             self?.openWindow(.folder(url))
         },
@@ -36,6 +39,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.setActivationPolicy(.regular)
         mainMenu.install()
         NSApp.activate(ignoringOtherApps: true)
+
+        DispatchQueue.main.async { [weak self] in
+            let hasVisibleDocumentWindows = NSApp.windows.contains { window in
+                window.isVisible && window != self?.launchPanelController?.window
+            }
+            if !hasVisibleDocumentWindows {
+                self?.showLaunchPanel()
+            }
+        }
     }
 
     func application(_ application: NSApplication, open urls: [URL]) {
@@ -49,11 +61,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationOpenUntitledFile(_ sender: NSApplication) -> Bool {
-        #if DEBUG
-        openWindow(.pdf(DevelopmentConfiguration.demoPDFURL))
-        #else
         showLaunchPanel()
-        #endif
         return true
     }
 
@@ -62,11 +70,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         hasVisibleWindows: Bool
     ) -> Bool {
         if !hasVisibleWindows {
-            #if DEBUG
-            openWindow(.pdf(DevelopmentConfiguration.demoPDFURL))
-            #else
             showLaunchPanel()
-            #endif
             return false
         }
         return true

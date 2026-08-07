@@ -8,16 +8,16 @@ final class RecentLocationsStore {
     private let defaults = UserDefaults.standard
     private let recentWorkspacesKey = "recentWorkspaceURLs"
     private let recentPDFsKey = "recentPDFURLs"
-    private let limit = 20
+    private let limit = 10
 
     private init() {}
 
     var recentWorkspaces: [URL] {
-        urls(forKey: recentWorkspacesKey)
+        Array(urls(forKey: recentWorkspacesKey).prefix(limit))
     }
 
     var recentPDFs: [URL] {
-        urls(forKey: recentPDFsKey)
+        Array(urls(forKey: recentPDFsKey).prefix(limit))
     }
 
     func noteWorkspace(_ url: URL) {
