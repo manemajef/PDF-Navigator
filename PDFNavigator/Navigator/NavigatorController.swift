@@ -332,7 +332,14 @@ extension NavigatorController: NSOutlineViewDelegate {
     }
 
     func outlineView(_ outlineView: NSOutlineView, shouldSelectItem item: Any) -> Bool {
-        item is NavigatorNode && !isRoot(item)
+        guard let node = item as? NavigatorNode, !isRoot(node) else {
+            return false
+        }
+        if !node.isDirectory,
+           NSApp.currentEvent?.modifierFlags.contains(.command) == true {
+            return false
+        }
+        return true
     }
 
     func outlineViewSelectionDidChange(_ notification: Notification) {
