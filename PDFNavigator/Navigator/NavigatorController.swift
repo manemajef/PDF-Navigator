@@ -9,9 +9,11 @@ final class NavigatorController: NSViewController {
     private var selectedPDFURL: URL?
     private var onSelectPDF: (URL) -> Void
     private var onOpenInNewTab: (URL, TabActivation) -> Void
+    private var onActivateRoot: () -> Void
     private var onItemCountChange: (Int?) -> Void
 
     private var rootNode: NavigatorNode?
+    private var rootItem: NavigatorRootItem?
     private var loadingNodes: Set<URL> = []
 
     init(
@@ -19,12 +21,14 @@ final class NavigatorController: NSViewController {
         selectedPDFURL: URL?,
         onSelectPDF: @escaping (URL) -> Void,
         onOpenInNewTab: @escaping (URL, TabActivation) -> Void,
+        onActivateRoot: @escaping () -> Void,
         onItemCountChange: @escaping (Int?) -> Void
     ) {
         self.rootURL = rootURL.standardizedFileURL
         self.selectedPDFURL = selectedPDFURL?.standardizedFileURL
         self.onSelectPDF = onSelectPDF
         self.onOpenInNewTab = onOpenInNewTab
+        self.onActivateRoot = onActivateRoot
         self.onItemCountChange = onItemCountChange
         super.init(nibName: nil, bundle: nil)
     }
@@ -50,7 +54,12 @@ final class NavigatorController: NSViewController {
         outlineView.delegate = self
         outlineView.target = self
         outlineView.action = #selector(rowClicked)
+        outlineView.doubleAction = #selector(rowDoubleClicked)
         outlineView.indentationPerLevel = 14
+        // Group rows pin to the top of the scroll view by default, which would
+        // turn the root into a fixed header and cut across the sidebar's scroll
+        // edge effect. It scrolls with the list instead.
+        outlineView.floatsGroupRows = false
         outlineView.refusesFirstResponder = false
         outlineView.menu = makeContextMenu()
 
@@ -70,6 +79,7 @@ final class NavigatorController: NSViewController {
         selectedPDFURL: URL?,
         onSelectPDF: @escaping (URL) -> Void,
         onOpenInNewTab: @escaping (URL, TabActivation) -> Void,
+        onActivateRoot: @escaping () -> Void,
         onItemCountChange: @escaping (Int?) -> Void
     ) {
         let rootURL = rootURL.standardizedFileURL
@@ -79,6 +89,7 @@ final class NavigatorController: NSViewController {
         self.selectedPDFURL = selectedPDFURL?.standardizedFileURL
         self.onSelectPDF = onSelectPDF
         self.onOpenInNewTab = onOpenInNewTab
+        self.onActivateRoot = onActivateRoot
         self.onItemCountChange = onItemCountChange
 
         loadViewIfNeeded()
@@ -92,6 +103,7 @@ final class NavigatorController: NSViewController {
     private func reloadTree() {
         loadingNodes.removeAll()
         rootNode = NavigatorNode(url: rootURL, isDirectory: true)
+        rootItem = NavigatorRootItem(url: rootURL)
         outlineView.reloadData()
 
         guard let rootNode else { return }
@@ -210,6 +222,16 @@ final class NavigatorController: NSViewController {
         onOpenInNewTab(node.url.standardizedFileURL, .background)
     }
 
+    @objc private func rowDoubleClicked() {
+        let row = outlineView.clickedRow
+        guard row >= 0,
+              outlineView.item(atRow: row) is NavigatorRootItem else {
+            return
+        }
+
+        onActivateRoot()
+    }
+
     @objc private func openClickedRowInNewTab(_ sender: Any?) {
         guard let url = contextMenuPDFURL else { return }
         onOpenInNewTab(url, .foreground)
@@ -280,7 +302,7 @@ extension NavigatorController: NSOutlineViewDataSource {
         if let node = item as? NavigatorNode {
             return node.children?.count ?? 0
         }
-        return rootNode?.children?.count ?? 0
+        return (rootItem == nil ? 0 : 1) + (rootNode?.children?.count ?? 0)
     }
 
     func outlineView(
@@ -291,7 +313,12 @@ extension NavigatorController: NSOutlineViewDataSource {
         if let node = item as? NavigatorNode {
             return node.children![index]
         }
-        return rootNode!.children![index]
+        // The header occupies row 0 and shifts the children by one, so the
+        // offset has to come from the same optional the count did.
+        guard let rootItem else {
+            return rootNode!.children![index]
+        }
+        return index == 0 ? rootItem : rootNode!.children![index - 1]
     }
 
     func outlineView(
@@ -303,6 +330,10 @@ extension NavigatorController: NSOutlineViewDataSource {
 }
 
 extension NavigatorController: NSOutlineViewDelegate {
+    func outlineView(_ outlineView: NSOutlineView, isGroupItem item: Any) -> Bool {
+        item is NavigatorRootItem
+    }
+
     func outlineViewItemDidExpand(_ notification: Notification) {
         guard let node = notification.userInfo?["NSObject"] as? NavigatorNode else {
             return
@@ -315,6 +346,9 @@ extension NavigatorController: NSOutlineViewDelegate {
         viewFor tableColumn: NSTableColumn?,
         item: Any
     ) -> NSView? {
+        if let rootItem = item as? NavigatorRootItem {
+            return rootCell(for: rootItem, in: outlineView)
+        }
         guard let node = item as? NavigatorNode else { return nil }
 
         let identifier = NSUserInterfaceItemIdentifier("NavigatorCell")
@@ -360,8 +394,49 @@ extension NavigatorController: NSOutlineViewDelegate {
         return cell
     }
 
+    /// The root row is a header, not a destination, so it never takes selection
+    /// away from the PDF currently being read.
     func outlineView(_ outlineView: NSOutlineView, shouldSelectItem item: Any) -> Bool {
         item is NavigatorNode
+    }
+
+    private func rootCell(
+        for rootItem: NavigatorRootItem,
+        in outlineView: NSOutlineView
+    ) -> NSView {
+        let identifier = NSUserInterfaceItemIdentifier("NavigatorRootCell")
+        let cell: NSTableCellView
+        if let reused = outlineView.makeView(
+            withIdentifier: identifier,
+            owner: self
+        ) as? NSTableCellView {
+            cell = reused
+        } else {
+            cell = NSTableCellView()
+            cell.identifier = identifier
+
+            let textField = NSTextField(labelWithString: "")
+            textField.translatesAutoresizingMaskIntoConstraints = false
+            textField.font = .systemFont(
+                ofSize: NSFont.smallSystemFontSize,
+                weight: .bold
+            )
+            textField.textColor = .secondaryLabelColor
+            textField.lineBreakMode = .byTruncatingMiddle
+            textField.cell?.usesSingleLineMode = true
+            cell.addSubview(textField)
+            cell.textField = textField
+
+            NSLayoutConstraint.activate([
+                textField.leadingAnchor.constraint(equalTo: cell.leadingAnchor),
+                textField.trailingAnchor.constraint(equalTo: cell.trailingAnchor),
+                textField.centerYAnchor.constraint(equalTo: cell.centerYAnchor),
+            ])
+        }
+
+        cell.textField?.stringValue = rootItem.name
+        cell.toolTip = "Double-click to open the workspace home"
+        return cell
     }
 
     func outlineViewSelectionDidChange(_ notification: Notification) {
@@ -378,6 +453,25 @@ extension NavigatorController: NSOutlineViewDelegate {
         let requestedURL = node.url.standardizedFileURL
         guard requestedURL != selectedPDFURL else { return }
         onSelectPDF(requestedURL)
+    }
+}
+
+/// The workspace root's header row.
+///
+/// Deliberately a *sibling* of the root's children rather than their parent:
+/// parenting them would push every file down one indentation level and force a
+/// wider sidebar to fit the same names.
+private final class NavigatorRootItem: NSObject {
+    let url: URL
+
+    init(url: URL) {
+        self.url = url
+    }
+
+    var name: String {
+        url.lastPathComponent.isEmpty
+            ? url.path
+            : FileManager.default.displayName(atPath: url.path)
     }
 }
 

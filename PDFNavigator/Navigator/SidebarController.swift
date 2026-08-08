@@ -18,6 +18,7 @@ final class SidebarController: NSViewController {
             selectedPDFURL: session.selection,
             onSelectPDF: session.select,
             onOpenInNewTab: actions.openInNewTab,
+            onActivateRoot: session.goToWorkspaceHome,
             onItemCountChange: { _ in }
         )
         headerView = NSHostingView(
@@ -39,6 +40,7 @@ final class SidebarController: NSViewController {
             selectedPDFURL: session.selection,
             onSelectPDF: session.select,
             onOpenInNewTab: actions.openInNewTab,
+            onActivateRoot: session.goToWorkspaceHome,
             onItemCountChange: { [weak self] in self?.setItemCount($0) }
         )
     }
@@ -83,6 +85,7 @@ final class SidebarController: NSViewController {
             selectedPDFURL: session.selection,
             onSelectPDF: session.select,
             onOpenInNewTab: actions.openInNewTab,
+            onActivateRoot: session.goToWorkspaceHome,
             onItemCountChange: { [weak self] in self?.setItemCount($0) }
         )
     }
