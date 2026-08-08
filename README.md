@@ -5,6 +5,8 @@ collections of related documents. It combines a Preview-style reading
 experience with a workspace sidebar for moving quickly between PDFs in the
 same directory tree.
 
+![](./assets/PDFNavigator-Screenshot.png)
+
 > Preview is excellent for reading one document, but it does not provide a
 > fast way to navigate surrounding lecture notes, exams, homework, and
 > solutions. PDF Navigator turns the containing folder into a lightweight
