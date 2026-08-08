@@ -4,15 +4,15 @@ import AppKit
 final class NavigatorController: NSViewController {
     private let scrollView = NSScrollView()
     private let outlineView = NSOutlineView()
+    private let rootSection = NavigatorSection()
 
     private var rootURL: URL
     private var selectedPDFURL: URL?
     private var onSelectPDF: (URL) -> Void
     private var onOpenInNewTab: (URL, TabActivation) -> Void
-    private var onActivateRoot: () -> Void
     private var onItemCountChange: (Int?) -> Void
 
-    private var rootNode: NavigatorNode?
+    private var rootChildren: [NavigatorNode]?
     private var loadingNodes: Set<URL> = []
 
     init(
@@ -20,16 +20,15 @@ final class NavigatorController: NSViewController {
         selectedPDFURL: URL?,
         onSelectPDF: @escaping (URL) -> Void,
         onOpenInNewTab: @escaping (URL, TabActivation) -> Void,
-        onActivateRoot: @escaping () -> Void,
         onItemCountChange: @escaping (Int?) -> Void
     ) {
         self.rootURL = rootURL.standardizedFileURL
         self.selectedPDFURL = selectedPDFURL?.standardizedFileURL
         self.onSelectPDF = onSelectPDF
         self.onOpenInNewTab = onOpenInNewTab
-        self.onActivateRoot = onActivateRoot
         self.onItemCountChange = onItemCountChange
         super.init(nibName: nil, bundle: nil)
+        rootSection.title = Self.workspaceName(self.rootURL)
     }
 
     @available(*, unavailable)
@@ -53,11 +52,7 @@ final class NavigatorController: NSViewController {
         outlineView.delegate = self
         outlineView.target = self
         outlineView.action = #selector(rowClicked)
-        outlineView.doubleAction = #selector(rowDoubleClicked)
         outlineView.indentationPerLevel = 14
-        // Group rows pin to the top of the scroll view by default, which would
-        // turn the root into a fixed header and cut across the sidebar's scroll
-        // edge effect. It scrolls with the list instead.
         outlineView.floatsGroupRows = false
         outlineView.refusesFirstResponder = false
         outlineView.menu = makeContextMenu()
@@ -67,8 +62,8 @@ final class NavigatorController: NSViewController {
         column.resizingMask = .autoresizingMask
         outlineView.addTableColumn(column)
         outlineView.outlineTableColumn = column
-        scrollView.documentView = outlineView
 
+        scrollView.documentView = outlineView
         view = scrollView
         reloadTree()
     }
@@ -78,7 +73,6 @@ final class NavigatorController: NSViewController {
         selectedPDFURL: URL?,
         onSelectPDF: @escaping (URL) -> Void,
         onOpenInNewTab: @escaping (URL, TabActivation) -> Void,
-        onActivateRoot: @escaping () -> Void,
         onItemCountChange: @escaping (Int?) -> Void
     ) {
         let rootURL = rootURL.standardizedFileURL
@@ -88,32 +82,65 @@ final class NavigatorController: NSViewController {
         self.selectedPDFURL = selectedPDFURL?.standardizedFileURL
         self.onSelectPDF = onSelectPDF
         self.onOpenInNewTab = onOpenInNewTab
-        self.onActivateRoot = onActivateRoot
         self.onItemCountChange = onItemCountChange
+        rootSection.title = Self.workspaceName(rootURL)
 
         loadViewIfNeeded()
         if rootChanged {
             reloadTree()
         } else {
+            outlineView.reloadItem(rootSection)
             revealSelectedPDF()
         }
     }
 
     private func reloadTree() {
         loadingNodes.removeAll()
-        rootNode = NavigatorNode(url: rootURL, isDirectory: true)
+        rootChildren = nil
         outlineView.reloadData()
+        outlineView.expandItem(rootSection)
 
-        guard let rootNode else { return }
-        loadChildrenIfNeeded(for: rootNode) { [weak self] in
+        loadRootChildrenIfNeeded { [weak self] in
             guard let self else { return }
-            outlineView.reloadData()
-            outlineView.expandItem(rootNode)
-            onItemCountChange(rootNode.children?.count)
+            outlineView.reloadItem(rootSection, reloadChildren: true)
+            outlineView.expandItem(rootSection)
+            onItemCountChange(rootChildren?.count)
             revealSelectedPDF()
         }
     }
 
+    private func loadRootChildrenIfNeeded(completion: (() -> Void)? = nil) {
+        if rootChildren != nil {
+            completion?()
+            return
+        }
+
+        let url = rootURL.standardizedFileURL
+        guard !loadingNodes.contains(url) else {
+            completion?()
+            return
+        }
+        loadingNodes.insert(url)
+
+        Task { [weak self] in
+            do {
+                let items = try await DirectoryScanner.items(in: url)
+                guard let self else { return }
+                rootChildren = items.map {
+                    NavigatorNode(
+                        url: $0.url.standardizedFileURL,
+                        isDirectory: $0.isDirectory
+                    )
+                }
+                loadingNodes.remove(url)
+                outlineView.reloadItem(rootSection, reloadChildren: true)
+                completion?()
+            } catch {
+                self?.loadingNodes.remove(url)
+                completion?()
+            }
+        }
+    }
 
     private func loadChildrenIfNeeded(
         for node: NavigatorNode,
@@ -156,61 +183,63 @@ final class NavigatorController: NSViewController {
     }
 
     private func revealSelectedPDF() {
-        guard let selectedPDFURL, let rootNode else {
+        guard let selectedPDFURL else {
+            outlineView.deselectAll(nil)
+            return
+        }
+        guard selectedPDFURL.isDescendantOrSame(of: rootURL) else {
             outlineView.deselectAll(nil)
             return
         }
 
-        expandPath(to: selectedPDFURL, from: rootNode) { [weak self] node in
+        outlineView.expandItem(rootSection)
+        loadRootChildrenIfNeeded { [weak self] in
             guard let self else { return }
-            guard let node else {
-                outlineView.deselectAll(nil)
-                return
+            expandPath(to: selectedPDFURL, through: rootChildren ?? []) { [weak self] node in
+                guard let self else { return }
+                guard let node else {
+                    outlineView.deselectAll(nil)
+                    return
+                }
+                let row = outlineView.row(forItem: node)
+                guard row >= 0 else { return }
+                outlineView.selectRowIndexes(
+                    IndexSet(integer: row),
+                    byExtendingSelection: false
+                )
+                outlineView.scrollRowToVisible(row)
             }
-            let row = outlineView.row(forItem: node)
-            guard row >= 0 else { return }
-            outlineView.selectRowIndexes(
-                IndexSet(integer: row),
-                byExtendingSelection: false
-            )
-            outlineView.scrollRowToVisible(row)
         }
     }
 
     private func expandPath(
         to fileURL: URL,
-        from node: NavigatorNode,
+        through nodes: [NavigatorNode],
         completion: @escaping (NavigatorNode?) -> Void
     ) {
-        guard fileURL.isDescendantOrSame(of: node.url) else {
+        if let child = nodes.first(where: { $0.url == fileURL }) {
+            completion(child)
+            return
+        }
+
+        guard let directory = nodes.first(where: {
+            $0.isDirectory && fileURL.isDescendantOrSame(of: $0.url)
+        }) else {
             completion(nil)
             return
         }
 
-        loadChildrenIfNeeded(for: node) { [weak self, weak node] in
-            guard let self, let node else {
+        outlineView.expandItem(directory)
+        loadChildrenIfNeeded(for: directory) { [weak self, weak directory] in
+            guard let self, let directory else {
                 completion(nil)
                 return
             }
-
-            // The root is a row of its own now, so every ancestor on the
-            // path — it included — must be expanded before its descendants
-            // have rows to select.
-            outlineView.expandItem(node)
-
-            if let child = node.children?.first(where: { $0.url == fileURL }) {
-                completion(child)
-                return
-            }
-
-            guard let directory = node.children?.first(where: {
-                $0.isDirectory && fileURL.isDescendantOrSame(of: $0.url)
-            }) else {
-                completion(nil)
-                return
-            }
-
-            expandPath(to: fileURL, from: directory, completion: completion)
+            expandPath(
+                to: fileURL,
+                through: directory.children ?? [],
+                completion: completion
+            )
         }
     }
 
@@ -224,13 +253,6 @@ final class NavigatorController: NSViewController {
         }
 
         onOpenInNewTab(node.url.standardizedFileURL, .background)
-    }
-
-    @objc private func rowDoubleClicked() {
-        let row = outlineView.clickedRow
-        guard row >= 0, isRoot(outlineView.item(atRow: row)) else { return }
-
-        onActivateRoot()
     }
 
     @objc private func openClickedRowInNewTab(_ sender: Any?) {
@@ -293,6 +315,34 @@ final class NavigatorController: NSViewController {
         finderItem.target = self
         return menu
     }
+
+    private func toggleRootSection() {
+        if outlineView.isItemExpanded(rootSection) {
+            outlineView.collapseItem(rootSection)
+        } else {
+            outlineView.expandItem(rootSection)
+        }
+        updateRootSectionDisclosure()
+    }
+
+    private func updateRootSectionDisclosure() {
+        let row = outlineView.row(forItem: rootSection)
+        guard row >= 0,
+              let cell = outlineView.view(
+                atColumn: 0,
+                row: row,
+                makeIfNecessary: false
+              ) as? NavigatorSectionCellView else {
+            return
+        }
+        cell.setExpanded(outlineView.isItemExpanded(rootSection))
+    }
+
+    private static func workspaceName(_ url: URL) -> String {
+        url.lastPathComponent.isEmpty
+            ? url.path
+            : FileManager.default.displayName(atPath: url.path)
+    }
 }
 
 extension NavigatorController: NSOutlineViewDataSource {
@@ -300,10 +350,16 @@ extension NavigatorController: NSOutlineViewDataSource {
         _ outlineView: NSOutlineView,
         numberOfChildrenOfItem item: Any?
     ) -> Int {
+        if item == nil {
+            return 1
+        }
+        if item as? NavigatorSection === rootSection {
+            return rootChildren?.count ?? 0
+        }
         if let node = item as? NavigatorNode {
             return node.children?.count ?? 0
         }
-        return rootNode == nil ? 0 : 1
+        return 0
     }
 
     func outlineView(
@@ -311,49 +367,57 @@ extension NavigatorController: NSOutlineViewDataSource {
         child index: Int,
         ofItem item: Any?
     ) -> Any {
+        if item == nil {
+            return rootSection
+        }
+        if item as? NavigatorSection === rootSection {
+            return rootChildren![index]
+        }
         if let node = item as? NavigatorNode {
             return node.children![index]
         }
-        return rootNode!
+        assertionFailure("Unexpected navigator item")
+        return rootSection
     }
 
     func outlineView(
         _ outlineView: NSOutlineView,
         isItemExpandable item: Any
     ) -> Bool {
-        (item as? NavigatorNode)?.isDirectory == true
+        if item as? NavigatorSection === rootSection {
+            return true
+        }
+        return (item as? NavigatorNode)?.isDirectory == true
     }
 }
 
 extension NavigatorController: NSOutlineViewDelegate {
     func outlineView(_ outlineView: NSOutlineView, isGroupItem item: Any) -> Bool {
-        isRoot(item)
-    }
-
-    /// Collapsing the root would hide every file behind a row whose
-    /// double-click is already spoken for by "open workspace home", so it
-    /// stays open and shows no disclosure control.
-    func outlineView(_ outlineView: NSOutlineView, shouldCollapseItem item: Any) -> Bool {
-        !isRoot(item)
+        item is NavigatorSection
     }
 
     func outlineView(
         _ outlineView: NSOutlineView,
         shouldShowOutlineCellForItem item: Any
     ) -> Bool {
-        !isRoot(item)
-    }
-
-    private func isRoot(_ item: Any?) -> Bool {
-        guard let node = item as? NavigatorNode else { return false }
-        return node === rootNode
+        !(item is NavigatorSection)
     }
 
     func outlineViewItemDidExpand(_ notification: Notification) {
+        if notification.userInfo?["NSObject"] is NavigatorSection {
+            updateRootSectionDisclosure()
+            return
+        }
         guard let node = notification.userInfo?["NSObject"] as? NavigatorNode else {
             return
         }
         loadChildrenIfNeeded(for: node)
+    }
+
+    func outlineViewItemDidCollapse(_ notification: Notification) {
+        if notification.userInfo?["NSObject"] is NavigatorSection {
+            updateRootSectionDisclosure()
+        }
     }
 
     func outlineView(
@@ -361,11 +425,62 @@ extension NavigatorController: NSOutlineViewDelegate {
         viewFor tableColumn: NSTableColumn?,
         item: Any
     ) -> NSView? {
-        guard let node = item as? NavigatorNode else { return nil }
-        if isRoot(node) {
-            return rootCell(named: node.name, in: outlineView)
+        if let section = item as? NavigatorSection {
+            return makeSectionView(for: section, in: outlineView)
         }
 
+        guard let node = item as? NavigatorNode else { return nil }
+        return makeNodeView(for: node, in: outlineView)
+    }
+
+    func outlineView(_ outlineView: NSOutlineView, shouldSelectItem item: Any) -> Bool {
+        item is NavigatorNode
+    }
+
+    func outlineViewSelectionDidChange(_ notification: Notification) {
+        guard NSApp.currentEvent?.modifierFlags.contains(.command) != true else {
+            return
+        }
+        let row = outlineView.selectedRow
+        guard row >= 0,
+              let node = outlineView.item(atRow: row) as? NavigatorNode,
+              !node.isDirectory else {
+            return
+        }
+
+        let requestedURL = node.url.standardizedFileURL
+        guard requestedURL != selectedPDFURL else { return }
+        onSelectPDF(requestedURL)
+    }
+
+    private func makeSectionView(
+        for section: NavigatorSection,
+        in outlineView: NSOutlineView
+    ) -> NSView? {
+        let identifier = NSUserInterfaceItemIdentifier("NavigatorSectionCell")
+        let cell: NavigatorSectionCellView
+        if let reused = outlineView.makeView(
+            withIdentifier: identifier,
+            owner: self
+        ) as? NavigatorSectionCellView {
+            cell = reused
+        } else {
+            cell = NavigatorSectionCellView()
+            cell.identifier = identifier
+        }
+
+        cell.configure(
+            title: section.title,
+            isExpanded: outlineView.isItemExpanded(section),
+            onToggle: { [weak self] in self?.toggleRootSection() }
+        )
+        return cell
+    }
+
+    private func makeNodeView(
+        for node: NavigatorNode,
+        in outlineView: NSOutlineView
+    ) -> NSView? {
         let identifier = NSUserInterfaceItemIdentifier("NavigatorCell")
         let cell: NSTableCellView
         if let reused = outlineView.makeView(
@@ -408,66 +523,106 @@ extension NavigatorController: NSOutlineViewDelegate {
         cell.imageView?.image = NSWorkspace.shared.icon(forFile: node.url.path)
         return cell
     }
+}
 
-    /// The root row is a header, not a destination, so it never takes selection
-    /// away from the PDF currently being read.
-    func outlineView(_ outlineView: NSOutlineView, shouldSelectItem item: Any) -> Bool {
-        item is NavigatorNode && !isRoot(item)
+private final class NavigatorSection: NSObject {
+    var title = "Workspace"
+}
+
+private final class NavigatorSectionCellView: NSTableCellView {
+    private let titleField = NSTextField(labelWithString: "")
+    private let disclosureButton = NSButton()
+    private var trackingArea: NSTrackingArea?
+    private var onToggle: (() -> Void)?
+
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        setUpView()
     }
 
-    private func rootCell(
-        named name: String,
-        in outlineView: NSOutlineView
-    ) -> NSView {
-        let identifier = NSUserInterfaceItemIdentifier("NavigatorRootCell")
-        let cell: NSTableCellView
-        if let reused = outlineView.makeView(
-            withIdentifier: identifier,
-            owner: self
-        ) as? NSTableCellView {
-            cell = reused
-        } else {
-            cell = NSTableCellView()
-            cell.identifier = identifier
-
-            let textField = NSTextField(labelWithString: "")
-            textField.translatesAutoresizingMaskIntoConstraints = false
-            textField.font = .systemFont(
-                ofSize: NSFont.smallSystemFontSize,
-                weight: .bold
-            )
-            textField.textColor = .secondaryLabelColor
-            textField.lineBreakMode = .byTruncatingMiddle
-            textField.cell?.usesSingleLineMode = true
-            cell.addSubview(textField)
-            cell.textField = textField
-
-            NSLayoutConstraint.activate([
-                textField.leadingAnchor.constraint(equalTo: cell.leadingAnchor),
-                textField.trailingAnchor.constraint(equalTo: cell.trailingAnchor),
-                textField.centerYAnchor.constraint(equalTo: cell.centerYAnchor),
-            ])
-        }
-
-        cell.textField?.stringValue = name
-        cell.toolTip = "Double-click to open the workspace home"
-        return cell
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) is unavailable")
     }
 
-    func outlineViewSelectionDidChange(_ notification: Notification) {
-        guard NSApp.currentEvent?.modifierFlags.contains(.command) != true else {
-            return
-        }
-        let row = outlineView.selectedRow
-        guard row >= 0,
-              let node = outlineView.item(atRow: row) as? NavigatorNode,
-              !node.isDirectory else {
-            return
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let trackingArea {
+            removeTrackingArea(trackingArea)
         }
 
-        let requestedURL = node.url.standardizedFileURL
-        guard requestedURL != selectedPDFURL else { return }
-        onSelectPDF(requestedURL)
+        let area = NSTrackingArea(
+            rect: bounds,
+            options: [.activeInKeyWindow, .mouseEnteredAndExited, .inVisibleRect],
+            owner: self,
+            userInfo: nil
+        )
+        addTrackingArea(area)
+        trackingArea = area
+    }
+
+    override func mouseEntered(with event: NSEvent) {
+        super.mouseEntered(with: event)
+        disclosureButton.animator().alphaValue = 1
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        super.mouseExited(with: event)
+        disclosureButton.animator().alphaValue = 0
+    }
+
+    func configure(
+        title: String,
+        isExpanded: Bool,
+        onToggle: @escaping () -> Void
+    ) {
+        titleField.stringValue = title
+        self.onToggle = onToggle
+        setExpanded(isExpanded)
+    }
+
+    func setExpanded(_ isExpanded: Bool) {
+        disclosureButton.image = NSImage(
+            systemSymbolName: isExpanded ? "chevron.down" : "chevron.right",
+            accessibilityDescription: isExpanded ? "Collapse" : "Expand"
+        )
+    }
+
+    private func setUpView() {
+        titleField.translatesAutoresizingMaskIntoConstraints = false
+        titleField.font = .systemFont(ofSize: 12, weight: .semibold)
+        titleField.textColor = .secondaryLabelColor
+        titleField.lineBreakMode = .byTruncatingMiddle
+        titleField.cell?.usesSingleLineMode = true
+        addSubview(titleField)
+        textField = titleField
+
+        disclosureButton.translatesAutoresizingMaskIntoConstraints = false
+        disclosureButton.bezelStyle = .shadowlessSquare
+        disclosureButton.isBordered = false
+        disclosureButton.imagePosition = .imageOnly
+        disclosureButton.contentTintColor = .secondaryLabelColor
+        disclosureButton.alphaValue = 0
+        disclosureButton.target = self
+        disclosureButton.action = #selector(toggleDisclosure)
+        addSubview(disclosureButton)
+
+        NSLayoutConstraint.activate([
+            titleField.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 2),
+            titleField.trailingAnchor.constraint(
+                lessThanOrEqualTo: disclosureButton.leadingAnchor,
+                constant: -6
+            ),
+            titleField.centerYAnchor.constraint(equalTo: centerYAnchor),
+            disclosureButton.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -4),
+            disclosureButton.centerYAnchor.constraint(equalTo: centerYAnchor),
+            disclosureButton.widthAnchor.constraint(equalToConstant: 18),
+            disclosureButton.heightAnchor.constraint(equalToConstant: 18)
+        ])
+    }
+
+    @objc private func toggleDisclosure() {
+        onToggle?()
     }
 }
 
@@ -482,10 +637,7 @@ private final class NavigatorNode: NSObject {
     }
 
     var name: String {
-        /// toggle to rm extenstion:
-        /// url.lastPathComponent.isEmpty ? url.path : url.deletingPathExtension().lastPathComponent
         url.lastPathComponent.isEmpty ? url.path : url.lastPathComponent
-
     }
 }
 

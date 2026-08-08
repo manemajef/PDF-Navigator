@@ -6,7 +6,6 @@ final class SidebarController: NSViewController {
     private let session: TabSession
     private let actions: WorkspaceActions
     private let navigatorController: NavigatorController
-    private let headerView: NSHostingView<SidebarHeaderView>
     private let footerView: NSHostingView<SidebarFooterView>
     private var itemCount: Int?
 
@@ -18,15 +17,7 @@ final class SidebarController: NSViewController {
             selectedPDFURL: session.selection,
             onSelectPDF: session.select,
             onOpenInNewTab: actions.openInNewTab,
-            onActivateRoot: session.goToWorkspaceHome,
             onItemCountChange: { _ in }
-        )
-        headerView = NSHostingView(
-            rootView: SidebarHeaderView(
-                title: Self.workspaceName(session.root),
-                isSearchEnabled: session.pdfSession?.hasDocument == true,
-                onSearch: actions.beginSearch
-            )
         )
         footerView = NSHostingView(
             rootView: SidebarFooterView {
@@ -40,7 +31,6 @@ final class SidebarController: NSViewController {
             selectedPDFURL: session.selection,
             onSelectPDF: session.select,
             onOpenInNewTab: actions.openInNewTab,
-            onActivateRoot: session.goToWorkspaceHome,
             onItemCountChange: { [weak self] in self?.setItemCount($0) }
         )
     }
@@ -59,9 +49,6 @@ final class SidebarController: NSViewController {
         }
 
         NSLayoutConstraint.activate([
-//            headerView.topAnchor.constraint(equalTo: container.topAnchor),
-//            headerView.leadingAnchor.constraint(equalTo: container.leadingAnchor),
-//            headerView.trailingAnchor.constraint(equalTo: container.trailingAnchor),
             navigatorController.view.topAnchor.constraint(equalTo: container.topAnchor),
             navigatorController.view.leadingAnchor.constraint(equalTo: container.leadingAnchor),
             navigatorController.view.trailingAnchor.constraint(equalTo: container.trailingAnchor),
@@ -74,18 +61,12 @@ final class SidebarController: NSViewController {
     }
 
     func update() {
-//        headerView.rootView = SidebarHeaderView(
-//            title: Self.workspaceName(session.root),
-//            isSearchEnabled: session.pdfSession?.hasDocument == true,
-//            onSearch: actions.beginSearch
-//        )
         footerView.rootView = makeFooter()
         navigatorController.update(
             rootURL: session.root,
             selectedPDFURL: session.selection,
             onSelectPDF: session.select,
             onOpenInNewTab: actions.openInNewTab,
-            onActivateRoot: session.goToWorkspaceHome,
             onItemCountChange: { [weak self] in self?.setItemCount($0) }
         )
     }
@@ -99,9 +80,5 @@ final class SidebarController: NSViewController {
         SidebarFooterView(itemCount: itemCount) { [session, actions] in
             actions.revealInFinder(session.root)
         }
-    }
-
-    private static func workspaceName(_ url: URL) -> String {
-        url.lastPathComponent.isEmpty ? url.path : url.lastPathComponent
     }
 }
