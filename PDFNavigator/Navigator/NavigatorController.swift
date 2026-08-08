@@ -13,7 +13,6 @@ final class NavigatorController: NSViewController {
     private var onItemCountChange: (Int?) -> Void
 
     private var rootNode: NavigatorNode?
-    private var rootItem: NavigatorRootItem?
     private var loadingNodes: Set<URL> = []
 
     init(
@@ -103,17 +102,18 @@ final class NavigatorController: NSViewController {
     private func reloadTree() {
         loadingNodes.removeAll()
         rootNode = NavigatorNode(url: rootURL, isDirectory: true)
-        rootItem = NavigatorRootItem(url: rootURL)
         outlineView.reloadData()
 
         guard let rootNode else { return }
         loadChildrenIfNeeded(for: rootNode) { [weak self] in
             guard let self else { return }
             outlineView.reloadData()
+            outlineView.expandItem(rootNode)
             onItemCountChange(rootNode.children?.count)
             revealSelectedPDF()
         }
     }
+
 
     private func loadChildrenIfNeeded(
         for node: NavigatorNode,
@@ -193,6 +193,11 @@ final class NavigatorController: NSViewController {
                 return
             }
 
+            // The root is a row of its own now, so every ancestor on the
+            // path — it included — must be expanded before its descendants
+            // have rows to select.
+            outlineView.expandItem(node)
+
             if let child = node.children?.first(where: { $0.url == fileURL }) {
                 completion(child)
                 return
@@ -205,7 +210,6 @@ final class NavigatorController: NSViewController {
                 return
             }
 
-            outlineView.expandItem(directory)
             expandPath(to: fileURL, from: directory, completion: completion)
         }
     }
@@ -224,10 +228,7 @@ final class NavigatorController: NSViewController {
 
     @objc private func rowDoubleClicked() {
         let row = outlineView.clickedRow
-        guard row >= 0,
-              outlineView.item(atRow: row) is NavigatorRootItem else {
-            return
-        }
+        guard row >= 0, isRoot(outlineView.item(atRow: row)) else { return }
 
         onActivateRoot()
     }
@@ -302,7 +303,7 @@ extension NavigatorController: NSOutlineViewDataSource {
         if let node = item as? NavigatorNode {
             return node.children?.count ?? 0
         }
-        return (rootItem == nil ? 0 : 1) + (rootNode?.children?.count ?? 0)
+        return rootNode == nil ? 0 : 1
     }
 
     func outlineView(
@@ -313,12 +314,7 @@ extension NavigatorController: NSOutlineViewDataSource {
         if let node = item as? NavigatorNode {
             return node.children![index]
         }
-        // The header occupies row 0 and shifts the children by one, so the
-        // offset has to come from the same optional the count did.
-        guard let rootItem else {
-            return rootNode!.children![index]
-        }
-        return index == 0 ? rootItem : rootNode!.children![index - 1]
+        return rootNode!
     }
 
     func outlineView(
@@ -331,7 +327,26 @@ extension NavigatorController: NSOutlineViewDataSource {
 
 extension NavigatorController: NSOutlineViewDelegate {
     func outlineView(_ outlineView: NSOutlineView, isGroupItem item: Any) -> Bool {
-        item is NavigatorRootItem
+        isRoot(item)
+    }
+
+    /// Collapsing the root would hide every file behind a row whose
+    /// double-click is already spoken for by "open workspace home", so it
+    /// stays open and shows no disclosure control.
+    func outlineView(_ outlineView: NSOutlineView, shouldCollapseItem item: Any) -> Bool {
+        !isRoot(item)
+    }
+
+    func outlineView(
+        _ outlineView: NSOutlineView,
+        shouldShowOutlineCellForItem item: Any
+    ) -> Bool {
+        !isRoot(item)
+    }
+
+    private func isRoot(_ item: Any?) -> Bool {
+        guard let node = item as? NavigatorNode else { return false }
+        return node === rootNode
     }
 
     func outlineViewItemDidExpand(_ notification: Notification) {
@@ -346,10 +361,10 @@ extension NavigatorController: NSOutlineViewDelegate {
         viewFor tableColumn: NSTableColumn?,
         item: Any
     ) -> NSView? {
-        if let rootItem = item as? NavigatorRootItem {
-            return rootCell(for: rootItem, in: outlineView)
-        }
         guard let node = item as? NavigatorNode else { return nil }
+        if isRoot(node) {
+            return rootCell(named: node.name, in: outlineView)
+        }
 
         let identifier = NSUserInterfaceItemIdentifier("NavigatorCell")
         let cell: NSTableCellView
@@ -397,11 +412,11 @@ extension NavigatorController: NSOutlineViewDelegate {
     /// The root row is a header, not a destination, so it never takes selection
     /// away from the PDF currently being read.
     func outlineView(_ outlineView: NSOutlineView, shouldSelectItem item: Any) -> Bool {
-        item is NavigatorNode
+        item is NavigatorNode && !isRoot(item)
     }
 
     private func rootCell(
-        for rootItem: NavigatorRootItem,
+        named name: String,
         in outlineView: NSOutlineView
     ) -> NSView {
         let identifier = NSUserInterfaceItemIdentifier("NavigatorRootCell")
@@ -434,7 +449,7 @@ extension NavigatorController: NSOutlineViewDelegate {
             ])
         }
 
-        cell.textField?.stringValue = rootItem.name
+        cell.textField?.stringValue = name
         cell.toolTip = "Double-click to open the workspace home"
         return cell
     }
@@ -453,25 +468,6 @@ extension NavigatorController: NSOutlineViewDelegate {
         let requestedURL = node.url.standardizedFileURL
         guard requestedURL != selectedPDFURL else { return }
         onSelectPDF(requestedURL)
-    }
-}
-
-/// The workspace root's header row.
-///
-/// Deliberately a *sibling* of the root's children rather than their parent:
-/// parenting them would push every file down one indentation level and force a
-/// wider sidebar to fit the same names.
-private final class NavigatorRootItem: NSObject {
-    let url: URL
-
-    init(url: URL) {
-        self.url = url
-    }
-
-    var name: String {
-        url.lastPathComponent.isEmpty
-            ? url.path
-            : FileManager.default.displayName(atPath: url.path)
     }
 }
 
