@@ -5,34 +5,25 @@ import SwiftUI
 final class SidebarController: NSViewController {
     private let session: TabSession
     private let actions: WorkspaceActions
-    private let navigatorController: NavigatorController
     private let footerView: NSHostingView<SidebarFooterView>
     private var itemCount: Int?
+    private lazy var navigatorController = NavigatorController(
+        rootURL: session.root,
+        selectedPDFURL: session.selection,
+        onSelectPDF: session.select,
+        onOpenInNewTab: actions.openInNewTab,
+        onItemCountChange: { [weak self] in self?.setItemCount($0) }
+    )
 
     init(session: TabSession, actions: WorkspaceActions) {
         self.session = session
         self.actions = actions
-        navigatorController = NavigatorController(
-            rootURL: session.root,
-            selectedPDFURL: session.selection,
-            onSelectPDF: session.select,
-            onOpenInNewTab: actions.openInNewTab,
-            onItemCountChange: { _ in }
-        )
         footerView = NSHostingView(
             rootView: SidebarFooterView {
                 actions.revealInFinder(session.root)
             }
         )
         super.init(nibName: nil, bundle: nil)
-
-        navigatorController.update(
-            rootURL: session.root,
-            selectedPDFURL: session.selection,
-            onSelectPDF: session.select,
-            onOpenInNewTab: actions.openInNewTab,
-            onItemCountChange: { [weak self] in self?.setItemCount($0) }
-        )
     }
 
     @available(*, unavailable)

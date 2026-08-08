@@ -1,8 +1,15 @@
 import Foundation
 
 struct DirectoryScanner {
+    struct Item: Sendable {
+        let url: URL
+        let isDirectory: Bool
+
+        nonisolated var name: String { url.lastPathComponent }
+    }
+
     @concurrent
-    static func items(in directory: URL) async throws -> [NavigatorItem] {
+    static func items(in directory: URL) async throws -> [Item] {
         try Task.checkCancellation()
 
         let urls = try FileManager.default.contentsOfDirectory(
@@ -15,7 +22,7 @@ struct DirectoryScanner {
             options: [.skipsHiddenFiles, .skipsPackageDescendants]
         )
 
-        var items: [NavigatorItem] = []
+        var items: [Item] = []
         for url in urls {
             try Task.checkCancellation()
 
@@ -28,10 +35,10 @@ struct DirectoryScanner {
             }
 
             if values.isDirectory == true {
-                items.append(NavigatorItem(url: url, isDirectory: true))
+                items.append(Item(url: url, isDirectory: true))
             } else if values.isRegularFile == true,
                       url.pathExtension.caseInsensitiveCompare("pdf") == .orderedSame {
-                items.append(NavigatorItem(url: url, isDirectory: false))
+                items.append(Item(url: url, isDirectory: false))
             }
         }
 
