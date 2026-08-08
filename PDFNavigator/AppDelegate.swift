@@ -7,6 +7,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var isShowingOpenPanel = false
     private let recentLocations = RecentLocationsStore.shared
     private var launchPanelController: LaunchPanelController?
+    private var hasFinishedLaunching = false
+    private var isRestoringWindows = true
 
     private lazy var mainMenu = MainMenu(
         recentLocations: recentLocations,
@@ -36,18 +38,44 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         application.run()
     }
 
+    func applicationWillFinishLaunching(_ notification: Notification) {
+        // Window restoration can finish before *or* after
+        // `applicationDidFinishLaunching`, and it is posted even when there was
+        // nothing to restore, so the observer has to be in place beforehand.
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(windowRestorationDidFinish),
+            name: NSApplication.didFinishRestoringWindowsNotification,
+            object: nil
+        )
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.regular)
         mainMenu.install()
         NSApp.activate(ignoringOtherApps: true)
 
+        hasFinishedLaunching = true
+        presentInitialInterfaceIfNeeded()
+    }
+
+    @objc private func windowRestorationDidFinish() {
+        isRestoringWindows = false
+        presentInitialInterfaceIfNeeded()
+    }
+
+    /// Runs once, after both launching and restoration are done. The extra hop
+    /// lets a launch-time open request (double-clicked file) land first.
+    private func presentInitialInterfaceIfNeeded() {
+        guard hasFinishedLaunching, !isRestoringWindows else { return }
         DispatchQueue.main.async { [weak self] in
-            guard let self else { return }
-            let hasOpenDocuments = !NSDocumentController.shared.documents.isEmpty
-            if !hasOpenDocuments {
-                self.showInitialWindowOrLaunchPanel()
-            }
+            guard let self, !hasWorkspaceWindows else { return }
+            showInitialWindowOrLaunchPanel()
         }
+    }
+
+    private var hasWorkspaceWindows: Bool {
+        NSApp.windows.contains { $0.windowController is WindowController }
     }
 
     func application(_ application: NSApplication, open urls: [URL]) {

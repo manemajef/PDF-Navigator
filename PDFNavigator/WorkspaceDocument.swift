@@ -2,15 +2,29 @@ import AppKit
 import Synchronization
 
 final class WorkspaceDocument: NSDocument {
-    private nonisolated let workspaceRootStorage = Mutex<URL?>(nil)
-    private nonisolated let selectedPDFStorage = Mutex<URL?>(nil)
-
-    var workspaceRootURL: URL? {
-        workspaceRootStorage.withLock { $0 }
+    private enum RestorationKey {
+        static let workspaceRoot = "workspaceRootURL"
+        static let selectedPDF = "selectedPDFURL"
     }
 
-    var selectedPDFURL: URL? {
-        selectedPDFStorage.withLock { $0 }
+    /// The request this document was created or reopened with. Once a window
+    /// controller exists its `TabSession` is the authority; this only covers
+    /// the gap between `read(from:ofType:)` and `makeWindowControllers()`.
+    private nonisolated let pendingRequest = Mutex<OpenRequest?>(nil)
+
+    private var windowController: WindowController? {
+        windowControllers.first as? WindowController
+    }
+
+    /// What this document would encode or open right now.
+    private var currentRequest: OpenRequest? {
+        if let session = windowController?.session {
+            return OpenRequest(
+                workspaceRootURL: session.root,
+                selectedPDFURL: session.selection
+            )
+        }
+        return pendingRequest.withLock { $0 }
     }
 
     convenience init(request: OpenRequest) {
@@ -32,7 +46,7 @@ final class WorkspaceDocument: NSDocument {
     }
 
     override func makeWindowControllers() {
-        guard let request = openRequest else { return }
+        guard let request = currentRequest else { return }
         let controller = WindowController(request: request)
         addWindowController(controller)
         controller.refreshWindowIdentity()
@@ -41,38 +55,42 @@ final class WorkspaceDocument: NSDocument {
 
     func open(_ request: OpenRequest) {
         apply(request)
-        invalidateRestorableState()
-        (windowControllers.first as? WindowController)?.open(request)
+        windowController?.open(request)
     }
+
+    // MARK: - State restoration
 
     override func encodeRestorableState(with coder: NSCoder) {
         super.encodeRestorableState(with: coder)
-        if let workspaceRootURL {
-            coder.encode(workspaceRootURL, forKey: "workspaceRootURL")
-        }
-        if let selectedPDFURL {
-            coder.encode(selectedPDFURL, forKey: "selectedPDFURL")
+        guard let request = currentRequest else { return }
+        coder.encode(request.workspaceRootURL, forKey: RestorationKey.workspaceRoot)
+        if let selectedPDFURL = request.selectedPDFURL {
+            coder.encode(selectedPDFURL, forKey: RestorationKey.selectedPDF)
         }
     }
 
     override func restoreState(with coder: NSCoder) {
         super.restoreState(with: coder)
-        let rootURL = coder.decodeObject(of: NSURL.self, forKey: "workspaceRootURL") as URL?
-        let pdfURL = coder.decodeObject(of: NSURL.self, forKey: "selectedPDFURL") as URL?
-        if let rootURL {
-            let request: OpenRequest = pdfURL.map { .pdf($0, in: rootURL) } ?? .folder(rootURL)
-            apply(request)
-            (windowControllers.first as? WindowController)?.open(request)
-        }
+        guard let rootURL = coder.decodeObject(
+            of: NSURL.self,
+            forKey: RestorationKey.workspaceRoot
+        ) as URL? else { return }
+
+        let pdfURL = coder.decodeObject(
+            of: NSURL.self,
+            forKey: RestorationKey.selectedPDF
+        ) as URL?
+        open(pdfURL.map { .pdf($0, in: rootURL) } ?? .folder(rootURL))
     }
+
+    // MARK: - Reading
 
     override nonisolated func read(from url: URL, ofType typeName: String) throws {
         let standardized = url.standardizedFileURL
-        var isDir: ObjCBool = false
-        if FileManager.default.fileExists(atPath: standardized.path, isDirectory: &isDir), isDir.boolValue {
-            apply(.folder(standardized))
-        } else {
-            apply(.pdf(standardized))
+        var isDirectory: ObjCBool = false
+        FileManager.default.fileExists(atPath: standardized.path, isDirectory: &isDirectory)
+        pendingRequest.withLock {
+            $0 = isDirectory.boolValue ? .folder(standardized) : .pdf(standardized)
         }
     }
 
@@ -92,21 +110,9 @@ final class WorkspaceDocument: NSDocument {
         }
     }
 
-    private nonisolated func apply(_ request: OpenRequest) {
-        workspaceRootStorage.withLock { $0 = request.workspaceRootURL }
-        selectedPDFStorage.withLock { $0 = request.selectedPDFURL }
-        Task { @MainActor in
-            self.fileURL = request.workspaceRootURL
-        }
+    private func apply(_ request: OpenRequest) {
+        pendingRequest.withLock { $0 = request }
+        fileURL = request.workspaceRootURL
+        invalidateRestorableState()
     }
-    private var openRequest: OpenRequest? {
-        guard let workspaceRootURL else { return nil }
-
-        if let selectedPDFURL {
-            return .pdf(selectedPDFURL, in: workspaceRootURL)
-        }
-
-        return .folder(workspaceRootURL)
-    }
-
 }

@@ -86,6 +86,12 @@ final class WindowController: NSWindowController {
 
     private func configureWindow() {
         guard let window else { return }
+        // Every restorable window needs its own identifier: AppKit keys saved
+        // window state by it, so a shared value collapses all tabs into one
+        // entry. The restoration class is left to `NSWindowController`, which
+        // points document windows at `NSDocumentController`.
+        window.isRestorable = true
+        window.identifier = NSUserInterfaceItemIdentifier(UUID().uuidString)
         window.tabbingIdentifier = "WorkspaceWindow"
         window.tabbingMode = .automatic
         window.toolbarStyle = .unified
@@ -116,6 +122,7 @@ final class WindowController: NSWindowController {
             contentController.renderMode()
             updateWindowIdentity()
             RecentLocationsStore.shared.noteWorkspace(session.root)
+            invalidateDocumentRestorableState()
 
         case .selection:
             contentController.renderMode()
@@ -127,6 +134,7 @@ final class WindowController: NSWindowController {
             if let selection = session.selection {
                 RecentLocationsStore.shared.notePDF(selection)
             }
+            invalidateDocumentRestorableState()
 
         case .history:
             toolbar.updateNavigation(
@@ -134,6 +142,12 @@ final class WindowController: NSWindowController {
                 canGoForward: session.canGoForward
             )
         }
+    }
+
+    /// The document encodes the session's location, so it is the object whose
+    /// restorable state goes stale when the session navigates.
+    private func invalidateDocumentRestorableState() {
+        (document as? NSDocument)?.invalidateRestorableState()
     }
 
     private func updateWindowIdentity() {
