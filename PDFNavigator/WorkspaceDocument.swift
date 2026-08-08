@@ -54,8 +54,12 @@ final class WorkspaceDocument: NSDocument {
     }
 
     func open(_ request: OpenRequest) {
-        apply(request)
+        // Session first: `apply` sets `fileURL`, and AppKit responds by asking
+        // every window controller to resynchronize its title. Doing that while
+        // the session still described the previous location is what let the
+        // titlebar briefly show the wrong thing.
         windowController?.open(request)
+        apply(request)
     }
 
     // MARK: - State restoration

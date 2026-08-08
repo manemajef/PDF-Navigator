@@ -392,7 +392,10 @@ private final class NavigatorNode: NSObject {
     }
 
     var name: String {
+        /// toggle to rm extenstion:
+        /// url.lastPathComponent.isEmpty ? url.path : url.deletingPathExtension().lastPathComponent
         url.lastPathComponent.isEmpty ? url.path : url.lastPathComponent
+
     }
 }
 

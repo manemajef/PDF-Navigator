@@ -12,20 +12,8 @@ final class PDFReaderController: NSViewController {
     var onZoomStateChange: (() -> Void)?
     var onPageChange: (() -> Void)?
 
-    var pageSubtitle: String? {
-        guard let document = pdfView.document, document.pageCount > 0 else { return nil }
-        let pageCount = document.pageCount
-        let pageNumber: Int
-        if let currentPage = pdfView.currentPage {
-            let index = document.index(for: currentPage)
-            pageNumber = (index == NSNotFound) ? 1 : (index + 1)
-        } else {
-            pageNumber = 1
-        }
-        return "Page \(pageNumber) of \(pageCount)"
-    }
-
     private var session: PDFSession?
+    private var isInstallingDocument = false
     private var sessionChangesSubscription: AnyCancellable?
     private var pdfViewObservers: [NSObjectProtocol] = []
 
@@ -55,11 +43,13 @@ final class PDFReaderController: NSViewController {
         self.session = session
         observe(session)
 
+        isInstallingDocument = true
         pdfView.autoScales = true
         pdfView.document = session.document
         pdfView.highlightedSelections = nil
         pdfView.clearSelection()
         restorePosition(from: session)
+        isInstallingDocument = false
         updatePresentationState()
     }
 
@@ -112,6 +102,25 @@ final class PDFReaderController: NSViewController {
                 pdfView.autoScales = false
                 updatePresentationState()
                 onZoomStateChange?()
+            },
+            // `PDFViewPageChanged` only fires once PDFKit's own notion of the
+            // current page flips, which trails the scroll. Watching the clip
+            // view directly is what makes the page track the way Preview's
+            // does. Registered against `nil` and filtered by identity because
+            // the document view does not exist until a document is set.
+            center.addObserver(
+                forName: NSView.boundsDidChangeNotification,
+                object: nil,
+                queue: .main
+            ) { [weak self] notification in
+                guard let self,
+                      let clipView = notification.object as? NSClipView,
+                      clipView === pdfView.documentView?.enclosingScrollView?.contentView
+                else {
+                    return
+                }
+
+                updatePresentationState()
             }
         ]
     }
@@ -236,11 +245,19 @@ final class PDFReaderController: NSViewController {
         )
     }
 
+    /// The one place the reader's live state is derived. Both the inspector and
+    /// the window subtitle read the result, so they can never disagree.
     private func updatePresentationState() {
+        // Setting `pdfView.document` posts page and bounds notifications
+        // synchronously, while `currentPage` can still belong to the outgoing
+        // document — publishing a page number that matches neither. `display`
+        // calls this once the swap has settled.
+        guard !isInstallingDocument else { return }
+
+        let document = pdfView.document
         let currentPageIndex: Int?
 
-        if let document = pdfView.document,
-           let page = pdfView.currentPage {
+        if let document, let page = pdfView.currentPage {
             let index = document.index(for: page)
             currentPageIndex = index == NSNotFound ? nil : index
         } else {
@@ -249,6 +266,7 @@ final class PDFReaderController: NSViewController {
 
         presentationState.update(
             currentPageIndex: currentPageIndex,
+            pageCount: document?.pageCount ?? 0,
             scaleFactor: pdfView.scaleFactor,
             isZoomToFit: pdfView.autoScales
         )

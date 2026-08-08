@@ -52,7 +52,7 @@ final class WindowController: NSWindowController {
             self?.updateZoomControls()
         }
         readerController.onPageChange = { [weak self] in
-            self?.updateWindowIdentity()
+            self?.updateWindowSubtitle()
         }
         configureWindow()
         sessionChangesSubscription = session.changes.sink { [weak self] change in
@@ -73,7 +73,8 @@ final class WindowController: NSWindowController {
     }
 
     func refreshWindowIdentity() {
-        updateWindowIdentity()
+        synchronizeWindowTitleWithDocumentName()
+        updateWindowSubtitle()
     }
 
     var isZoomToFitActive: Bool {
@@ -86,6 +87,11 @@ final class WindowController: NSWindowController {
 
     private func configureWindow() {
         guard let window else { return }
+        // Before the content view controller is installed: loading it renders
+        // the document, which publishes a subtitle. Without this the window
+        // spends the whole first render showing a page count under the
+        // placeholder title.
+        synchronizeWindowTitleWithDocumentName()
         // Every restorable window needs its own identifier: AppKit keys saved
         // window state by it, so a shared value collapses all tabs into one
         // entry. The restoration class is left to `NSWindowController`, which
@@ -118,15 +124,22 @@ final class WindowController: NSWindowController {
 
     private func apply(_ change: TabSession.Change) {
         switch change {
+        // The title depends only on the session, so it is set before rendering:
+        // `renderMode` loads the document, and waiting for that would leave the
+        // previous file's name in the titlebar for as long as the load takes.
+        // The subtitle can only follow, since the page count comes from the
+        // document `renderMode` installs.
         case .root:
+            synchronizeWindowTitleWithDocumentName()
             contentController.renderMode()
-            updateWindowIdentity()
+            updateWindowSubtitle()
             RecentLocationsStore.shared.noteWorkspace(session.root)
             invalidateDocumentRestorableState()
 
         case .selection:
+            synchronizeWindowTitleWithDocumentName()
             contentController.renderMode()
-            updateWindowIdentity()
+            updateWindowSubtitle()
             toolbar.updatePDFAvailability(
                 session.pdfSession?.hasDocument == true
             )
@@ -150,13 +163,37 @@ final class WindowController: NSWindowController {
         (document as? NSDocument)?.invalidateRestorableState()
     }
 
-    private func updateWindowIdentity() {
-        window?.title = session.windowTitle
-        window?.representedURL = session.representedURL
-        window?.subtitle = session.pdfSession?.hasDocument == true
-            ? (readerController.pageSubtitle ?? "")
-            : ""
+    /// AppKit's own hook for pushing document identity into the titlebar. It
+    /// fires whenever `NSDocument.fileURL` changes, and the inherited
+    /// implementation would point the title and proxy icon at the document —
+    /// which here is the *workspace folder*, not the open PDF. Overriding it
+    /// makes the session the single authority, so an AppKit-initiated sync can
+    /// no longer race the session and stomp the filename with the folder name.
+    override func synchronizeWindowTitleWithDocumentName() {
+        guard let window else { return }
+
+        let title = session.windowTitle
+        if window.title != title {
+            window.title = title
+        }
+        if window.representedURL != session.representedURL {
+            window.representedURL = session.representedURL
+        }
         updateTitlebarAppearance()
+    }
+
+    /// Deliberately separate from the title: this changes on every scroll, and
+    /// reassigning `representedURL` at that rate makes AppKit re-resolve the
+    /// proxy icon for the file each time.
+    private func updateWindowSubtitle() {
+        guard let window else { return }
+
+        let subtitle = session.pdfSession?.hasDocument == true
+            ? (readerController.presentationState.pageSummary ?? "")
+            : ""
+        if window.subtitle != subtitle {
+            window.subtitle = subtitle
+        }
     }
 
     @objc private func updateTitlebarAppearance(

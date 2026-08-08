@@ -49,11 +49,15 @@ final class TabSession {
         return .workspaceHome(root)
     }
 
+    /// `displayName(atPath:)` is what Finder and Preview show: it honours the
+    /// user's "Show all filename extensions" setting and localized folder
+    /// names, rather than always printing the raw `Foo.pdf`.
     var windowTitle: String {
         if let selection {
-            return selection.lastPathComponent
+            return FileManager.default.displayName(atPath: selection.path)
         }
-        return root.lastPathComponent.isEmpty ? root.path : root.lastPathComponent
+        guard !root.lastPathComponent.isEmpty else { return root.path }
+        return FileManager.default.displayName(atPath: root.path)
     }
 
     var representedURL: URL? {

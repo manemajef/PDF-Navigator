@@ -133,6 +133,7 @@ struct PDFInspectorView: View {
 
     readerState.update(
         currentPageIndex: 0,
+        pageCount: 1,
         scaleFactor: 1,
         isZoomToFit: true
     )
