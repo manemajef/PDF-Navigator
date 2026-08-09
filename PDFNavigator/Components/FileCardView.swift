@@ -30,9 +30,10 @@ struct FileCardView: View {
             /// - `HStack` with spacing `12`
             /// - set THUMB_WIDTH = 40 and THUMB_HEIGHT = 52
             layout {
-                
-                    PDFThumbnailView(url: url)
-                
+                ThumbnailView(
+                    url: url,
+                    size: CGSize(width: THUMB_WIDTH, height: THUM_HEIGHT)
+                )
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(url.lastPathComponent)
@@ -51,7 +52,6 @@ struct FileCardView: View {
 
                 if USE_HSTACK {
                     Spacer(minLength: 0)
-                    
                 }
             }
             .padding(.horizontal, 12)
@@ -59,50 +59,6 @@ struct FileCardView: View {
             .frame(maxWidth: .infinity, alignment: USE_HSTACK ? .leading : .center)
         }
         .buttonStyle(.plain)
-       
-        
-//        .padding()
-    }
-}
-
-private struct PDFThumbnailView: View {
-    @Environment(\.displayScale) private var displayScale
-    @State private var image: NSImage?
-    
-    let url: URL
-    
-    
-    var body: some View {
-        Group {
-            if let image {
-                Image(nsImage: image)
-                    .resizable()
-                    .scaledToFit()
-            } else {
-                Image(nsImage:  NSWorkspace.shared.icon(forFile: url.path))
-                    .resizable()
-                    .scaledToFit()
-            }
-        }
-        .frame(width: THUMB_WIDTH, height: THUM_HEIGHT)
-        .task(id: url) {
-            image = nil
-            
-            let request = QLThumbnailGenerator.Request(
-                fileAt: url,
-                size: CGSize(width: THUMB_WIDTH, height: THUM_HEIGHT),
-                scale: displayScale,
-                representationTypes: .thumbnail
-            )
-            request.iconMode = true
-            
-            guard let representation = try? await QLThumbnailGenerator.shared.generateBestRepresentation(for: request),
-                  !Task.isCancelled
-            else {
-                return
-            }
-            image = representation.nsImage
-        }
     }
 }
 

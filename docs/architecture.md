@@ -89,7 +89,10 @@ PDFNavigator/
 
   Components/
     FileCardView.swift
-    FileCardGridView.swift
+    FolderCardView.swift
+    FolderStackView.swift
+    ThumbnailView.swift
+    LibraryGridView.swift
 
   Stores/
     RecentLocationsStore.swift
