@@ -2,17 +2,11 @@ import AppKit
 import UniformTypeIdentifiers
 
 /// One navigator row: icon, then name.
-///
-/// Subviews are declared as properties and composed with an `NSStackView`, so
-/// the file reads in the order the row is drawn. Constraint-per-edge layout
-/// describes a dependency graph instead, which is the main reason imperative
-/// row code stops resembling the thing on screen.
 final class NavigatorRowView: NSTableCellView {
     static let identifier = NSUserInterfaceItemIdentifier("NavigatorRow")
 
-    /// `NSWorkspace.icon(forFile:)` asks LaunchServices about one specific path,
-    /// and the old cell called it per row on every redraw. A PDF-only navigator
-    /// draws exactly two icons, so both are resolved once by content type.
+    /// A PDF-only navigator draws exactly two icons, so both are resolved once
+    /// by content type. Per-path lookups would hit LaunchServices on every row.
     private static let folderIcon = NSWorkspace.shared.icon(for: .folder)
     private static let pdfIcon = NSWorkspace.shared.icon(for: .pdf)
 

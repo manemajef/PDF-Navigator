@@ -3,25 +3,19 @@ import AppKit
 /// What the toolbar contains: every item, how it looks, what it commands, and
 /// when it is available.
 ///
-/// Pure data, and separate from `ToolbarController` because the two change for
-/// different reasons. Adding or renaming a button is an edit here and nowhere
-/// else; changing *how* items are built or rendered is an edit there and
-/// nowhere else.
+/// Pure data. Adding or renaming a button is an edit here and nowhere else.
 ///
-/// Availability rules are plain functions of `ToolbarState` rather than
-/// closures capturing a toolbar. That is what lets these be `static let`,
-/// built once, instead of a computed property that rebuilt every closure on
-/// each access.
+/// Availability rules are functions of `ToolbarState`, capturing nothing, which
+/// is what lets these be `static let` and built once.
 enum ToolbarCatalogue {
 
     // MARK: - Shapes
 
     /// A single button.
     ///
-    /// There is no `isEnabled` rule here on purpose: top-level items
-    /// self-validate through `WindowController.canPerform(_:)`, so enabled
-    /// state already has one owner. This type only describes what validation
-    /// cannot express.
+    /// Carries no `isEnabled` rule: top-level items self-validate through
+    /// `WindowController.canPerform(_:)`, which owns enabled state. This type
+    /// describes only what validation cannot express.
     struct Item {
         let label: String
         let symbol: String
@@ -34,18 +28,16 @@ enum ToolbarCatalogue {
         let label: String
         var isNavigational = false
         var requiresPDF = false
-        /// Which segment reads as selected, or `nil` for a momentary group
-        /// where none ever does.
+        /// Which segment reads as selected, or `nil` for a momentary group.
         var selectedIndex: ((ToolbarState) -> Int)? = nil
         let subitems: [Subitem]
     }
 
     /// One segment of a group.
     ///
-    /// Unlike top-level items, group subitems have `autovalidates` turned off —
-    /// AppKit validates a group as a whole, which cannot express "back is
-    /// available but forward is not". So these *do* carry their own rule, and
-    /// the render pass applies it.
+    /// Group subitems run with `autovalidates` off, because AppKit validates a
+    /// group as one unit and cannot express "back is available but forward is
+    /// not". So each carries its own rule, applied during render.
     struct Subitem {
         let symbol: String
         let tooltip: String
@@ -203,11 +195,11 @@ enum ToolbarCatalogue {
     /// AppKit's own value for "no segment is selected".
     static let noSelection = -1
 
-    /// Items that only make sense while a PDF is open, including the ones
-    /// AppKit supplies rather than this catalogue.
+    /// Items that only make sense while a PDF is open, including ones AppKit
+    /// supplies itself.
     ///
-    /// Visibility is the toolbar's own business: unlike enabled state, AppKit
-    /// offers no validation hook for it, so it has to be rendered.
+    /// AppKit offers no validation hook for visibility, so it must be
+    /// rendered.
     static let pdfOnlyIdentifiers: Set<NSToolbarItem.Identifier> = {
         var identifiers: Set<NSToolbarItem.Identifier> = [
             .workspaceSearch, .inspectorTrackingSeparator, .toggleInspector,
@@ -247,10 +239,8 @@ enum ToolbarCatalogue {
 
 extension NSToolbarItem.Identifier {
     static let workspaceNavigation = Self("WorkspaceNavigation")
-    // The raw string is a persisted key: AppKit saves the user's toolbar
-    // arrangement under it. It intentionally still says "WorkspaceHome" after
-    // the rename to Library — changing it would discard everyone's customized
-    // toolbar.
+    // Warning: the raw string is a persisted key. AppKit saves the user's
+    // toolbar arrangement under it, so changing it discards their layout.
     static let library = Self("WorkspaceHome")
     static let workspaceNewTab = Self("WorkspaceNewTab")
     static let openNewWorkspace = Self("OpenNewWorkspace")

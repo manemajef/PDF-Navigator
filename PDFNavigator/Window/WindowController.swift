@@ -9,7 +9,7 @@ final class WindowController: NSWindowController {
     private var sessionChangesSubscription: AnyCancellable?
     private lazy var toolbar = ToolbarController(target: self)
 
-    private lazy var shellActions = ShellActions(
+    private lazy var windowActions = WindowActions(
         chooseLocation: { [weak routing] in routing?.chooseLocation() },
         openInNewTab: { [weak routing] in routing?.openInNewTab($0, $1) },
         revealInFinder: {
@@ -24,9 +24,9 @@ final class WindowController: NSWindowController {
         }
     )
 
-    private lazy var contentController = WindowLayoutController(
+    private lazy var contentController = WindowSplitController(
         session: session,
-        actions: shellActions,
+        actions: windowActions,
         readerController: readerController,
         onInspectorChange: { [weak self] in
             self?.renderToolbar()
@@ -53,11 +53,11 @@ final class WindowController: NSWindowController {
         }
         configureWindow()
         sessionChangesSubscription = session.changes.sink { [weak self] change in
-            self?.apply(change)
+            self?.render(change)
         }
-        apply(.root)
-        apply(.selection)
-        apply(.history)
+        render(.root)
+        render(.selection)
+        render(.history)
     }
 
     @available(*, unavailable)
@@ -84,10 +84,9 @@ final class WindowController: NSWindowController {
 
     private func configureWindow() {
         guard let window else { return }
-        // Before the content view controller is installed: loading it renders
-        // the document, which publishes a subtitle. Without this the window
-        // spends the whole first render showing a page count under the
-        // placeholder title.
+        // Runs before the content view controller is installed: loading it
+        // renders the document and publishes a subtitle, which would otherwise
+        // appear under the placeholder title.
         synchronizeWindowTitleWithDocumentName()
         // Every restorable window needs its own identifier: AppKit keys saved
         // window state by it, so a shared value collapses all tabs into one
@@ -119,27 +118,24 @@ final class WindowController: NSWindowController {
         window.center()
     }
 
-    private func apply(_ change: WorkspaceSession.Change) {
+    private func render(_ change: WorkspaceSession.Change) {
         switch change {
-        // The title depends only on the session, so it is set before rendering:
-        // `renderMode` loads the document, and waiting for that would leave the
-        // previous file's name in the titlebar for as long as the load takes.
-        // The subtitle can only follow, since the page count comes from the
-        // document `renderMode` installs.
+        // Order matters. The title comes from the session alone, so it is set
+        // first — `contentController.render()` loads the document, and the
+        // titlebar would show the previous filename for that whole time. The
+        // subtitle must follow, since its page count comes from that document.
         case .root:
             synchronizeWindowTitleWithDocumentName()
-            contentController.renderMode()
+            contentController.render()
             updateWindowSubtitle()
             RecentLocationsStore.shared.noteWorkspace(session.root)
             invalidateDocumentRestorableState()
 
         case .selection:
             synchronizeWindowTitleWithDocumentName()
-            contentController.renderMode()
+            contentController.render()
             updateWindowSubtitle()
-            // A query typed against the previous document means nothing in this
-            // one. An effect of the change, not a description of the new state,
-            // so it stays out of the render pass.
+            // A query typed against the previous document means nothing here.
             toolbar.resetSearch()
             if let selection = session.selection {
                 RecentLocationsStore.shared.notePDF(selection)
@@ -150,16 +146,12 @@ final class WindowController: NSWindowController {
             break
         }
 
-        // Every change converges the toolbar, rather than each case knowing
-        // which items it happens to affect.
+        // Every change converges the whole toolbar.
         renderToolbar()
     }
 
-    /// The one place the toolbar's inputs are gathered.
-    ///
-    /// Each value is read from whichever object owns it — the session for
-    /// navigation, the reader for zoom, the split controller for the inspector.
-    /// Nothing is cached, so nothing can be stale.
+    /// The toolbar's inputs, each read from whichever object owns it. Nothing
+    /// is cached, so nothing can be stale.
     private var toolbarState: ToolbarState {
         ToolbarState(
             hasPDF: session.pdfSession?.hasDocument == true,
@@ -180,12 +172,13 @@ final class WindowController: NSWindowController {
         (document as? NSDocument)?.invalidateRestorableState()
     }
 
-    /// AppKit's own hook for pushing document identity into the titlebar. It
-    /// fires whenever `NSDocument.fileURL` changes, and the inherited
-    /// implementation would point the title and proxy icon at the document —
-    /// which here is the *workspace folder*, not the open PDF. Overriding it
-    /// makes the session the single authority, so an AppKit-initiated sync can
-    /// no longer race the session and stomp the filename with the folder name.
+    /// AppKit's hook for pushing document identity into the titlebar, called
+    /// whenever `NSDocument.fileURL` changes.
+    ///
+    /// Overridden because the inherited version points the title and proxy icon
+    /// at the document, which here is the workspace folder, not the open PDF.
+    /// Without this an AppKit-initiated sync races the session and replaces the
+    /// filename with the folder name.
     override func synchronizeWindowTitleWithDocumentName() {
         guard let window else { return }
 
@@ -199,9 +192,8 @@ final class WindowController: NSWindowController {
         updateTitlebarAppearance()
     }
 
-    /// Deliberately separate from the title: this changes on every scroll, and
-    /// reassigning `representedURL` at that rate makes AppKit re-resolve the
-    /// proxy icon for the file each time.
+    /// Separate from the title because it changes on every scroll; reassigning
+    /// `representedURL` at that rate makes AppKit re-resolve the proxy icon.
     private func updateWindowSubtitle() {
         guard let window else { return }
 

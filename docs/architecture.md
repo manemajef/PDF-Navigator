@@ -40,9 +40,9 @@ PDFNavigator/
 
   Window/
     WindowController.swift
-    WindowLayoutController.swift
+    WindowSplitController.swift
     WindowRouting.swift
-    ShellActions.swift
+    WindowActions.swift
 
   Toolbar/
     ToolbarController.swift
@@ -155,9 +155,9 @@ WorkspaceDocument
 
 WindowController
   owns one NSWindow, including a window presented as a native tab
-  owns one WorkspaceSession, ToolbarController, and WindowLayoutController
+  owns one WorkspaceSession, ToolbarController, and WindowSplitController
 
-WindowLayoutController
+WindowSplitController
   owns the AppKit navigator/detail/inspector composition
   hosts LibraryContentView for library presentation
   installs PDFReaderController directly for reading
@@ -192,13 +192,16 @@ The framework boundary uses only Apple-supported interoperability types:
    Production composition installs the AppKit controller directly.
 4. Observable state crosses as `WorkspaceSession`, `PDFSession`, or the narrow
    `PDFReaderPresentationState`; none exposes a framework view.
-5. Intent returns to the shell through `ShellActions`, an immutable,
+5. Intent returns to the shell through `WindowActions`, an immutable,
    framework-neutral closure value.
 
-`ShellActions` is the complete workspace-content-to-shell API:
+`WindowActions` is the complete content-to-shell API. The name means
+window-*scoped*, not window-*executed*: opening a tab happens next to this
+window, choosing a location opens relative to it, and search targets this
+window's document — even though `AppDelegate` performs several of them.
 
 ```swift
-struct ShellActions {
+struct WindowActions {
     let chooseLocation: () -> Void
     let openInNewTab: (URL, TabActivation) -> Void
     let revealInFinder: (URL) -> Void
@@ -361,7 +364,7 @@ reaching into a raw `PDFView`.
 `PDFReaderPreview` is a DEBUG-only `NSViewControllerRepresentable` adapter for
 the canvas. It is not part of production composition.
 
-`WindowLayoutController` owns the native inspector split item and hosts
+`WindowSplitController` owns the native inspector split item and hosts
 `PDFInspectorView` there. The inspector is SwiftUI because PDFKit supplies its
 document data but the app owns this presentation. Its three sections consume
 the current `PDFDocument` directly:
@@ -370,7 +373,7 @@ the current `PDFDocument` directly:
 - `PDFOutlineView` renders the PDF outline and returns outline-selection intent.
 - `PDFInfoView` presents document metadata and current reader status.
 
-`WindowLayoutController` owns inspector presentation and exposes it as
+`WindowSplitController` owns inspector presentation and exposes it as
 `inspectorSection`, which is `nil` while the inspector is collapsed. It signals
 changes with a payload-free callback; `WindowController` then reads the current
 value while building `ToolbarState`. The native reader-panel group selects
@@ -463,12 +466,23 @@ A type's **suffix** says what kind of object it is:
 A type's **prefix** says which feature it belongs to: `Navigator`, `Reader`,
 `Inspector`, `Workspace`, `Window`, `Toolbar`, `LaunchPanel`.
 
-From those two, one checkable invariant:
+A type's name must be unambiguous **where it is used**, not where it is
+defined. Swift has no per-folder namespace: at a call site the reader sees
+`RowView`, never `Navigator/RowView`. A prefix earns its place when any of
+these hold:
 
-> A file's prefix must match its directory, unless it is a generic worker or
-> carries a domain qualifier.
+1. The bare name would collide with a framework type — `NavigatorOutlineView`
+   against `NSOutlineView`.
+2. The bare name would collide with another type here — `NavigatorRowView`
+   against `RecentRowView`, `NavigatorOutlineView` against `PDFOutlineView`.
+3. The bare name means nothing alone — `Controller`, `State`, `Actions`.
+4. The prefix makes the feature findable. Typing `Navigator` in open-quickly
+   should return the whole feature. Grouping by name is a real benefit, not
+   redundancy, and it justifies a prefix even when nothing collides.
 
-Three exceptions, each deliberate:
+Matching the directory is usually the result of those rather than the goal.
+
+Three further exceptions, each deliberate:
 
 - **Generic workers carry no feature prefix.** `DirectoryScanner`,
   `DirectoryWatcher`, `NavigationHistory`, and `OpenRequest` describe work or
@@ -482,14 +496,50 @@ Three exceptions, each deliberate:
   vocabulary, not a separate feature, which is why `SidebarController` lives in
   `Navigator/`.
 
-`ShellActions` sits in `Window/` because `WindowController` constructs it, even
-though the shell it names is broader than one window. If a second constructor
-ever appears, move it to the source root rather than duplicating it.
-
 Anything else named for one feature while sitting in another feature's
 directory means either the name or the location is wrong.
 
+`Shell` stays in the dictionary as the shell/content distinction, but no type
+carries the name. It describes a boundary, not an object — the same reason
+`Detail` has no class.
+
 File names match their primary type.
+
+## Directory Rules
+
+**Directories group by feature. A directory groups by kind only when the thing
+has no single owning feature.**
+
+| Directory | Kind | Why it is by-kind |
+|---|---|---|
+| `Session/` | domain state | no feature owns it; every feature reads it |
+| `Stores/` | persistence | app-wide. Feature-private persistence stays with its feature |
+| `Components/` | UI | shared across features |
+
+Everything a feature owns lives with that feature, including its domain types:
+`FileTree` under `Navigator/`, `PDFSession` under `Reader/`. Nesting a
+subdirectory inside a feature is a **crowding** decision, not an architectural
+one — `Navigator/FileTree/` exists because that directory reached ten files.
+Roughly ten is the threshold; below it, keep the feature flat.
+
+## Method Verbs
+
+Two verbs, and the distinction is a safety property rather than a style:
+
+| Verb | Means | Safe to call twice? |
+|---|---|---|
+| `render` | make yourself match current truth | **yes** — idempotent by contract |
+| `apply` | consume something that lands exactly once | **no** |
+
+`NavigatorController.apply(_ deltas:)` is the case that matters:
+`removeItems`/`insertItems` index against a specific before-and-after state, so
+a second call corrupts the outline view. Anything named `render` may be called
+as often as convenient — that is what lets every change converge the whole
+window without callers tracking what they already did.
+
+A bare `update()` says nothing either way and should not appear.
+`updateWindowSubtitle()` is fine: verb plus a specific target names its own
+scope.
 
 ## Non-Goals
 

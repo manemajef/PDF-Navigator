@@ -4,7 +4,7 @@
 
 - AppKit owns application and document opening, native windows and tabs, the
   toolbar, menus, split geometry, native navigator, and PDFKit integration.
-- The responder chain owns menu and toolbar commands. `ShellActions` is the
+- The responder chain owns menu and toolbar commands. `WindowActions` is the
   narrow content-to-shell intent boundary, not a parallel command system.
 - SwiftUI stays inside AppKit-hosted presentation regions and is the default
   for new populated content. AppKit is used where native behavior is the point,
@@ -61,7 +61,7 @@
 - [x] Main menu and toolbar have focused owners.
 - [x] Navigator controller, scanning, and item data have substantive boundaries.
 - [x] AppKit hosts SwiftUI through `NSHostingController`/`NSHostingView`; the
-  framework-neutral `ShellActions` contract carries content intent.
+  framework-neutral `WindowActions` contract carries content intent.
 - [x] Reader commands are available as optional native toolbar items.
 - [x] PDFs in the navigator and the workspace root can be revealed in Finder.
 - [x] Production SwiftUI reader inspector is hosted by the native AppKit split

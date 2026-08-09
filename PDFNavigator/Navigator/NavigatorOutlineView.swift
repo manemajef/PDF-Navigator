@@ -2,15 +2,10 @@ import AppKit
 
 /// A source list that resolves command-click before selection runs.
 ///
-/// Command-clicking a PDF opens it in a background tab and must not move the
-/// selection. Detecting that inside `shouldSelectItem` or
-/// `selectionDidChange` — by reaching for `NSApp.currentEvent` — reads the
-/// modifier through a side channel that only exists for mouse input, and so
-/// misbehaves for keyboard and accessibility-driven selection.
-///
-/// Handling it here, in the event layer, means the delegate methods never see a
-/// modifier at all: they answer only "is this row selectable" and "the selection
-/// moved", which is what they are actually for.
+/// Command-clicking a PDF opens a background tab and must not move the
+/// selection. Handling it in the event layer keeps the delegate methods free of
+/// modifier checks, which only work for mouse input and misbehave for keyboard
+/// and accessibility-driven selection.
 final class NavigatorOutlineView: NSOutlineView {
     /// Returns `true` when the click was consumed and selection should not run.
     var onCommandClick: ((Int) -> Bool)?

@@ -3,17 +3,14 @@ import Foundation
 /// One directory or PDF in the navigator tree.
 ///
 /// `NSOutlineView` tracks rows by object identity, so a node must remain the
-/// same object for as long as its path exists on disk. That is why `reload()`
-/// reconciles in place and reuses surviving nodes rather than rebuilding the
-/// array: identity here plays the role a `key` plays in a React list, and
-/// throwing it away would collapse every expanded folder on every filesystem
-/// event.
+/// same object for as long as its path exists on disk. Replacing a node that
+/// still exists collapses its expansion state and drops the selection.
 final class FileNode: NSObject {
-    /// One directory's worth of change, in the form `NSOutlineView` wants.
+    /// One directory's worth of change.
     ///
-    /// `removed` indexes the children as they were before the rescan and
-    /// `inserted` indexes them as they are after, which is exactly the
-    /// convention `removeItems(at:inParent:)` followed by
+    /// The two index sets are in different coordinate spaces: `removed` indexes
+    /// the children as they were before the rescan, `inserted` as they are
+    /// after. That is what `removeItems(at:inParent:)` followed by
     /// `insertItems(at:inParent:)` expects inside one update block.
     struct Delta {
         let parent: FileNode
@@ -37,9 +34,9 @@ final class FileNode: NSObject {
 
     /// Children, scanned on first access.
     ///
-    /// Scanning here rather than in response to an expansion notification is
-    /// what keeps `numberOfChildrenOfItem` truthful the first time AppKit asks,
-    /// so a folder never renders empty and then repopulates a frame later.
+    /// Scanning during the data-source query keeps `numberOfChildrenOfItem`
+    /// truthful the first time AppKit asks, so a folder does not render empty
+    /// and then repopulate.
     var children: [FileNode] {
         if let loaded { return loaded }
 
@@ -52,9 +49,8 @@ final class FileNode: NSObject {
 
     /// Children already in memory, or `nil` if this node has never been opened.
     ///
-    /// Callers that walk the tree use this instead of `children` so that
-    /// visiting a node does not force a scan of a directory nothing has asked
-    /// to see yet.
+    /// Walking the tree with this avoids scanning directories nothing has asked
+    /// to see.
     var loadedChildren: [FileNode]? { loaded }
 
     private convenience init(item: DirectoryScanner.Item) {
@@ -63,10 +59,9 @@ final class FileNode: NSObject {
 
     /// Rescans this directory and reconciles the in-memory children with disk.
     ///
-    /// Returns `nil` when nothing on screen depends on this node yet (it was
-    /// never loaded) or when disk and memory already agree. Paths that survived
-    /// keep their existing node, and therefore their expansion state and their
-    /// loaded subtree.
+    /// Surviving paths keep their existing node, and with it their expansion
+    /// state and loaded subtree. Returns `nil` when this node was never loaded,
+    /// or when disk and memory already agree.
     func reload() -> Delta? {
         guard isDirectory, let current = loaded else { return nil }
 
@@ -104,9 +99,9 @@ final class FileNode: NSObject {
 
     /// Identity for reconciliation.
     ///
-    /// A path that changed kind — a PDF replaced by a folder of the same name —
-    /// is a different row with a different disclosure affordance, so it counts
-    /// as a removal plus an insertion rather than a survivor.
+    /// Kind is part of the key: a PDF replaced by a folder of the same name is a
+    /// different row with a different disclosure affordance, so it counts as a
+    /// removal plus an insertion.
     private struct Key: Hashable {
         let url: URL
         let isDirectory: Bool

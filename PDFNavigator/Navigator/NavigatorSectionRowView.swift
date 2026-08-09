@@ -2,9 +2,7 @@ import AppKit
 
 /// The workspace-root row, drawn as a source-list group header.
 ///
-/// A group row is not a file row: it is not selectable, it takes the outline
-/// view's own header styling, and it shows no icon. Keeping it as its own type
-/// means neither row has to carry a mode flag for the other's behaviour.
+/// Not selectable, no icon, and styled by the outline view itself.
 final class NavigatorSectionRowView: NSTextField {
     static let identifier = NSUserInterfaceItemIdentifier("NavigatorSectionRow")
 

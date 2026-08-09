@@ -3,23 +3,21 @@ import PDFKit
 import SwiftUI
 
 /// Native three-column geometry: Navigator | workspace/reader | Inspector.
-final class WindowLayoutController: NSSplitViewController {
+final class WindowSplitController: NSSplitViewController {
     private let session: WorkspaceSession
     private let readerController: PDFReaderController
     private let workspaceSidebarController: SidebarController
     private let libraryController: NSHostingController<LibraryContentView>
     private let inspectorPresentationState = PDFInspectorPresentationState()
 
-    /// A bare "something changed" signal. It carries no payload because this
-    /// controller owns the inspector's presentation — anyone who needs to know
-    /// what it is now reads `inspectorSection` rather than being told.
+    /// Carries no payload: this controller owns inspector presentation, so
+    /// listeners read `inspectorSection` for the current value.
     private let onInspectorChange: () -> Void
 
     /// Whether the inspector is on screen.
     ///
-    /// Tracked here rather than read back from the split item because the
-    /// collapse is applied through an animator, so the item's own flag is not
-    /// a reliable answer at the moment of the change.
+    /// Tracked separately from the split item: the collapse goes through an
+    /// animator, so the item's own flag is unreliable at the moment of change.
     private var isInspectorVisible = false
     private let detailContainer = NSViewController()
     private let inspectorSidebarContainer = NSViewController()
@@ -31,15 +29,13 @@ final class WindowLayoutController: NSSplitViewController {
     private var inspectorController: NSHostingController<PDFInspectorView>?
 
     /// The panel the inspector is showing, or `nil` while it is collapsed.
-    ///
-    /// The single place anyone asks about inspector presentation.
     var inspectorSection: PDFInspectorSection? {
         isInspectorVisible ? inspectorPresentationState.section : nil
     }
 
     init(
         session: WorkspaceSession,
-        actions: ShellActions,
+        actions: WindowActions,
         readerController: PDFReaderController,
         onInspectorChange: @escaping () -> Void
     ) {
@@ -103,7 +99,7 @@ final class WindowLayoutController: NSSplitViewController {
         addSplitViewItem(inspectorSidebarItem)
         splitView.autosaveName = "WorkspaceSplitView-v3"
 
-        renderMode()
+        render()
     }
 
     override func viewDidAppear() {
@@ -114,9 +110,9 @@ final class WindowLayoutController: NSSplitViewController {
         inspectorSidebarItem.isCollapsed = true
     }
 
-    func renderMode() {
+    func render() {
         loadViewIfNeeded()
-        workspaceSidebarController.update()
+        workspaceSidebarController.render()
 
         switch session.mode {
         case .library:
@@ -156,8 +152,8 @@ final class WindowLayoutController: NSSplitViewController {
         setInspector(visible: !shouldClose)
     }
 
-    /// The one place inspector visibility changes, so the flag and the split
-    /// item can never disagree, and every caller announces the change.
+    /// The only place inspector visibility changes, so the flag and the split
+    /// item cannot disagree.
     private func setInspector(visible: Bool) {
         isInspectorVisible = visible
         inspectorSidebarItem.animator().isCollapsed = !visible

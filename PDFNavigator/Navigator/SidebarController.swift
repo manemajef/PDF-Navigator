@@ -4,7 +4,7 @@ import SwiftUI
 /// Native sidebar shell containing the AppKit navigator and SwiftUI footer.
 final class SidebarController: NSViewController {
     private let session: WorkspaceSession
-    private let actions: ShellActions
+    private let actions: WindowActions
     private let footerView: NSHostingView<SidebarFooterView>
     private var itemCount: Int?
     private lazy var navigatorController = NavigatorController(
@@ -15,7 +15,7 @@ final class SidebarController: NSViewController {
         onItemCountChange: { [weak self] in self?.setItemCount($0) }
     )
 
-    init(session: WorkspaceSession, actions: ShellActions) {
+    init(session: WorkspaceSession, actions: WindowActions) {
         self.session = session
         self.actions = actions
         footerView = NSHostingView(
@@ -32,12 +32,11 @@ final class SidebarController: NSViewController {
     }
 
     override func loadView() {
-        // `addChild` is what puts the navigator in the responder chain and
-        // keeps it alive; adding its view alone would leave a sidebar that
-        // draws correctly and answers nothing.
+        // `addChild` puts the navigator in the responder chain and retains it.
+        // Adding only its view yields a sidebar that draws but answers nothing.
         addChild(navigatorController)
 
-        // Reading order is layout order: outline on top, footer beneath.
+        // Outline on top, footer beneath.
         let column = NSStackView(views: [navigatorController.view, footerView])
         column.orientation = .vertical
         column.alignment = .width
@@ -51,14 +50,11 @@ final class SidebarController: NSViewController {
         view = column
     }
 
-    func update() {
+    func render() {
         footerView.rootView = makeFooter()
-        navigatorController.update(
+        navigatorController.render(
             rootURL: session.root,
-            selectedPDFURL: session.selection,
-            onSelectPDF: session.select,
-            onOpenInNewTab: actions.openInNewTab,
-            onItemCountChange: { [weak self] in self?.setItemCount($0) }
+            selectedPDFURL: session.selection
         )
     }
 

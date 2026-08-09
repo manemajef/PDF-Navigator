@@ -3,16 +3,13 @@ import Foundation
 
 /// Reports that something changed somewhere under a root directory.
 ///
-/// One FSEvents stream covers the entire subtree, so the navigator never has to
-/// add or drop watches as folders expand and collapse — which is the bookkeeping
-/// that makes a per-directory `DispatchSource` approach fiddly. The system also
-/// coalesces bursts for us, so a copy of two hundred files arrives as a handful
-/// of callbacks rather than two hundred.
+/// One stream covers the whole subtree, so no watches need adding or dropping
+/// as folders expand and collapse. The system coalesces bursts, so copying two
+/// hundred files arrives as a handful of callbacks.
 ///
-/// The callback deliberately carries no payload. FSEvents can report
-/// `MustScanSubDirs` when its queue overflows, so any consumer has to be able to
-/// rescan from scratch anyway; `FileTree` rescans only the directories it
-/// has actually loaded, which is bounded by what the user has expanded.
+/// The callback carries no payload: FSEvents can report `MustScanSubDirs` when
+/// its queue overflows, so a consumer must be able to rescan without being told
+/// what changed.
 final class DirectoryWatcher {
     private let onChange: @MainActor () -> Void
     private var stream: FSEventStreamRef?

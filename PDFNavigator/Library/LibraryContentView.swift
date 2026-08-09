@@ -3,7 +3,7 @@ import SwiftUI
 /// SwiftUI content hosted in the AppKit workspace detail pane.
 struct LibraryContentView: View {
     let session: WorkspaceSession
-    let actions: ShellActions
+    let actions: WindowActions
 
     var body: some View {
         if case .library(let root) = session.mode {

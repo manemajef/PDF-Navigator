@@ -2,10 +2,9 @@ import Foundation
 
 /// Filesystem enumeration for the navigator: PDFs and directories, sorted.
 ///
-/// `nonisolated` because this is a pure function of the filesystem with no
-/// state of its own. Without it the project's default main-actor isolation
-/// would infer `isOrderedBefore` as main-actor-bound and then complain about
-/// handing it to `sorted(by:)`.
+/// `nonisolated` because it holds no state. Under the project's default
+/// main-actor isolation, `isOrderedBefore` would otherwise be actor-bound and
+/// could not be handed to `sorted(by:)`.
 nonisolated enum DirectoryScanner {
     struct Item {
         let url: URL
@@ -16,16 +15,15 @@ nonisolated enum DirectoryScanner {
 
     /// Enumerates one directory, without recursing.
     ///
-    /// This is deliberately synchronous. `contentsOfDirectory` prefetches the
-    /// resource values it is asked for, so the loop below reads a cache instead
-    /// of issuing a syscall per entry; on a local volume a few hundred entries
-    /// cost tens of microseconds, well under one frame. That is what lets
-    /// `FileNode` scan lazily during an outline-view query and still report
-    /// a true child count on the first ask.
+    /// Synchronous by design: `contentsOfDirectory` prefetches the resource
+    /// values it is asked for, so the loop below reads a cache instead of
+    /// issuing a syscall per entry. A few hundred local entries cost tens of
+    /// microseconds, which is what lets `FileNode` scan during an outline-view
+    /// query.
     ///
-    /// A network volume or a spinning disk would hitch here. `FileNode`'s
-    /// `children` getter is the single place that would become asynchronous if
-    /// that ever matters, and it would need a placeholder row to stay honest.
+    /// Watch out on network volumes and spinning disks, where this blocks the
+    /// main thread. `FileNode.children` is the single place to make
+    /// asynchronous if that arises, and it would need a placeholder row.
     static func items(in directory: URL) -> [Item] {
         let keys: [URLResourceKey] = [
             .isDirectoryKey,

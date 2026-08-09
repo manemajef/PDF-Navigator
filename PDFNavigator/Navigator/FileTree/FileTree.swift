@@ -1,24 +1,20 @@
 import Foundation
 
-/// The navigator's model layer: the node tree for one workspace root, kept in
-/// sync with disk.
+/// The node tree for one workspace root, kept in sync with disk.
 ///
-/// This type owns file data and nothing else — no views, no selection, no
-/// AppKit. `NavigatorController` reads it to answer outline-view queries and
-/// applies the deltas it publishes. Keeping the two apart is what makes the
-/// controller a projection rather than a second source of truth.
+/// Owns file data and nothing else — no views, no selection, no AppKit.
+/// `NavigatorController` reads it to answer outline-view queries and applies
+/// the deltas it publishes.
 @MainActor
 final class FileTree {
     let root: FileNode
 
-    /// Called after the tree has already reconciled itself with disk, with the
+    /// Called after the tree has reconciled itself with disk, carrying the
     /// per-directory changes needed to bring a view in line.
     ///
-    /// This is deliberately a delta callback rather than `@Observable`.
-    /// Observation reports *that* something changed, which for an outline view
-    /// means falling back to `reloadData()` — losing expansion state, selection,
-    /// and any animation. The whole point of reconciling in place is to know
-    /// precisely which rows moved.
+    /// A delta callback rather than observation: an outline view needs to know
+    /// precisely which rows moved. "Something changed" would force a
+    /// `reloadData()`, losing expansion state and selection.
     var onChange: (([FileNode.Delta]) -> Void)?
 
     private var watcher: DirectoryWatcher?
@@ -39,11 +35,11 @@ final class FileTree {
 
     /// Rescans every loaded directory and publishes what changed.
     ///
-    /// Rescanning all loaded directories rather than only the paths FSEvents
-    /// named costs a `contentsOfDirectory` per folder the user has opened — tens
-    /// of microseconds each, against a coalescing latency measured in hundreds
-    /// of milliseconds. It also stays correct when FSEvents coalesces an
-    /// overflow into `MustScanSubDirs` and tells us nothing specific.
+    /// Scanning all loaded directories, not just the paths FSEvents named, costs
+    /// one `contentsOfDirectory` per opened folder — tens of microseconds each,
+    /// against a coalescing latency in the hundreds of milliseconds. It also
+    /// stays correct when FSEvents overflows into `MustScanSubDirs` and names
+    /// nothing specific.
     func refresh() {
         var deltas: [FileNode.Delta] = []
         collectDeltas(from: root, into: &deltas)
@@ -51,9 +47,8 @@ final class FileTree {
         onChange?(deltas)
     }
 
-    /// Walks top-down so a removed directory's own children are never visited:
-    /// once a node is gone from its parent it is gone from the outline view too,
-    /// and reporting a delta for it would target a row that no longer exists.
+    /// Walks top-down so a removed directory's children are never visited.
+    /// A delta for a detached node would target a row that no longer exists.
     private func collectDeltas(
         from node: FileNode,
         into deltas: inout [FileNode.Delta]

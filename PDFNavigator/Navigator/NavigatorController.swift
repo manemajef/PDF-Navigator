@@ -2,20 +2,19 @@ import AppKit
 
 /// Projects a `FileTree` into the native source list.
 ///
-/// This controller owns no file data. It answers outline-view queries from the
-/// tree, turns clicks and selection into the callbacks it was handed, and
-/// applies the tree's deltas as row insertions and removals. Scanning, sorting,
-/// filtering, and filesystem watching all belong to `FileTree`; drawing a
-/// row belongs to `NavigatorRowView`.
+/// Owns no file data. It answers outline-view queries from the tree, turns
+/// clicks and selection into the callbacks it was handed, and applies the
+/// tree's deltas as row insertions and removals.
 final class NavigatorController: NSViewController {
     private let scrollView = NSScrollView()
     private let outlineView = NavigatorOutlineView()
 
     private var rootURL: URL
     private var selectedPDFURL: URL?
-    private var onSelectPDF: (URL) -> Void
-    private var onOpenInNewTab: (URL, TabActivation) -> Void
-    private var onItemCountChange: (Int?) -> Void
+    /// Fixed for the controller's lifetime; only the URLs change per render.
+    private let onSelectPDF: (URL) -> Void
+    private let onOpenInNewTab: (URL, TabActivation) -> Void
+    private let onItemCountChange: (Int?) -> Void
 
     private var tree: FileTree
 
@@ -76,21 +75,12 @@ final class NavigatorController: NSViewController {
         adoptTree()
     }
 
-    func update(
-        rootURL: URL,
-        selectedPDFURL: URL?,
-        onSelectPDF: @escaping (URL) -> Void,
-        onOpenInNewTab: @escaping (URL, TabActivation) -> Void,
-        onItemCountChange: @escaping (Int?) -> Void
-    ) {
+    func render(rootURL: URL, selectedPDFURL: URL?) {
         let rootURL = rootURL.standardizedFileURL
         let rootChanged = self.rootURL != rootURL
 
         self.rootURL = rootURL
         self.selectedPDFURL = selectedPDFURL?.standardizedFileURL
-        self.onSelectPDF = onSelectPDF
-        self.onOpenInNewTab = onOpenInNewTab
-        self.onItemCountChange = onItemCountChange
 
         loadViewIfNeeded()
         if rootChanged {
@@ -103,8 +93,8 @@ final class NavigatorController: NSViewController {
 
     /// Renders the current tree from scratch and starts watching it.
     ///
-    /// This is the only path that calls `reloadData()`. Every later change
-    /// arrives as a delta, which is what preserves expansion and selection.
+    /// The only path that calls `reloadData()`. Every later change arrives as a
+    /// delta, which is what preserves expansion and selection.
     private func adoptTree() {
         tree.onChange = { [weak self] deltas in
             self?.apply(deltas)
@@ -118,9 +108,8 @@ final class NavigatorController: NSViewController {
     }
 
     private func apply(_ deltas: [FileNode.Delta]) {
-        // The tree has already reconciled itself, so the data source answers
-        // with the new state; these calls only tell the outline view which rows
-        // moved so it can animate and keep its expansion and selection intact.
+        // The tree has already reconciled, so the data source answers with the
+        // new state. These calls tell the outline view which rows moved.
         outlineView.beginUpdates()
         for delta in deltas {
             outlineView.removeItems(
@@ -166,7 +155,7 @@ final class NavigatorController: NSViewController {
     /// Walks down to `fileURL`, expanding each directory on the way.
     ///
     /// The prefix check runs before any child is touched, so only directories on
-    /// the path are ever scanned — a sibling of the target is never opened.
+    /// the path are scanned.
     private func node(for fileURL: URL, from node: FileNode) -> FileNode? {
         guard fileURL.isDescendantOrSame(of: node.url) else { return nil }
         if node.url == fileURL { return node }
@@ -278,9 +267,8 @@ extension NavigatorController: NSOutlineViewDataSource {
         return node.children[index]
     }
 
-    /// Answered from the node's kind rather than by reading the directory, so
-    /// showing a disclosure triangle never costs a scan. This is what keeps a
-    /// folder like `node_modules` cheap until someone actually opens it.
+    /// Answered from the node's kind without reading the directory, so showing
+    /// a disclosure triangle costs no scan.
     func outlineView(
         _ outlineView: NSOutlineView,
         isItemExpandable item: Any

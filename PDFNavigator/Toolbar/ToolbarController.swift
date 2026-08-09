@@ -1,18 +1,12 @@
 import AppKit
 
 /// Builds the window's toolbar from `ToolbarCatalogue` and renders
-/// `ToolbarState` onto it.
+/// `ToolbarState` onto it. Stores no application state.
 ///
-/// It stores no application state. Everything it needs to draw arrives as a
-/// parameter, which is why there is one `render(_:)` here rather than one
-/// `update` method per kind of change.
-///
-/// Enabled state is deliberately absent from that render pass. Top-level items
-/// self-validate through `WindowController.canPerform(_:)` — AppKit asks
-/// whenever it is about to display them — so duplicating the same rules here
-/// would give one fact two homes. This type renders only what validation has
-/// no hook for: **visibility**, and the **subitem and selection state of
-/// groups**.
+/// Enabled state is not part of the render pass. Top-level items self-validate
+/// through `WindowController.canPerform(_:)`, which AppKit calls before
+/// displaying them. This type renders only what validation has no hook for:
+/// visibility, and the subitem and selection state of groups.
 final class ToolbarController: NSObject, NSToolbarDelegate, NSSearchFieldDelegate {
     private weak var target: WindowController?
     private weak var toolbar: NSToolbar?
@@ -35,10 +29,8 @@ final class ToolbarController: NSObject, NSToolbarDelegate, NSSearchFieldDelegat
 
     // MARK: - Rendering
 
-    /// Makes the toolbar match `state`.
-    ///
-    /// Safe to call as often as anything changes: every write below either sets
-    /// a value that is cheap and idempotent, or is guarded by a comparison.
+    /// Makes the toolbar match `state`. Safe to call as often as needed: every
+    /// write below is either cheap and idempotent or guarded by a comparison.
     func render(_ state: ToolbarState) {
         guard let toolbar else { return }
 
@@ -57,10 +49,9 @@ final class ToolbarController: NSObject, NSToolbarDelegate, NSSearchFieldDelegat
         toolbar.validateVisibleItems()
     }
 
-    /// Clearing the search field is an *effect* of changing document, not a
-    /// description of any state, so it is a command rather than part of
-    /// `render(_:)`. Folding it in would mean re-clearing whatever the user had
-    /// typed every time anything else changed.
+    /// A command, not part of `render(_:)`: clearing the field is an effect of
+    /// changing document. Folding it into render would wipe whatever the user
+    /// had typed on every unrelated change.
     func resetSearch() {
         searchItem?.endSearchInteraction()
         searchItem?.searchField.stringValue = ""
@@ -95,8 +86,8 @@ final class ToolbarController: NSObject, NSToolbarDelegate, NSSearchFieldDelegat
         ToolbarCatalogue.defaultIdentifiers
     }
 
-    /// The sidebar toggle is supplied by AppKit, so it is relabelled on arrival
-    /// rather than built here.
+    /// The sidebar toggle is supplied by AppKit, so it is relabelled on
+    /// arrival.
     func toolbarWillAddItem(_ notification: Notification) {
         guard
             let item = notification.userInfo?[NSToolbarUserInfoKey.itemKey] as? NSToolbarItem,
@@ -111,9 +102,8 @@ final class ToolbarController: NSObject, NSToolbarDelegate, NSSearchFieldDelegat
         )
     }
 
-    /// Builds an item by looking it up in the catalogue. Items are created in
-    /// their default state and corrected by the next `render(_:)`, so no
-    /// application state is needed here.
+    /// Builds an item from the catalogue. Items start in their default state
+    /// and are corrected by the next `render(_:)`.
     func toolbar(
         _ toolbar: NSToolbar,
         itemForItemIdentifier identifier: NSToolbarItem.Identifier,

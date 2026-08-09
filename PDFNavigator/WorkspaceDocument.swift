@@ -29,7 +29,7 @@ final class WorkspaceDocument: NSDocument {
 
     convenience init(request: OpenRequest) {
         self.init()
-        apply(request)
+        store(request)
     }
 
     override init() {
@@ -59,7 +59,7 @@ final class WorkspaceDocument: NSDocument {
         // the session still described the previous location is what let the
         // titlebar briefly show the wrong thing.
         windowController?.open(request)
-        apply(request)
+        store(request)
     }
 
     // MARK: - State restoration
@@ -114,7 +114,7 @@ final class WorkspaceDocument: NSDocument {
         }
     }
 
-    private func apply(_ request: OpenRequest) {
+    private func store(_ request: OpenRequest) {
         pendingRequest.withLock { $0 = request }
         fileURL = request.workspaceRootURL
         invalidateRestorableState()
