@@ -44,6 +44,8 @@ PDFNavigator/
     WindowController.swift
     WindowRouting.swift
     WindowToolbar.swift
+    ToolbarCatalogue.swift
+    ToolbarState.swift
     WorkspaceActions.swift
     WorkspaceSplitController.swift
     TabSession.swift
@@ -261,10 +263,31 @@ It should not acquire additional responsibilities in the meantime.
 commands, validates menu and toolbar items, and projects `TabSession` changes
 into the title, represented URL, recents, toolbar state, and visible content.
 
-`WindowToolbar` owns `NSToolbarDelegate`, toolbar item creation, search
-presentation, and enabled state. Toolbar customization autosaving is enabled in
-Release and intentionally disabled in DEBUG. Persisted toolbar and split-view
-identifiers are compatibility keys and do not need to match current type names.
+The toolbar is split by reason to change:
+
+- `ToolbarCatalogue` is pure data: which items exist, their labels, symbols,
+  commands, and which require an open PDF. Adding or renaming a button is an
+  edit here alone.
+- `WindowToolbar` owns `NSToolbarDelegate`, item construction, and search
+  presentation. It stores no application state.
+- `ToolbarState` is the immutable value the toolbar is rendered from.
+
+`WindowController` derives a fresh `ToolbarState` from whichever object owns
+each value — the session for navigation, the reader for zoom, the split
+controller for the inspector — and calls `WindowToolbar.render(_:)` after every
+session change. Do not reintroduce per-change `update` methods on the toolbar;
+they require it to mirror state it does not own.
+
+Enabled state is deliberately *not* part of that render pass. Top-level toolbar
+items self-validate through `WindowController.canPerform(_:)`, which AppKit
+calls whenever it is about to display them, so enabled state has exactly one
+home. `render(_:)` sets only what validation has no hook for: item visibility,
+and the subitem and selection state of `NSToolbarItemGroup`s, whose
+`autovalidates` is off because AppKit validates a group as a single unit.
+
+Toolbar customization autosaving is enabled in Release and intentionally
+disabled in DEBUG. Persisted toolbar and split-view identifiers are
+compatibility keys and do not need to match current type names.
 
 Menus and toolbar items target the same small `@objc` methods on
 `WindowController`. Back/forward navigation among workspace homes and selected
@@ -273,17 +296,54 @@ PDFs belongs to `TabSession`; page navigation inside the current PDF belongs to
 
 ## Navigator
 
-`NavigatorController` owns the native source-list outline, lazy loading,
-selection, expansion, command-click handling, keyboard navigation, and sidebar
-actions. `DirectoryScanner` owns filesystem enumeration. `NavigatorItem` is the
-sendable value returned by the scanner.
+The navigator separates file data, outline projection, and row drawing:
 
-Directory scanning remains lazy. Do not recursively enumerate an arbitrary
-workspace on open. `SidebarController` currently hosts
-`SidebarFooterView` below the native outline. `SidebarHeaderView` still exists
-in source but is temporarily disconnected; it must not be described as current
-UI. AppKit continues to own sidebar material, scrolling, selection, and
-responder behavior.
+```text
+NavigatorTree      model: the node tree for one root, kept in sync with disk
+  NavigatorNode      one directory or PDF; scans lazily, reconciles in place
+  DirectoryScanner   one directory's PDFs and subdirectories, sorted
+  DirectoryWatcher   FSEvents stream over the whole subtree
+NavigatorController  projection: outline data source, selection, commands
+  NavigatorOutlineView   command-click interception
+  NavigatorRowView       icon + name
+  NavigatorSectionRowView  workspace-root group row
+```
+
+`NavigatorTree` owns file data and imports no AppKit, so the tree and its
+reconciliation are testable without a view. `NavigatorController` owns no file
+data: it answers outline-view queries from the tree and applies the tree's
+deltas. This is the split the ownership table above already implied but the
+original single controller did not honor.
+
+Directory scanning remains lazy and is deliberately **synchronous**.
+`isItemExpandable` answers from the node's kind and never reads a directory, so
+a large folder costs nothing until it is opened; a folder that *is* opened scans
+during the data-source query, which is tens of microseconds on a local volume
+and lets `numberOfChildrenOfItem` return a true count on the first ask. Do not
+reintroduce asynchronous loading with a sometimes-async completion handler: that
+shape produced a reveal/load race and an empty-first-expansion artifact.
+`NavigatorNode.children` is the single place to become asynchronous if a network
+volume ever justifies it, and that change needs a placeholder row.
+
+Live updates are delta-based. `NavigatorTree` rescans the directories it has
+loaded and publishes per-directory index sets; `NavigatorController` applies them
+with `removeItems(at:inParent:)` and `insertItems(at:inParent:)`. Node identity
+is load-bearing: a path that survives a rescan keeps its existing
+`NavigatorNode`, which is what preserves expansion state and selection.
+Rebuilding the tree, or falling back to `reloadData()`, discards both. For the
+same reason `NavigatorTree` publishes deltas through a callback rather than
+`@Observable` — observation reports *that* something changed, which is the wrong
+granularity for an outline view.
+
+Modifier keys are handled in the event layer. `NavigatorOutlineView` resolves
+command-click in `mouseDown` before selection runs, so the delegate methods never
+consult `NSApp.currentEvent`; reading modifiers there only works for mouse input
+and misbehaves for keyboard and accessibility-driven selection.
+
+`SidebarController` hosts `SidebarFooterView` below the native outline.
+`SidebarHeaderView` still exists in source but is temporarily disconnected; it
+must not be described as current UI. AppKit continues to own sidebar material,
+scrolling, selection, and responder behavior.
 
 ## Reader and Search
 
@@ -304,10 +364,12 @@ the current `PDFDocument` directly:
 - `PDFOutlineView` renders the PDF outline and returns outline-selection intent.
 - `PDFInfoView` presents document metadata and current reader status.
 
-`WorkspaceSplitController` reports the inspector's visibility and active
-section to `WindowToolbar`. The native reader-panel group uses those values to
-select exactly one matching segment, or no segment while the inspector is
-collapsed.
+`WorkspaceSplitController` owns inspector presentation and exposes it as
+`inspectorSection`, which is `nil` while the inspector is collapsed. It signals
+changes with a payload-free callback; `WindowController` then reads the current
+value while building `ToolbarState`. The native reader-panel group selects
+exactly one matching segment, or none when the value is `nil` — a state the
+optional makes unrepresentable rather than merely unlikely.
 
 The private `PDFView` never crosses into SwiftUI. `PDFReaderController` performs
 page and outline navigation, observes PDFKit page/scale notifications, and

@@ -28,11 +28,8 @@ final class WindowController: NSWindowController {
         session: session,
         actions: workspaceActions,
         readerController: readerController,
-        onInspectorPresentationChange: { [weak self] isVisible, section in
-            self?.toolbar.updateInspectorPresentation(
-                isVisible: isVisible,
-                section: section
-            )
+        onInspectorChange: { [weak self] in
+            self?.renderToolbar()
         }
     )
 
@@ -49,7 +46,7 @@ final class WindowController: NSWindowController {
         super.init(window: window)
 
         readerController.onZoomStateChange = { [weak self] in
-            self?.updateZoomControls()
+            self?.renderToolbar()
         }
         readerController.onPageChange = { [weak self] in
             self?.updateWindowSubtitle()
@@ -140,21 +137,41 @@ final class WindowController: NSWindowController {
             synchronizeWindowTitleWithDocumentName()
             contentController.renderMode()
             updateWindowSubtitle()
-            toolbar.updatePDFAvailability(
-                session.pdfSession?.hasDocument == true
-            )
-            updateZoomControls()
+            // A query typed against the previous document means nothing in this
+            // one. An effect of the change, not a description of the new state,
+            // so it stays out of the render pass.
+            toolbar.resetSearch()
             if let selection = session.selection {
                 RecentLocationsStore.shared.notePDF(selection)
             }
             invalidateDocumentRestorableState()
 
         case .history:
-            toolbar.updateNavigation(
-                canGoBack: session.canGoBack,
-                canGoForward: session.canGoForward
-            )
+            break
         }
+
+        // Every change converges the toolbar, rather than each case knowing
+        // which items it happens to affect.
+        renderToolbar()
+    }
+
+    /// The one place the toolbar's inputs are gathered.
+    ///
+    /// Each value is read from whichever object owns it — the session for
+    /// navigation, the reader for zoom, the split controller for the inspector.
+    /// Nothing is cached, so nothing can be stale.
+    private var toolbarState: ToolbarState {
+        ToolbarState(
+            hasPDF: session.pdfSession?.hasDocument == true,
+            canGoBack: session.canGoBack,
+            canGoForward: session.canGoForward,
+            isActualSizeActive: readerController.isActualSizeActive,
+            inspectorSection: contentController.inspectorSection
+        )
+    }
+
+    private func renderToolbar() {
+        toolbar.render(toolbarState)
     }
 
     /// The document encodes the session's location, so it is the object whose
@@ -265,7 +282,7 @@ final class WindowController: NSWindowController {
     }
 
     @objc func beginSearch(_ sender: Any?) {
-        toolbar.beginSearch()
+        toolbar.beginSearch(canSearch: session.pdfSession?.hasDocument == true)
     }
 
     @objc func searchFieldChanged(_ sender: NSSearchField) {
@@ -299,22 +316,22 @@ final class WindowController: NSWindowController {
 
     @objc func zoomIn(_ sender: Any?) {
         readerController.zoomIn()
-        updateZoomControls()
+        renderToolbar()
     }
 
     @objc func zoomOut(_ sender: Any?) {
         readerController.zoomOut()
-        updateZoomControls()
+        renderToolbar()
     }
 
     @objc func showActualSize(_ sender: Any?) {
         readerController.showActualSize()
-        updateZoomControls()
+        renderToolbar()
     }
 
     @objc func zoomToFit(_ sender: Any?) {
         readerController.zoomToFit()
-        updateZoomControls()
+        renderToolbar()
     }
 
     @objc func openCurrentPDFInDefaultApp(_ sender: Any?) {
@@ -326,12 +343,6 @@ final class WindowController: NSWindowController {
         readerController.share(from: contentView)
     }
 
-    private func updateZoomControls() {
-        toolbar.updateZoomControls(
-            isZoomToFitActive: readerController.isZoomToFitActive,
-            isActualSizeActive: readerController.isActualSizeActive
-        )
-    }
 }
 
 extension WindowController: NSMenuItemValidation, NSToolbarItemValidation {

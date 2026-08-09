@@ -1,19 +1,21 @@
 import AppKit
-//let defaultToolbarIdentifiers: [NSToolbarItem.Identifier] = [
-//    .
-//    
-//]
 
+/// Builds the window's toolbar from `ToolbarCatalogue` and renders
+/// `ToolbarState` onto it.
+///
+/// It stores no application state. Everything it needs to draw arrives as a
+/// parameter, which is why there is one `render(_:)` here rather than one
+/// `update` method per kind of change.
+///
+/// Enabled state is deliberately absent from that render pass. Top-level items
+/// self-validate through `WindowController.canPerform(_:)` — AppKit asks
+/// whenever it is about to display them — so duplicating the same rules here
+/// would give one fact two homes. This type renders only what validation has
+/// no hook for: **visibility**, and the **subitem and selection state of
+/// groups**.
 final class WindowToolbar: NSObject, NSToolbarDelegate, NSSearchFieldDelegate {
     private weak var target: WindowController?
     private weak var toolbar: NSToolbar?
-    private var hasPDF = false
-    private var canGoBack = false
-    private var canGoForward = false
-    private var isZoomToFitActive = true
-    private var isActualSizeActive = false
-    private var isInspectorVisible = false
-    private var inspectorSection = PDFInspectorSection.thumbnails
 
     init(target: WindowController) {
         self.target = target
@@ -31,73 +33,41 @@ final class WindowToolbar: NSObject, NSToolbarDelegate, NSSearchFieldDelegate {
         return toolbar
     }
 
-    func updateNavigation(canGoBack: Bool, canGoForward: Bool) {
-        self.canGoBack = canGoBack
-        self.canGoForward = canGoForward
+    // MARK: - Rendering
 
-        if let subitems = navigationItem?.subitems, subitems.count >= 2 {
-            subitems[0].isEnabled = canGoBack
-            subitems[1].isEnabled = canGoForward
-        }
-        toolbar?.validateVisibleItems()
-    }
+    /// Makes the toolbar match `state`.
+    ///
+    /// Safe to call as often as anything changes: every write below either sets
+    /// a value that is cheap and idempotent, or is guarded by a comparison.
+    func render(_ state: ToolbarState) {
+        guard let toolbar else { return }
 
-    func updatePDFAvailability(_ hasPDF: Bool) {
-        self.hasPDF = hasPDF
-
-        searchItem?.endSearchInteraction()
-        searchItem?.searchField.stringValue = ""
-
-        let pdfIDs = pdfItemIdentifiers
-        for item in toolbar?.items ?? [] {
-            if pdfIDs.contains(item.itemIdentifier) {
-                item.isHidden = !hasPDF
-                item.isEnabled = hasPDF
-
-                if let group = item as? NSToolbarItemGroup,
-                   let spec = groupItemSpecs[item.itemIdentifier] {
-                    group.updateSubitems(using: spec, target: target)
-                }
+        for item in toolbar.items {
+            if ToolbarCatalogue.pdfOnlyIdentifiers.contains(item.itemIdentifier) {
+                setHidden(!state.hasPDF, on: item)
+            }
+            if let group = item as? NSToolbarItemGroup,
+               let spec = ToolbarCatalogue.groups[item.itemIdentifier] {
+                group.render(spec, in: state, target: target)
             }
         }
+
+        // Prompts AppKit to re-ask `canPerform(_:)` for everything on screen,
+        // which is what actually updates enabled state.
+        toolbar.validateVisibleItems()
     }
 
-    func updateZoomControls(
-        isZoomToFitActive: Bool,
-        isActualSizeActive: Bool
-    ) {
-        self.isZoomToFitActive = isZoomToFitActive
-        self.isActualSizeActive = isActualSizeActive
-
-        guard
-            let group = toolbar?.items.first(where: { $0.itemIdentifier == .pdfZoomControll }) as? NSToolbarItemGroup,
-            let spec = groupItemSpecs[.pdfZoomControll]
-        else {
-            toolbar?.validateVisibleItems()
-            return
-        }
-
-        group.updateSubitems(using: spec, target: target)
-        toolbar?.validateVisibleItems()
+    /// Clearing the search field is an *effect* of changing document, not a
+    /// description of any state, so it is a command rather than part of
+    /// `render(_:)`. Folding it in would mean re-clearing whatever the user had
+    /// typed every time anything else changed.
+    func resetSearch() {
+        searchItem?.endSearchInteraction()
+        searchItem?.searchField.stringValue = ""
     }
 
-    func updateInspectorPresentation(
-        isVisible: Bool,
-        section: PDFInspectorSection
-    ) {
-        self.isInspectorVisible = isVisible
-        inspectorSection = section
-
-        guard
-            let group = toolbar?.items.first(where: { $0.itemIdentifier == .readerPanels }) as? NSToolbarItemGroup,
-            let spec = groupItemSpecs[.readerPanels]
-        else { return }
-
-        group.updateSubitems(using: spec, target: target)
-    }
-
-    func beginSearch() {
-        guard hasPDF else { return }
+    func beginSearch(canSearch: Bool) {
+        guard canSearch else { return }
         searchItem?.beginSearchInteraction()
     }
 
@@ -105,36 +75,28 @@ final class WindowToolbar: NSObject, NSToolbarDelegate, NSSearchFieldDelegate {
         searchItem?.endSearchInteraction()
     }
 
-    func controlTextDidChange(_ notification: Notification) {
-        guard let searchField = notification.object as? NSSearchField else { return }
-        target?.searchFieldChanged(searchField)
+    private func setHidden(_ isHidden: Bool, on item: NSToolbarItem) {
+        guard item.isHidden != isHidden else { return }
+        item.isHidden = isHidden
     }
 
+    private var searchItem: NSSearchToolbarItem? {
+        toolbar?.items.first { $0.itemIdentifier == .workspaceSearch }
+            as? NSSearchToolbarItem
+    }
+
+    // MARK: - NSToolbarDelegate
+
     func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        [
-            .toggleSidebar, .sidebarTrackingSeparator, .workspaceNavigation,
-            .workspaceHome, .workspaceNewTab, .openNewWorkspace, .workspaceSearch,
-            .pdfPageNavigation, .pdfZoomControll,
-            .pdfZoomIn, .pdfZoomOut, .pdfActualSize, .pdfZoomToFit,
-            .pdfOpenExternally, .pdfShare, .space, .flexibleSpace,
-            .inspectorTrackingSeparator, .readerPanels, .toggleInspector
-        ]
+        ToolbarCatalogue.allowedIdentifiers
     }
 
     func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        [
-            .flexibleSpace, .toggleSidebar, .sidebarTrackingSeparator,
-            .workspaceNavigation,
-            .flexibleSpace,
-            .pdfZoomControll,
-            .space,
-            .pdfZoomToFit,
-            .workspaceNewTab,
-            .workspaceSearch,
-            .toggleInspector,
-        ]
+        ToolbarCatalogue.defaultIdentifiers
     }
 
+    /// The sidebar toggle is supplied by AppKit, so it is relabelled on arrival
+    /// rather than built here.
     func toolbarWillAddItem(_ notification: Notification) {
         guard
             let item = notification.userInfo?[NSToolbarUserInfoKey.itemKey] as? NSToolbarItem,
@@ -149,34 +111,28 @@ final class WindowToolbar: NSObject, NSToolbarDelegate, NSSearchFieldDelegate {
         )
     }
 
-    // Completely lookup-based factory method without explicit switch cases
+    /// Builds an item by looking it up in the catalogue. Items are created in
+    /// their default state and corrected by the next `render(_:)`, so no
+    /// application state is needed here.
     func toolbar(
         _ toolbar: NSToolbar,
         itemForItemIdentifier identifier: NSToolbarItem.Identifier,
         willBeInsertedIntoToolbar flag: Bool
     ) -> NSToolbarItem? {
-        // 1. Single Button Items
-        if let spec = Self.standardItemSpecs[identifier] {
+        if let spec = ToolbarCatalogue.items[identifier] {
             return NSToolbarItem(
                 identifier: identifier,
                 label: spec.label,
                 symbolName: spec.symbol,
                 target: target,
-                action: spec.action,
-                isEnabled: !spec.requiresPDF || hasPDF
+                action: spec.action
             )
         }
 
-        // 2. Grouped Items
-        if let spec = groupItemSpecs[identifier] {
-            return NSToolbarItemGroup.makeGroup(
-                identifier: identifier,
-                spec: spec,
-                target: target
-            )
+        if let spec = ToolbarCatalogue.groups[identifier] {
+            return NSToolbarItemGroup.make(identifier: identifier, spec: spec)
         }
 
-        // 3. Search Bar Item
         if identifier == .workspaceSearch {
             return NSSearchToolbarItem(
                 identifier: identifier,
@@ -184,214 +140,22 @@ final class WindowToolbar: NSObject, NSToolbarDelegate, NSSearchFieldDelegate {
                 placeholder: "Search Current PDF",
                 target: target,
                 action: #selector(WindowController.searchFieldSubmitted(_:)),
-                delegate: self,
-                isEnabled: hasPDF
+                delegate: self
             )
         }
 
         return nil
     }
 
-    // MARK: - Declarative Specifications
+    // MARK: - NSSearchFieldDelegate
 
-    private struct StandardItemSpec {
-        let label: String
-        let symbol: String
-        let action: Selector
-        var requiresPDF: Bool = false
-    }
-
-    fileprivate struct GroupItemSpec {
-        let label: String
-        var isNavigational: Bool = false
-        var selectedIndex: (() -> Int)? = nil
-        let subitems: [GroupSubitemSpec]
-    }
-
-    fileprivate struct GroupSubitemSpec {
-        let symbol: String
-        let tooltip: String
-        let action: Selector
-        let isEnabled: () -> Bool
-    }
-
-    private static let standardItemSpecs: [NSToolbarItem.Identifier: StandardItemSpec] = [
-        .workspaceNewTab: .init(
-            label: "New Tab",
-            symbol: "plus.square.on.square",
-            action: #selector(WindowController.newTab(_:))
-        ),
-
-        .openNewWorkspace: .init(
-            label: "Open Workspace",
-            symbol: "folder.badge.plus",
-            action: #selector(WindowController.openNewWorkspace(_:))
-        ),
-
-        .workspaceHome: .init(
-            label: "Workspace Home",
-            symbol: "house",
-            action: #selector(WindowController.goToWorkspaceHome(_:))
-        ),
-        
-        .pdfZoomIn: .init(
-            label: "Zoom In",
-            symbol: "plus.magnifyingglass",
-            action: #selector(WindowController.zoomIn(_:)),
-            requiresPDF: true),
-        
-        .pdfZoomOut: .init(
-            label: "Zoom Out",
-            symbol: "minus.magnifyingglass",
-            action: #selector(WindowController.zoomOut(_:)),
-            requiresPDF: true),
-        
-        .pdfActualSize: .init(
-            label: "Actual Size",
-            symbol: "1.magnifyingglass",
-            action: #selector(WindowController.showActualSize(_:)),
-            requiresPDF: true),
-        
-        .pdfZoomToFit: .init(
-            label: "Scale to Fit",
-            symbol: "arrow.down.left.and.arrow.up.right",
-            action: #selector(WindowController.zoomToFit(_:)),
-            requiresPDF: true),
-        
-        .pdfOpenExternally: .init(
-            label: "Open in Default App",
-            symbol: "arrow.up.forward.app",
-            action: #selector(WindowController.openCurrentPDFInDefaultApp(_:)),
-            requiresPDF: true),
-        
-        .pdfShare: .init(
-            label: "Share",
-            symbol: "square.and.arrow.up",
-            action: #selector(WindowController.shareCurrentPDF(_:)),
-            requiresPDF: true),
-        
-    ]
-
-    private var groupItemSpecs: [NSToolbarItem.Identifier: GroupItemSpec] {[
-        .workspaceNavigation: GroupItemSpec(
-            label: "Navigation",
-            isNavigational: true,
-            subitems: [
-                .init(
-                    symbol: "chevron.backward",
-                    tooltip: "Back",
-                    action: #selector(WindowController.goBack(_:)),
-                    isEnabled: { [weak self] in self?.canGoBack ?? false }
-                ),
-                .init(
-                    symbol: "chevron.forward",
-                    tooltip: "Forward",
-                    action: #selector(WindowController.goForward(_:)),
-                    isEnabled: { [weak self] in self?.canGoForward ?? false }
-                )
-            ]
-        ),
-        
-        .pdfPageNavigation: GroupItemSpec(
-            label: "Page Navigation",
-            subitems: [
-                .init(
-                    symbol: "chevron.up",
-                    tooltip: "Previous Page",
-                    action: #selector(WindowController.goToPreviousPage(_:)),
-                    isEnabled: { [weak self] in self?.hasPDF ?? false }
-                ),
-                
-                .init(
-                    symbol: "chevron.down",
-                    tooltip: "Next Page",
-                    action: #selector(WindowController.goToNextPage(_:)),
-                    isEnabled: { [weak self] in self?.hasPDF ?? false }
-                )
-            ]
-        ),
-        
-        .pdfZoomControll: GroupItemSpec(
-            label: "Zoom",
-            subitems: [
-                .init(
-                    symbol: "minus.magnifyingglass",
-                    tooltip: "Zoom Out",
-                    action: #selector(WindowController.zoomOut(_:)),
-                    isEnabled: { [weak self] in self?.hasPDF ?? false }
-                ),
-                .init(
-                    symbol: "1.magnifyingglass",
-                    tooltip: "Actual Size",
-                    action: #selector(WindowController.showActualSize(_:)),
-                    isEnabled: { [weak self] in
-                        guard let self else { return false }
-                        return hasPDF && !isActualSizeActive
-                    }
-                ),
-                .init(
-                    symbol: "plus.magnifyingglass",
-                    tooltip: "Zoom In",
-                    action: #selector(WindowController.zoomIn(_:)),
-                    isEnabled: { [weak self] in self?.hasPDF ?? false }
-                )
-            ]
-        ),
-        
-        .readerPanels: GroupItemSpec(
-            label: "Reader Panels",
-            selectedIndex: { [weak self] in
-                guard let self, hasPDF, isInspectorVisible else { return -1 }
-                return switch inspectorSection {
-                case .thumbnails: 0
-                case .outline: 1
-                case .info: 2
-                }
-            },
-            subitems: [
-                .init(
-                    symbol: "square.grid.2x2",
-                    tooltip: "Thumbnails",
-                    action: #selector(WindowController.toggleThumbnailsPanel(_:)),
-                    isEnabled: { [weak self] in self?.hasPDF ?? false }
-                ),
-                .init(
-                    symbol: "list.bullet.indent",
-                    tooltip: "Table of Contents",
-                    action: #selector(WindowController.toggleOutlinePanel(_:)),
-                    isEnabled: { [weak self] in self?.hasPDF ?? false }
-                ),
-                .init(
-                    symbol: "info",
-                    tooltip: "Info",
-                    action: #selector(WindowController.toggleInfoPanel(_:)),
-                    isEnabled: { [weak self] in self?.hasPDF ?? false }
-                )
-            ]
-        )
-    ]}
-
-    private var pdfItemIdentifiers: Set<NSToolbarItem.Identifier> {
-        var set: Set<NSToolbarItem.Identifier> = [
-            .workspaceSearch, .pdfPageNavigation, .pdfZoomControll,
-            .readerPanels, .inspectorTrackingSeparator, .toggleInspector
-        ]
-        for (id, spec) in Self.standardItemSpecs where spec.requiresPDF {
-            set.insert(id)
-        }
-        return set
-    }
-
-    private var searchItem: NSSearchToolbarItem? {
-        toolbar?.items.first { $0.itemIdentifier == .workspaceSearch } as? NSSearchToolbarItem
-    }
-
-    private var navigationItem: NSToolbarItemGroup? {
-        toolbar?.items.first { $0.itemIdentifier == .workspaceNavigation } as? NSToolbarItemGroup
+    func controlTextDidChange(_ notification: Notification) {
+        guard let searchField = notification.object as? NSSearchField else { return }
+        target?.searchFieldChanged(searchField)
     }
 }
 
-// MARK: - Declarative Helpers
+// MARK: - Item construction
 
 private extension NSToolbarItem {
     convenience init(
@@ -399,18 +163,21 @@ private extension NSToolbarItem {
         label: String,
         symbolName: String,
         target: AnyObject?,
-        action: Selector,
-        isEnabled: Bool = true
+        action: Selector
     ) {
         self.init(itemIdentifier: identifier)
         configure(label: label, target: target, action: action)
-        self.image = NSImage(systemSymbolName: symbolName, accessibilityDescription: label)
-        self.isEnabled = isEnabled
+        image = NSImage(systemSymbolName: symbolName, accessibilityDescription: label)
     }
 
-    func configure(label: String, toolTip: String? = nil, target: AnyObject?, action: Selector?) {
+    func configure(
+        label: String,
+        toolTip: String? = nil,
+        target: AnyObject?,
+        action: Selector?
+    ) {
         self.label = label
-        self.paletteLabel = label
+        paletteLabel = label
         self.toolTip = toolTip ?? label
         self.target = target
         self.action = action
@@ -424,25 +191,22 @@ private extension NSSearchToolbarItem {
         placeholder: String,
         target: AnyObject?,
         action: Selector,
-        delegate: NSSearchFieldDelegate?,
-        isEnabled: Bool
+        delegate: NSSearchFieldDelegate?
     ) {
         self.init(itemIdentifier: identifier)
         self.label = label
-        self.paletteLabel = label
-        self.searchField.placeholderString = placeholder
-        self.searchField.delegate = delegate
-        self.searchField.target = target
-        self.searchField.action = action
-        self.isEnabled = isEnabled
+        paletteLabel = label
+        searchField.placeholderString = placeholder
+        searchField.delegate = delegate
+        searchField.target = target
+        searchField.action = action
     }
 }
 
 private extension NSToolbarItemGroup {
-    static func makeGroup(
+    static func make(
         identifier: NSToolbarItem.Identifier,
-        spec: WindowToolbar.GroupItemSpec,
-        target: AnyObject?
+        spec: ToolbarCatalogue.Group
     ) -> NSToolbarItemGroup? {
         let images = spec.subitems.compactMap {
             NSImage(systemSymbolName: $0.symbol, accessibilityDescription: $0.tooltip)
@@ -461,40 +225,31 @@ private extension NSToolbarItemGroup {
         group.paletteLabel = spec.label
         group.isNavigational = spec.isNavigational
         group.controlRepresentation = .expanded
-
-        group.updateSubitems(using: spec, target: target)
         return group
     }
 
-    func updateSubitems(using spec: WindowToolbar.GroupItemSpec, target: AnyObject?) {
-        for (subitem, subSpec) in zip(subitems, spec.subitems) {
+    /// AppKit validates a group as a single unit, which cannot express "back is
+    /// available but forward is not". Turning `autovalidates` off and setting
+    /// each subitem here is what buys per-segment availability.
+    func render(
+        _ spec: ToolbarCatalogue.Group,
+        in state: ToolbarState,
+        target: AnyObject?
+    ) {
+        let isAvailable = !spec.requiresPDF || state.hasPDF
+
+        for (subitem, subspec) in zip(subitems, spec.subitems) {
             subitem.target = target
-            subitem.action = subSpec.action
-            subitem.toolTip = subSpec.tooltip
+            subitem.action = subspec.action
+            subitem.toolTip = subspec.tooltip
             subitem.autovalidates = false
-            subitem.isEnabled = subSpec.isEnabled()
+            subitem.isEnabled = isAvailable && subspec.isEnabled(state)
         }
-        let desiredSelection = spec.selectedIndex?() ?? -1
-        selectedIndex = desiredSelection
+
+        let selection = spec.selectedIndex?(state) ?? ToolbarCatalogue.noSelection
+        selectedIndex = selection
         for index in subitems.indices {
-            setSelected(index == desiredSelection, at: index)
+            setSelected(index == selection, at: index)
         }
     }
-}
-
-private extension NSToolbarItem.Identifier {
-    static let workspaceNavigation = Self("WorkspaceNavigation")
-    static let workspaceHome = Self("WorkspaceHome")
-    static let workspaceNewTab = Self("WorkspaceNewTab")
-    static let openNewWorkspace = Self("OpenNewWorkspace")
-    static let workspaceSearch = Self("WorkspaceSearch")
-    static let pdfPageNavigation = Self("PDFPageNavigation")
-    static let pdfZoomIn = Self("PDFZoomIn")
-    static let pdfZoomOut = Self("PDFZoomOut")
-    static let pdfActualSize = Self("PDFActualSize")
-    static let pdfZoomToFit = Self("PDFZoomToFit")
-    static let pdfOpenExternally = Self("PDFOpenExternally")
-    static let pdfShare = Self("PDFShare")
-    static let pdfZoomControll = Self("PDFZoomControll")
-    static let readerPanels = Self("ReaderPanels")
 }

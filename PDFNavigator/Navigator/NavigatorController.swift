@@ -1,9 +1,15 @@
 import AppKit
 
-/// The native outline implementation owned by `SidebarController`.
+/// Projects a `NavigatorTree` into the native source list.
+///
+/// This controller owns no file data. It answers outline-view queries from the
+/// tree, turns clicks and selection into the callbacks it was handed, and
+/// applies the tree's deltas as row insertions and removals. Scanning, sorting,
+/// filtering, and filesystem watching all belong to `NavigatorTree`; drawing a
+/// row belongs to `NavigatorRowView`.
 final class NavigatorController: NSViewController {
     private let scrollView = NSScrollView()
-    private let outlineView = NSOutlineView()
+    private let outlineView = NavigatorOutlineView()
 
     private var rootURL: URL
     private var selectedPDFURL: URL?
@@ -11,8 +17,11 @@ final class NavigatorController: NSViewController {
     private var onOpenInNewTab: (URL, TabActivation) -> Void
     private var onItemCountChange: (Int?) -> Void
 
-    private var rootNode: NavigatorNode?
-    private var loadingNodes: Set<URL> = []
+    private var tree: NavigatorTree
+
+    /// Set while the controller drives the selection itself, so revealing the
+    /// session's PDF does not read back as the user choosing it.
+    private var isRevealingSelection = false
 
     init(
         rootURL: URL,
@@ -26,6 +35,7 @@ final class NavigatorController: NSViewController {
         self.onSelectPDF = onSelectPDF
         self.onOpenInNewTab = onOpenInNewTab
         self.onItemCountChange = onItemCountChange
+        tree = NavigatorTree(root: self.rootURL)
         super.init(nibName: nil, bundle: nil)
     }
 
@@ -48,11 +58,12 @@ final class NavigatorController: NSViewController {
         outlineView.allowsEmptySelection = true
         outlineView.dataSource = self
         outlineView.delegate = self
-        outlineView.target = self
-        outlineView.action = #selector(rowClicked)
         outlineView.floatsGroupRows = false
         outlineView.refusesFirstResponder = false
         outlineView.menu = makeContextMenu()
+        outlineView.onCommandClick = { [weak self] row in
+            self?.openRowInBackgroundTab(row) ?? false
+        }
 
         let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("file"))
         column.isEditable = false
@@ -62,7 +73,7 @@ final class NavigatorController: NSViewController {
 
         scrollView.documentView = outlineView
         view = scrollView
-        reloadTree()
+        adoptTree()
     }
 
     func update(
@@ -83,131 +94,103 @@ final class NavigatorController: NSViewController {
 
         loadViewIfNeeded()
         if rootChanged {
-            reloadTree()
+            tree = NavigatorTree(root: rootURL)
+            adoptTree()
         } else {
             revealSelectedPDF()
         }
     }
 
-    private func reloadTree() {
-        loadingNodes.removeAll()
-        rootNode = NavigatorNode(url: rootURL, isDirectory: true)
+    /// Renders the current tree from scratch and starts watching it.
+    ///
+    /// This is the only path that calls `reloadData()`. Every later change
+    /// arrives as a delta, which is what preserves expansion and selection.
+    private func adoptTree() {
+        tree.onChange = { [weak self] deltas in
+            self?.apply(deltas)
+        }
+        tree.startWatching()
+
         outlineView.reloadData()
-
-        guard let rootNode else { return }
-        loadChildrenIfNeeded(for: rootNode) { [weak self, weak rootNode] in
-            guard let self, let rootNode else { return }
-            outlineView.expandItem(rootNode)
-            onItemCountChange(rootNode.children?.count)
-            revealSelectedPDF()
-        }
+        outlineView.expandItem(tree.root)
+        reportItemCount()
+        revealSelectedPDF()
     }
 
-    private func loadChildrenIfNeeded(
-        for node: NavigatorNode,
-        completion: (() -> Void)? = nil
-    ) {
-        guard node.isDirectory else {
-            completion?()
-            return
+    private func apply(_ deltas: [NavigatorNode.Delta]) {
+        // The tree has already reconciled itself, so the data source answers
+        // with the new state; these calls only tell the outline view which rows
+        // moved so it can animate and keep its expansion and selection intact.
+        outlineView.beginUpdates()
+        for delta in deltas {
+            outlineView.removeItems(
+                at: delta.removed,
+                inParent: delta.parent,
+                withAnimation: .effectFade
+            )
+            outlineView.insertItems(
+                at: delta.inserted,
+                inParent: delta.parent,
+                withAnimation: .effectFade
+            )
         }
-        if node.children != nil {
-            completion?()
-            return
-        }
+        outlineView.endUpdates()
 
-        let url = node.url.standardizedFileURL
-        guard !loadingNodes.contains(url) else {
-            completion?()
-            return
-        }
-        loadingNodes.insert(url)
-
-        Task { [weak self, weak node] in
-            do {
-                let items = try await DirectoryScanner.items(in: url)
-                guard let self, let node else { return }
-                node.children = items.map {
-                    NavigatorNode(
-                        url: $0.url.standardizedFileURL,
-                        isDirectory: $0.isDirectory
-                    )
-                }
-                loadingNodes.remove(url)
-                outlineView.reloadItem(node, reloadChildren: true)
-                completion?()
-            } catch {
-                self?.loadingNodes.remove(url)
-                completion?()
-            }
-        }
+        reportItemCount()
+        revealSelectedPDF()
     }
+
+    private func reportItemCount() {
+        onItemCountChange(tree.root.children.count)
+    }
+
+    // MARK: - Selection
 
     private func revealSelectedPDF() {
-        guard let selectedPDFURL, let rootNode else {
+        guard let selectedPDFURL,
+              selectedPDFURL.isDescendantOrSame(of: tree.root.url),
+              let node = node(for: selectedPDFURL, from: tree.root) else {
             outlineView.deselectAll(nil)
             return
         }
-        guard selectedPDFURL.isDescendantOrSame(of: rootURL) else {
-            outlineView.deselectAll(nil)
-            return
-        }
 
-        expandPath(to: selectedPDFURL, from: rootNode) { [weak self] node in
-            guard let self else { return }
-            guard let node else {
-                outlineView.deselectAll(nil)
-                return
-            }
-            let row = outlineView.row(forItem: node)
-            guard row >= 0 else { return }
-            outlineView.selectRowIndexes(
-                IndexSet(integer: row),
-                byExtendingSelection: false
-            )
-            outlineView.scrollRowToVisible(row)
-        }
+        let row = outlineView.row(forItem: node)
+        guard row >= 0 else { return }
+
+        isRevealingSelection = true
+        outlineView.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false)
+        isRevealingSelection = false
+        outlineView.scrollRowToVisible(row)
     }
 
-    private func expandPath(
-        to fileURL: URL,
-        from node: NavigatorNode,
-        completion: @escaping (NavigatorNode?) -> Void
-    ) {
-        guard fileURL.isDescendantOrSame(of: node.url) else {
-            completion(nil)
-            return
-        }
+    /// Walks down to `fileURL`, expanding each directory on the way.
+    ///
+    /// The prefix check runs before any child is touched, so only directories on
+    /// the path are ever scanned — a sibling of the target is never opened.
+    private func node(for fileURL: URL, from node: NavigatorNode) -> NavigatorNode? {
+        guard fileURL.isDescendantOrSame(of: node.url) else { return nil }
+        if node.url == fileURL { return node }
+        guard node.isDirectory else { return nil }
 
-        loadChildrenIfNeeded(for: node) { [weak self, weak node] in
-            guard let self, let node else {
-                completion(nil)
-                return
-            }
-
-            outlineView.expandItem(node)
-            if let child = node.children?.first(where: { $0.url == fileURL }) {
-                completion(child)
-            } else if let directory = node.children?.first(where: {
-                $0.isDirectory && fileURL.isDescendantOrSame(of: $0.url)
-            }) {
-                expandPath(to: fileURL, from: directory, completion: completion)
-            } else {
-                completion(nil)
+        outlineView.expandItem(node)
+        for child in node.children {
+            if let match = self.node(for: fileURL, from: child) {
+                return match
             }
         }
+        return nil
     }
 
-    @objc private func rowClicked() {
-        let row = outlineView.clickedRow
-        guard row >= 0,
-              let node = outlineView.item(atRow: row) as? NavigatorNode,
-              !node.isDirectory,
-              NSApp.currentEvent?.modifierFlags.contains(.command) == true else {
-            return
-        }
+    // MARK: - Commands
 
-        onOpenInNewTab(node.url.standardizedFileURL, .background)
+    /// Command-click on a PDF opens a background tab and leaves selection alone.
+    private func openRowInBackgroundTab(_ row: Int) -> Bool {
+        guard let node = outlineView.item(atRow: row) as? NavigatorNode,
+              !node.isDirectory else {
+            return false
+        }
+        onOpenInNewTab(node.url, .background)
+        return true
     }
 
     @objc private func openClickedRowInNewTab(_ sender: Any?) {
@@ -238,7 +221,7 @@ final class NavigatorController: NSViewController {
               !node.isDirectory else {
             return nil
         }
-        return node.url.standardizedFileURL
+        return node.url
     }
 
     private func makeContextMenu() -> NSMenu {
@@ -273,7 +256,7 @@ final class NavigatorController: NSViewController {
 
     private func isRoot(_ item: Any?) -> Bool {
         guard let node = item as? NavigatorNode else { return false }
-        return node === rootNode
+        return node === tree.root
     }
 }
 
@@ -282,10 +265,8 @@ extension NavigatorController: NSOutlineViewDataSource {
         _ outlineView: NSOutlineView,
         numberOfChildrenOfItem item: Any?
     ) -> Int {
-        if let node = item as? NavigatorNode {
-            return node.children?.count ?? 0
-        }
-        return rootNode == nil ? 0 : 1
+        guard let node = item as? NavigatorNode else { return 1 }
+        return node.children.count
     }
 
     func outlineView(
@@ -293,17 +274,18 @@ extension NavigatorController: NSOutlineViewDataSource {
         child index: Int,
         ofItem item: Any?
     ) -> Any {
-        if let node = item as? NavigatorNode {
-            return node.children![index]
-        }
-        return rootNode!
+        guard let node = item as? NavigatorNode else { return tree.root }
+        return node.children[index]
     }
 
+    /// Answered from the node's kind rather than by reading the directory, so
+    /// showing a disclosure triangle never costs a scan. This is what keeps a
+    /// folder like `node_modules` cheap until someone actually opens it.
     func outlineView(
         _ outlineView: NSOutlineView,
         isItemExpandable item: Any
     ) -> Bool {
-        return (item as? NavigatorNode)?.isDirectory == true
+        (item as? NavigatorNode)?.isDirectory == true
     }
 }
 
@@ -312,134 +294,44 @@ extension NavigatorController: NSOutlineViewDelegate {
         isRoot(item)
     }
 
-    func outlineViewItemDidExpand(_ notification: Notification) {
-        guard let node = notification.userInfo?["NSObject"] as? NavigatorNode else {
-            return
-        }
-        loadChildrenIfNeeded(for: node)
-    }
-
     func outlineView(
         _ outlineView: NSOutlineView,
         viewFor tableColumn: NSTableColumn?,
         item: Any
     ) -> NSView? {
         guard let node = item as? NavigatorNode else { return nil }
+
         if isRoot(node) {
-            return makeSectionView(named: node.name, in: outlineView)
+            let view = outlineView.makeView(
+                withIdentifier: NavigatorSectionRowView.identifier,
+                owner: self
+            ) as? NavigatorSectionRowView ?? NavigatorSectionRowView()
+            view.configure(with: node)
+            return view
         }
-        return makeNodeView(for: node, in: outlineView)
+
+        let view = outlineView.makeView(
+            withIdentifier: NavigatorRowView.identifier,
+            owner: self
+        ) as? NavigatorRowView ?? NavigatorRowView()
+        view.configure(with: node)
+        return view
     }
 
     func outlineView(_ outlineView: NSOutlineView, shouldSelectItem item: Any) -> Bool {
-        guard let node = item as? NavigatorNode, !isRoot(node) else {
-            return false
-        }
-        if !node.isDirectory,
-           NSApp.currentEvent?.modifierFlags.contains(.command) == true {
-            return false
-        }
-        return true
+        !isRoot(item)
     }
 
     func outlineViewSelectionDidChange(_ notification: Notification) {
-        guard NSApp.currentEvent?.modifierFlags.contains(.command) != true else {
-            return
-        }
+        guard !isRevealingSelection else { return }
+
         let row = outlineView.selectedRow
         guard row >= 0,
               let node = outlineView.item(atRow: row) as? NavigatorNode,
               !node.isDirectory else {
             return
         }
-
-        let requestedURL = node.url.standardizedFileURL
-        guard requestedURL != selectedPDFURL else { return }
-        onSelectPDF(requestedURL)
-    }
-
-    private func makeSectionView(
-        named name: String,
-        in outlineView: NSOutlineView
-    ) -> NSView? {
-        let identifier = NSUserInterfaceItemIdentifier("NavigatorSectionCell")
-        let label: NSTextField
-        if let reused = outlineView.makeView(
-            withIdentifier: identifier,
-            owner: self
-        ) as? NSTextField {
-            label = reused
-        } else {
-            label = NSTextField(labelWithString: "")
-            label.identifier = identifier
-            label.lineBreakMode = .byTruncatingMiddle
-            label.cell?.usesSingleLineMode = true
-        }
-
-        label.stringValue = name
-        return label
-    }
-
-    private func makeNodeView(
-        for node: NavigatorNode,
-        in outlineView: NSOutlineView
-    ) -> NSView? {
-        let identifier = NSUserInterfaceItemIdentifier("NavigatorCell")
-        let cell: NSTableCellView
-        if let reused = outlineView.makeView(
-            withIdentifier: identifier,
-            owner: self
-        ) as? NSTableCellView {
-            cell = reused
-        } else {
-            cell = NSTableCellView()
-            cell.identifier = identifier
-
-            let imageView = NSImageView()
-            imageView.translatesAutoresizingMaskIntoConstraints = false
-            imageView.imageScaling = .scaleProportionallyDown
-            cell.addSubview(imageView)
-            cell.imageView = imageView
-
-            let textField = NSTextField(labelWithString: "")
-            textField.translatesAutoresizingMaskIntoConstraints = false
-            textField.lineBreakMode = .byTruncatingMiddle
-            textField.cell?.usesSingleLineMode = true
-            cell.addSubview(textField)
-            cell.textField = textField
-
-            NSLayoutConstraint.activate([
-                imageView.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: 2),
-                imageView.centerYAnchor.constraint(equalTo: cell.centerYAnchor),
-                imageView.widthAnchor.constraint(equalToConstant: 16),
-                imageView.heightAnchor.constraint(equalToConstant: 16),
-                textField.leadingAnchor.constraint(
-                    equalTo: imageView.trailingAnchor,
-                    constant: 6
-                ),
-                textField.trailingAnchor.constraint(equalTo: cell.trailingAnchor),
-                textField.centerYAnchor.constraint(equalTo: cell.centerYAnchor)
-            ])
-        }
-
-        cell.textField?.stringValue = node.name
-        cell.imageView?.image = NSWorkspace.shared.icon(forFile: node.url.path)
-        return cell
-    }
-}
-
-private final class NavigatorNode: NSObject {
-    let url: URL
-    let isDirectory: Bool
-    var children: [NavigatorNode]?
-
-    init(url: URL, isDirectory: Bool) {
-        self.url = url
-        self.isDirectory = isDirectory
-    }
-
-    var name: String {
-        url.lastPathComponent.isEmpty ? url.path : url.lastPathComponent
+        onSelectPDF(node.url)
     }
 }
 

@@ -32,23 +32,23 @@ final class SidebarController: NSViewController {
     }
 
     override func loadView() {
-        let container = NSView()
+        // `addChild` is what puts the navigator in the responder chain and
+        // keeps it alive; adding its view alone would leave a sidebar that
+        // draws correctly and answers nothing.
         addChild(navigatorController)
-        for childView in [navigatorController.view, footerView] {
-            childView.translatesAutoresizingMaskIntoConstraints = false
-            container.addSubview(childView)
-        }
 
-        NSLayoutConstraint.activate([
-            navigatorController.view.topAnchor.constraint(equalTo: container.topAnchor),
-            navigatorController.view.leadingAnchor.constraint(equalTo: container.leadingAnchor),
-            navigatorController.view.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-            footerView.topAnchor.constraint(equalTo: navigatorController.view.bottomAnchor),
-            footerView.leadingAnchor.constraint(equalTo: container.leadingAnchor),
-            footerView.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-            footerView.bottomAnchor.constraint(equalTo: container.bottomAnchor),
-        ])
-        view = container
+        // Reading order is layout order: outline on top, footer beneath.
+        let column = NSStackView(views: [navigatorController.view, footerView])
+        column.orientation = .vertical
+        column.alignment = .width
+        column.spacing = 0
+        column.distribution = .fill
+
+        // The footer is content-sized and the outline takes whatever is left.
+        footerView.setContentHuggingPriority(.required, for: .vertical)
+        navigatorController.view.setContentHuggingPriority(.defaultLow, for: .vertical)
+
+        view = column
     }
 
     func update() {
