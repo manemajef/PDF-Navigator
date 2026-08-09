@@ -25,7 +25,7 @@ final class NavigatorSectionRowView: NSTextField {
         fatalError("init(coder:) is unavailable")
     }
 
-    func configure(with node: NavigatorNode) {
+    func configure(with node: FileNode) {
         stringValue = node.name
     }
 }

@@ -13,7 +13,7 @@ import AppKit
 /// would give one fact two homes. This type renders only what validation has
 /// no hook for: **visibility**, and the **subitem and selection state of
 /// groups**.
-final class WindowToolbar: NSObject, NSToolbarDelegate, NSSearchFieldDelegate {
+final class ToolbarController: NSObject, NSToolbarDelegate, NSSearchFieldDelegate {
     private weak var target: WindowController?
     private weak var toolbar: NSToolbar?
 

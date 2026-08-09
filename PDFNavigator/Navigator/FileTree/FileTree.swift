@@ -8,8 +8,8 @@ import Foundation
 /// applies the deltas it publishes. Keeping the two apart is what makes the
 /// controller a projection rather than a second source of truth.
 @MainActor
-final class NavigatorTree {
-    let root: NavigatorNode
+final class FileTree {
+    let root: FileNode
 
     /// Called after the tree has already reconciled itself with disk, with the
     /// per-directory changes needed to bring a view in line.
@@ -19,12 +19,12 @@ final class NavigatorTree {
     /// means falling back to `reloadData()` — losing expansion state, selection,
     /// and any animation. The whole point of reconciling in place is to know
     /// precisely which rows moved.
-    var onChange: (([NavigatorNode.Delta]) -> Void)?
+    var onChange: (([FileNode.Delta]) -> Void)?
 
     private var watcher: DirectoryWatcher?
 
     init(root: URL) {
-        self.root = NavigatorNode(url: root, isDirectory: true)
+        self.root = FileNode(url: root, isDirectory: true)
     }
 
     /// Begins reporting filesystem changes to `onChange`.
@@ -45,7 +45,7 @@ final class NavigatorTree {
     /// of milliseconds. It also stays correct when FSEvents coalesces an
     /// overflow into `MustScanSubDirs` and tells us nothing specific.
     func refresh() {
-        var deltas: [NavigatorNode.Delta] = []
+        var deltas: [FileNode.Delta] = []
         collectDeltas(from: root, into: &deltas)
         guard !deltas.isEmpty else { return }
         onChange?(deltas)
@@ -55,8 +55,8 @@ final class NavigatorTree {
     /// once a node is gone from its parent it is gone from the outline view too,
     /// and reporting a delta for it would target a row that no longer exists.
     private func collectDeltas(
-        from node: NavigatorNode,
-        into deltas: inout [NavigatorNode.Delta]
+        from node: FileNode,
+        into deltas: inout [FileNode.Delta]
     ) {
         if let delta = node.reload() {
             deltas.append(delta)

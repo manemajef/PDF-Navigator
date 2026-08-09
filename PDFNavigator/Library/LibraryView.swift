@@ -1,6 +1,6 @@
 import SwiftUI
 
-struct WorkspaceHomeView: View {
+struct LibraryView: View {
     let folderURL: URL
     let pdfURLs: [URL]
     let onOpenDifferent: () -> Void
@@ -20,7 +20,7 @@ struct WorkspaceHomeView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            WorkspaceHeaderView(
+            LibraryHeaderView(
                 folderName: folderURL.lastPathComponent,
                 folderPath: folderURL.path,
                 onOpenDifferent: onOpenDifferent
@@ -57,8 +57,8 @@ struct WorkspaceHomeView: View {
 }
 
 #if DEBUG
-#Preview("Workspace Home View") {
-    WorkspaceHomeView(
+#Preview("Library View") {
+    LibraryView(
         folderURL:                 DevelopmentConfiguration.demoDirURL
 ,
             pdfURLs: [

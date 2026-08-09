@@ -3,7 +3,7 @@ import AppKit
 /// What the toolbar contains: every item, how it looks, what it commands, and
 /// when it is available.
 ///
-/// Pure data, and separate from `WindowToolbar` because the two change for
+/// Pure data, and separate from `ToolbarController` because the two change for
 /// different reasons. Adding or renaming a button is an edit here and nowhere
 /// else; changing *how* items are built or rendered is an edit there and
 /// nowhere else.
@@ -66,10 +66,10 @@ enum ToolbarCatalogue {
             symbol: "folder.badge.plus",
             action: #selector(WindowController.openNewWorkspace(_:))
         ),
-        .workspaceHome: Item(
-            label: "Workspace Home",
+        .library: Item(
+            label: "Library",
             symbol: "house",
-            action: #selector(WindowController.goToWorkspaceHome(_:))
+            action: #selector(WindowController.goToLibrary(_:))
         ),
         .pdfZoomIn: Item(
             label: "Zoom In",
@@ -225,7 +225,7 @@ enum ToolbarCatalogue {
 
     static let allowedIdentifiers: [NSToolbarItem.Identifier] = [
         .toggleSidebar, .sidebarTrackingSeparator, .workspaceNavigation,
-        .workspaceHome, .workspaceNewTab, .openNewWorkspace, .workspaceSearch,
+        .library, .workspaceNewTab, .openNewWorkspace, .workspaceSearch,
         .pdfPageNavigation, .pdfZoomControll,
         .pdfZoomIn, .pdfZoomOut, .pdfActualSize, .pdfZoomToFit,
         .pdfOpenExternally, .pdfShare, .space, .flexibleSpace,
@@ -247,7 +247,11 @@ enum ToolbarCatalogue {
 
 extension NSToolbarItem.Identifier {
     static let workspaceNavigation = Self("WorkspaceNavigation")
-    static let workspaceHome = Self("WorkspaceHome")
+    // The raw string is a persisted key: AppKit saves the user's toolbar
+    // arrangement under it. It intentionally still says "WorkspaceHome" after
+    // the rename to Library — changing it would discard everyone's customized
+    // toolbar.
+    static let library = Self("WorkspaceHome")
     static let workspaceNewTab = Self("WorkspaceNewTab")
     static let openNewWorkspace = Self("OpenNewWorkspace")
     static let workspaceSearch = Self("WorkspaceSearch")

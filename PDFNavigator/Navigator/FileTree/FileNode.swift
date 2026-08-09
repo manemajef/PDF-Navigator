@@ -8,7 +8,7 @@ import Foundation
 /// array: identity here plays the role a `key` plays in a React list, and
 /// throwing it away would collapse every expanded folder on every filesystem
 /// event.
-final class NavigatorNode: NSObject {
+final class FileNode: NSObject {
     /// One directory's worth of change, in the form `NSOutlineView` wants.
     ///
     /// `removed` indexes the children as they were before the rescan and
@@ -16,7 +16,7 @@ final class NavigatorNode: NSObject {
     /// convention `removeItems(at:inParent:)` followed by
     /// `insertItems(at:inParent:)` expects inside one update block.
     struct Delta {
-        let parent: NavigatorNode
+        let parent: FileNode
         let removed: IndexSet
         let inserted: IndexSet
     }
@@ -24,7 +24,7 @@ final class NavigatorNode: NSObject {
     let url: URL
     let isDirectory: Bool
 
-    private var loaded: [NavigatorNode]?
+    private var loaded: [FileNode]?
 
     init(url: URL, isDirectory: Bool) {
         self.url = url.standardizedFileURL
@@ -40,11 +40,11 @@ final class NavigatorNode: NSObject {
     /// Scanning here rather than in response to an expansion notification is
     /// what keeps `numberOfChildrenOfItem` truthful the first time AppKit asks,
     /// so a folder never renders empty and then repopulates a frame later.
-    var children: [NavigatorNode] {
+    var children: [FileNode] {
         if let loaded { return loaded }
 
         let scanned = isDirectory
-            ? DirectoryScanner.items(in: url).map { NavigatorNode(item: $0) }
+            ? DirectoryScanner.items(in: url).map { FileNode(item: $0) }
             : []
         loaded = scanned
         return scanned
@@ -55,7 +55,7 @@ final class NavigatorNode: NSObject {
     /// Callers that walk the tree use this instead of `children` so that
     /// visiting a node does not force a scan of a directory nothing has asked
     /// to see yet.
-    var loadedChildren: [NavigatorNode]? { loaded }
+    var loadedChildren: [FileNode]? { loaded }
 
     private convenience init(item: DirectoryScanner.Item) {
         self.init(url: item.url, isDirectory: item.isDirectory)
@@ -73,7 +73,7 @@ final class NavigatorNode: NSObject {
         let scanned = DirectoryScanner.items(in: url)
         let scannedKeys = Set(scanned.map { Key(item: $0) })
 
-        var survivors: [Key: NavigatorNode] = [:]
+        var survivors: [Key: FileNode] = [:]
         var removed = IndexSet()
         for (index, node) in current.enumerated() {
             let key = Key(node: node)
@@ -85,13 +85,13 @@ final class NavigatorNode: NSObject {
         }
 
         var inserted = IndexSet()
-        var next: [NavigatorNode] = []
+        var next: [FileNode] = []
         next.reserveCapacity(scanned.count)
         for (index, item) in scanned.enumerated() {
             if let survivor = survivors[Key(item: item)] {
                 next.append(survivor)
             } else {
-                next.append(NavigatorNode(item: item))
+                next.append(FileNode(item: item))
                 inserted.insert(index)
             }
         }
@@ -111,7 +111,7 @@ final class NavigatorNode: NSObject {
         let url: URL
         let isDirectory: Bool
 
-        init(node: NavigatorNode) {
+        init(node: FileNode) {
             url = node.url
             isDirectory = node.isDirectory
         }

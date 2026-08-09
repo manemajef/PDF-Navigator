@@ -5,9 +5,9 @@ import Observation
 /// The browsing state of one native tab or window.
 @MainActor
 @Observable
-final class TabSession {
+final class WorkspaceSession {
     enum Mode: Equatable {
-        case workspaceHome(URL)
+        case library(URL)
         case reading(URL)
     }
 
@@ -40,13 +40,13 @@ final class TabSession {
 
     var canGoBack: Bool { history.canGoBack }
     var canGoForward: Bool { history.canGoForward }
-    var canGoToWorkspaceHome: Bool { selection != nil }
+    var canGoToLibrary: Bool { selection != nil }
 
     var mode: Mode {
         if let selection {
             return .reading(selection)
         }
-        return .workspaceHome(root)
+        return .library(root)
     }
 
     /// `displayName(atPath:)` is what Finder and Preview show: it honours the
@@ -91,7 +91,7 @@ final class TabSession {
         changes.send(.history)
     }
 
-    func goToWorkspaceHome() {
+    func goToLibrary() {
         navigate(to: .folder(root))
     }
 

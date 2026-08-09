@@ -50,7 +50,7 @@ The intended architecture is AppKit-first for the macOS shell:
 The framework boundary is strict:
 
 - Embed SwiftUI with `NSHostingController` or `NSHostingView`.
-- Pass observable domain state and the framework-neutral `WorkspaceActions`
+- Pass observable domain state and the framework-neutral `ShellActions`
   value into hosted content.
 - Do not expose AppKit windows, views, controllers, responders, or toolbar
   objects to SwiftUI.

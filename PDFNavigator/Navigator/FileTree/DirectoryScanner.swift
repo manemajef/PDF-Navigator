@@ -20,10 +20,10 @@ nonisolated enum DirectoryScanner {
     /// resource values it is asked for, so the loop below reads a cache instead
     /// of issuing a syscall per entry; on a local volume a few hundred entries
     /// cost tens of microseconds, well under one frame. That is what lets
-    /// `NavigatorNode` scan lazily during an outline-view query and still report
+    /// `FileNode` scan lazily during an outline-view query and still report
     /// a true child count on the first ask.
     ///
-    /// A network volume or a spinning disk would hitch here. `NavigatorNode`'s
+    /// A network volume or a spinning disk would hitch here. `FileNode`'s
     /// `children` getter is the single place that would become asynchronous if
     /// that ever matters, and it would need a placeholder row to stay honest.
     static func items(in directory: URL) -> [Item] {
@@ -63,7 +63,7 @@ nonisolated enum DirectoryScanner {
 
     /// Directories first, then localized name order.
     ///
-    /// `NavigatorNode.reload()` depends on this being the only ordering the
+    /// `FileNode.reload()` depends on this being the only ordering the
     /// navigator ever applies: its diff assumes the surviving nodes appear in
     /// the same relative order before and after a rescan.
     private static func isOrderedBefore(_ lhs: Item, _ rhs: Item) -> Bool {

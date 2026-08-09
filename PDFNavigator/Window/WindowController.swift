@@ -2,14 +2,14 @@ import AppKit
 import Combine
 
 final class WindowController: NSWindowController {
-    let session: TabSession
+    let session: WorkspaceSession
     let routing = WindowRouting()
 
     private let readerController = PDFReaderController()
     private var sessionChangesSubscription: AnyCancellable?
-    private lazy var toolbar = WindowToolbar(target: self)
+    private lazy var toolbar = ToolbarController(target: self)
 
-    private lazy var workspaceActions = WorkspaceActions(
+    private lazy var shellActions = ShellActions(
         chooseLocation: { [weak routing] in routing?.chooseLocation() },
         openInNewTab: { [weak routing] in routing?.openInNewTab($0, $1) },
         revealInFinder: {
@@ -24,9 +24,9 @@ final class WindowController: NSWindowController {
         }
     )
 
-    private lazy var contentController = WorkspaceSplitController(
+    private lazy var contentController = WindowLayoutController(
         session: session,
-        actions: workspaceActions,
+        actions: shellActions,
         readerController: readerController,
         onInspectorChange: { [weak self] in
             self?.renderToolbar()
@@ -34,7 +34,7 @@ final class WindowController: NSWindowController {
     )
 
     init(request: OpenRequest) {
-        session = TabSession(request: request)
+        session = WorkspaceSession(request: request)
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 700, height: 850),
             styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
@@ -119,7 +119,7 @@ final class WindowController: NSWindowController {
         window.center()
     }
 
-    private func apply(_ change: TabSession.Change) {
+    private func apply(_ change: WorkspaceSession.Change) {
         switch change {
         // The title depends only on the session, so it is set before rendering:
         // `renderMode` loads the document, and waiting for that would leave the
@@ -253,8 +253,8 @@ final class WindowController: NSWindowController {
         session.goForward()
     }
 
-    @objc func goToWorkspaceHome(_ sender: Any?) {
-        session.goToWorkspaceHome()
+    @objc func goToLibrary(_ sender: Any?) {
+        session.goToLibrary()
     }
 
     @objc func toggleSidebar(_ sender: Any?) {
@@ -360,8 +360,8 @@ extension WindowController: NSMenuItemValidation, NSToolbarItemValidation {
             session.canGoBack
         case #selector(goForward(_:)):
             session.canGoForward
-        case #selector(goToWorkspaceHome(_:)):
-            session.canGoToWorkspaceHome
+        case #selector(goToLibrary(_:)):
+            session.canGoToLibrary
         case #selector(toggleSidebar(_:)),
              #selector(newTab(_:)),
              #selector(openNewWorkspace(_:)),

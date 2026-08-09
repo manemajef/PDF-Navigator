@@ -4,7 +4,7 @@ import Foundation
 ///
 /// The toolbar stores none of this. `WindowController` derives a fresh value
 /// from the session and the reader whenever something changes and hands it to
-/// `WindowToolbar.render(_:)`. A toolbar that remembers nothing cannot be out
+/// `ToolbarController.render(_:)`. A toolbar that remembers nothing cannot be out
 /// of date, and adding a toolbar item never means finding the place that
 /// refreshes it.
 struct ToolbarState {

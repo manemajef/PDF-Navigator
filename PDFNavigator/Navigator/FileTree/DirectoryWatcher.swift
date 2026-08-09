@@ -11,7 +11,7 @@ import Foundation
 ///
 /// The callback deliberately carries no payload. FSEvents can report
 /// `MustScanSubDirs` when its queue overflows, so any consumer has to be able to
-/// rescan from scratch anyway; `NavigatorTree` rescans only the directories it
+/// rescan from scratch anyway; `FileTree` rescans only the directories it
 /// has actually loaded, which is bounded by what the user has expanded.
 final class DirectoryWatcher {
     private let onChange: @MainActor () -> Void

@@ -144,8 +144,8 @@ final class MainMenu: NSObject, NSMenuDelegate {
         )
         goMenu.addItem(.separator())
         goMenu.addItem(
-            withTitle: "Workspace Home",
-            action: #selector(WindowController.goToWorkspaceHome(_:)),
+            withTitle: "Library",
+            action: #selector(WindowController.goToLibrary(_:)),
             keyEquivalent: ""
         )
         goMenu.addItem(.separator())

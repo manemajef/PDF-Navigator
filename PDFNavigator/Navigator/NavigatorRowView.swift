@@ -64,7 +64,7 @@ final class NavigatorRowView: NSTableCellView {
         fatalError("init(coder:) is unavailable")
     }
 
-    func configure(with node: NavigatorNode) {
+    func configure(with node: FileNode) {
         title.stringValue = node.name
         icon.image = node.isDirectory ? Self.folderIcon : Self.pdfIcon
     }

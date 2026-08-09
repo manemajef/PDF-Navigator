@@ -8,7 +8,7 @@ final class WorkspaceDocument: NSDocument {
     }
 
     /// The request this document was created or reopened with. Once a window
-    /// controller exists its `TabSession` is the authority; this only covers
+    /// controller exists its `WorkspaceSession` is the authority; this only covers
     /// the gap between `read(from:ofType:)` and `makeWindowControllers()`.
     private nonisolated let pendingRequest = Mutex<OpenRequest?>(nil)
 

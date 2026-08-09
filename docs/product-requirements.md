@@ -90,7 +90,7 @@ window.
 Sidebar contents, selected PDF, expanded folders, search state, and workspace
 navigation history belong to the active workspace tab.
 
-## Launch Panel And Workspace Home
+## Launch Panel And Library
 
 When the app launches without an open workspace, a separate launch panel
 appears. It should offer:

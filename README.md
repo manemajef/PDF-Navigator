@@ -1,9 +1,7 @@
 # PDF Navigator
 
-PDF Navigator is a native macOS PDF reader for people who work with
-collections of related documents. It combines a Preview-style reading
-experience with a workspace sidebar for moving quickly between PDFs in the
-same directory tree.
+PDF Navigator is a native macOS PDF reader for people who work with collections of related documents.
+It combines a Preview-style reading experience with a workspace sidebar for moving quickly between PDFs in the same directory tree.
 
 ![](./assets/PDFNavigator-Screenshot.png)
 
@@ -49,7 +47,7 @@ PDF Navigator intentionally uses AppKit and SwiftUI together:
   thumbnails, metadata, and search results; `PDFView` renders and navigates the
   current document.
 
-Each native tab has a `TabSession` for its root directory, selected PDF, and
+Each native tab has a `WorkspaceSession` for its root directory, selected PDF, and
 navigation history. A `PDFSession` owns the current document, search state, and
 saved reading position. `PDFReaderController` is the narrow AppKit adapter that
 renders that session into a private `PDFView`.

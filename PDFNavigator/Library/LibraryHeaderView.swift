@@ -1,7 +1,7 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-struct WorkspaceHeaderView: View {
+struct LibraryHeaderView: View {
     let folderName: String
     let folderPath: String
     let onOpenDifferent: () -> Void
@@ -44,8 +44,8 @@ struct WorkspaceHeaderView: View {
     }
 }
 
-#Preview("Workspace Header View") {
-    WorkspaceHeaderView(
+#Preview("Library Header View") {
+    LibraryHeaderView(
         folderName: "Micro 3",
         folderPath: "~/University/Semester 4/Micro 3"
     )

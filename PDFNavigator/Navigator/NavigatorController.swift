@@ -1,11 +1,11 @@
 import AppKit
 
-/// Projects a `NavigatorTree` into the native source list.
+/// Projects a `FileTree` into the native source list.
 ///
 /// This controller owns no file data. It answers outline-view queries from the
 /// tree, turns clicks and selection into the callbacks it was handed, and
 /// applies the tree's deltas as row insertions and removals. Scanning, sorting,
-/// filtering, and filesystem watching all belong to `NavigatorTree`; drawing a
+/// filtering, and filesystem watching all belong to `FileTree`; drawing a
 /// row belongs to `NavigatorRowView`.
 final class NavigatorController: NSViewController {
     private let scrollView = NSScrollView()
@@ -17,7 +17,7 @@ final class NavigatorController: NSViewController {
     private var onOpenInNewTab: (URL, TabActivation) -> Void
     private var onItemCountChange: (Int?) -> Void
 
-    private var tree: NavigatorTree
+    private var tree: FileTree
 
     /// Set while the controller drives the selection itself, so revealing the
     /// session's PDF does not read back as the user choosing it.
@@ -35,7 +35,7 @@ final class NavigatorController: NSViewController {
         self.onSelectPDF = onSelectPDF
         self.onOpenInNewTab = onOpenInNewTab
         self.onItemCountChange = onItemCountChange
-        tree = NavigatorTree(root: self.rootURL)
+        tree = FileTree(root: self.rootURL)
         super.init(nibName: nil, bundle: nil)
     }
 
@@ -94,7 +94,7 @@ final class NavigatorController: NSViewController {
 
         loadViewIfNeeded()
         if rootChanged {
-            tree = NavigatorTree(root: rootURL)
+            tree = FileTree(root: rootURL)
             adoptTree()
         } else {
             revealSelectedPDF()
@@ -117,7 +117,7 @@ final class NavigatorController: NSViewController {
         revealSelectedPDF()
     }
 
-    private func apply(_ deltas: [NavigatorNode.Delta]) {
+    private func apply(_ deltas: [FileNode.Delta]) {
         // The tree has already reconciled itself, so the data source answers
         // with the new state; these calls only tell the outline view which rows
         // moved so it can animate and keep its expansion and selection intact.
@@ -167,7 +167,7 @@ final class NavigatorController: NSViewController {
     ///
     /// The prefix check runs before any child is touched, so only directories on
     /// the path are ever scanned — a sibling of the target is never opened.
-    private func node(for fileURL: URL, from node: NavigatorNode) -> NavigatorNode? {
+    private func node(for fileURL: URL, from node: FileNode) -> FileNode? {
         guard fileURL.isDescendantOrSame(of: node.url) else { return nil }
         if node.url == fileURL { return node }
         guard node.isDirectory else { return nil }
@@ -185,7 +185,7 @@ final class NavigatorController: NSViewController {
 
     /// Command-click on a PDF opens a background tab and leaves selection alone.
     private func openRowInBackgroundTab(_ row: Int) -> Bool {
-        guard let node = outlineView.item(atRow: row) as? NavigatorNode,
+        guard let node = outlineView.item(atRow: row) as? FileNode,
               !node.isDirectory else {
             return false
         }
@@ -217,7 +217,7 @@ final class NavigatorController: NSViewController {
         let clickedRow = outlineView.clickedRow
         let row = clickedRow >= 0 ? clickedRow : outlineView.selectedRow
         guard row >= 0,
-              let node = outlineView.item(atRow: row) as? NavigatorNode,
+              let node = outlineView.item(atRow: row) as? FileNode,
               !node.isDirectory else {
             return nil
         }
@@ -255,7 +255,7 @@ final class NavigatorController: NSViewController {
     }
 
     private func isRoot(_ item: Any?) -> Bool {
-        guard let node = item as? NavigatorNode else { return false }
+        guard let node = item as? FileNode else { return false }
         return node === tree.root
     }
 }
@@ -265,7 +265,7 @@ extension NavigatorController: NSOutlineViewDataSource {
         _ outlineView: NSOutlineView,
         numberOfChildrenOfItem item: Any?
     ) -> Int {
-        guard let node = item as? NavigatorNode else { return 1 }
+        guard let node = item as? FileNode else { return 1 }
         return node.children.count
     }
 
@@ -274,7 +274,7 @@ extension NavigatorController: NSOutlineViewDataSource {
         child index: Int,
         ofItem item: Any?
     ) -> Any {
-        guard let node = item as? NavigatorNode else { return tree.root }
+        guard let node = item as? FileNode else { return tree.root }
         return node.children[index]
     }
 
@@ -285,7 +285,7 @@ extension NavigatorController: NSOutlineViewDataSource {
         _ outlineView: NSOutlineView,
         isItemExpandable item: Any
     ) -> Bool {
-        (item as? NavigatorNode)?.isDirectory == true
+        (item as? FileNode)?.isDirectory == true
     }
 }
 
@@ -299,7 +299,7 @@ extension NavigatorController: NSOutlineViewDelegate {
         viewFor tableColumn: NSTableColumn?,
         item: Any
     ) -> NSView? {
-        guard let node = item as? NavigatorNode else { return nil }
+        guard let node = item as? FileNode else { return nil }
 
         if isRoot(node) {
             let view = outlineView.makeView(
@@ -327,7 +327,7 @@ extension NavigatorController: NSOutlineViewDelegate {
 
         let row = outlineView.selectedRow
         guard row >= 0,
-              let node = outlineView.item(atRow: row) as? NavigatorNode,
+              let node = outlineView.item(atRow: row) as? FileNode,
               !node.isDirectory else {
             return
         }

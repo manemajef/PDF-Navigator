@@ -31,46 +31,36 @@ PDFNavigator/
   AppDelegate.swift
   DevelopmentConfiguration.swift
   MainMenu.swift
-  OpenRequest.swift
   WorkspaceDocument.swift
 
-  Components/
-    FileCardView.swift
-    FolderCardView.swift
-    HoverButtonStyle.swift
-    RecentRowView.swift
+  Session/
+    WorkspaceSession.swift
+    NavigationHistory.swift
+    OpenRequest.swift
 
   Window/
     WindowController.swift
+    WindowLayoutController.swift
     WindowRouting.swift
-    WindowToolbar.swift
+    ShellActions.swift
+
+  Toolbar/
+    ToolbarController.swift
     ToolbarCatalogue.swift
     ToolbarState.swift
-    WorkspaceActions.swift
-    WorkspaceSplitController.swift
-    TabSession.swift
-    NavigationHistory.swift
-
-  LaunchPanel/
-    LaunchPanelController.swift
-    LaunchPanelHeaderView.swift
-    LaunchPanelView.swift
-    RecentPDFsSectionView.swift
-    RecentWorkspacesSectionView.swift
-
-  Workspace/
-    FileCardGridView.swift
-    WorkspaceHeaderView.swift
-    WorkspaceHomeContentView.swift
-    WorkspaceHomeView.swift
 
   Navigator/
     SidebarController.swift
-    NavigatorController.swift
-    NavigatorItem.swift
-    DirectoryScanner.swift
-    SidebarHeaderView.swift
     SidebarFooterView.swift
+    NavigatorController.swift
+    NavigatorOutlineView.swift
+    NavigatorRowView.swift
+    NavigatorSectionRowView.swift
+    FileTree/
+      FileTree.swift
+      FileNode.swift
+      DirectoryScanner.swift
+      DirectoryWatcher.swift
 
   Reader/
     PDFSession.swift
@@ -79,11 +69,27 @@ PDFNavigator/
     PDFReaderPreview.swift
     ReadingPositionStore.swift
 
-    Inspector/
-      PDFInspectorView.swift
-      PDFThumbnailsView.swift
-      PDFOutlineView.swift
-      PDFInfoView.swift
+  Inspector/
+    PDFInspectorView.swift
+    PDFThumbnailsView.swift
+    PDFOutlineView.swift
+    PDFInfoView.swift
+
+  Library/
+    LibraryContentView.swift
+    LibraryView.swift
+    LibraryHeaderView.swift
+
+  LaunchPanel/
+    LaunchPanelController.swift
+    LaunchPanelView.swift
+    LaunchPanelHeaderView.swift
+    RecentSectionView.swift
+    RecentRowView.swift
+
+  Components/
+    FileCardView.swift
+    FileCardGridView.swift
 
   Stores/
     RecentLocationsStore.swift
@@ -105,18 +111,18 @@ do not use it as architectural or build configuration authority.
 A **workspace** is a directory used as the navigation root. It is not a window,
 tab, controller, or globally unique runtime object.
 
-A `TabSession` is the mutable browsing state of one native tab or standalone
+A `WorkspaceSession` is the mutable browsing state of one native tab or standalone
 window:
 
 ```text
-TabSession
+WorkspaceSession
   root: URL
   selection: URL?
   pdfSession: PDFSession?
   navigation history
 ```
 
-Multiple `TabSession` instances may reference the same workspace root. Their
+Multiple `WorkspaceSession` instances may reference the same workspace root. Their
 selection, search, PDF state, and history remain independent. Shared directory
 data should be introduced only if measured duplication justifies it; UI
 controllers and mutable navigation state must not be shared between tabs.
@@ -149,11 +155,11 @@ WorkspaceDocument
 
 WindowController
   owns one NSWindow, including a window presented as a native tab
-  owns one TabSession, WindowToolbar, and WorkspaceSplitController
+  owns one WorkspaceSession, ToolbarController, and WindowLayoutController
 
-WorkspaceSplitController
+WindowLayoutController
   owns the AppKit navigator/detail/inspector composition
-  hosts WorkspaceHomeContentView for workspace-home presentation
+  hosts LibraryContentView for library presentation
   installs PDFReaderController directly for reading
   hosts PDFInspectorView inside the native inspector split item
 
@@ -166,7 +172,7 @@ also has its own toolbar, split controller, sidebar controller, and reader
 controller. Native tab grouping controls presentation; it does not create a
 shared controller tree.
 
-`TabSession` and `PDFSession` remain the authoritative state owners. Rendering
+`WorkspaceSession` and `PDFSession` remain the authoritative state owners. Rendering
 controllers may retain the last values they were given when AppKit needs them
 for diffing or selection (`NavigatorController` does this for its root and
 selected URL), but those copies are presentation inputs rather than a second
@@ -184,15 +190,15 @@ The framework boundary uses only Apple-supported interoperability types:
 3. A SwiftUI preview may wrap a production AppKit controller with
    [`NSViewControllerRepresentable`](https://developer.apple.com/documentation/swiftui/nsviewcontrollerrepresentable).
    Production composition installs the AppKit controller directly.
-4. Observable state crosses as `TabSession`, `PDFSession`, or the narrow
+4. Observable state crosses as `WorkspaceSession`, `PDFSession`, or the narrow
    `PDFReaderPresentationState`; none exposes a framework view.
-5. Intent returns to the shell through `WorkspaceActions`, an immutable,
+5. Intent returns to the shell through `ShellActions`, an immutable,
    framework-neutral closure value.
 
-`WorkspaceActions` is the complete workspace-content-to-shell API:
+`ShellActions` is the complete workspace-content-to-shell API:
 
 ```swift
-struct WorkspaceActions {
+struct ShellActions {
     let chooseLocation: () -> Void
     let openInNewTab: (URL, TabActivation) -> Void
     let revealInFinder: (URL) -> Void
@@ -260,7 +266,7 @@ It should not acquire additional responsibilities in the meantime.
 ## Window Shell and Commands
 
 `WindowController` creates and configures the `NSWindow`, routes responder-chain
-commands, validates menu and toolbar items, and projects `TabSession` changes
+commands, validates menu and toolbar items, and projects `WorkspaceSession` changes
 into the title, represented URL, recents, toolbar state, and visible content.
 
 The toolbar is split by reason to change:
@@ -268,13 +274,13 @@ The toolbar is split by reason to change:
 - `ToolbarCatalogue` is pure data: which items exist, their labels, symbols,
   commands, and which require an open PDF. Adding or renaming a button is an
   edit here alone.
-- `WindowToolbar` owns `NSToolbarDelegate`, item construction, and search
+- `ToolbarController` owns `NSToolbarDelegate`, item construction, and search
   presentation. It stores no application state.
 - `ToolbarState` is the immutable value the toolbar is rendered from.
 
 `WindowController` derives a fresh `ToolbarState` from whichever object owns
 each value — the session for navigation, the reader for zoom, the split
-controller for the inspector — and calls `WindowToolbar.render(_:)` after every
+controller for the inspector — and calls `ToolbarController.render(_:)` after every
 session change. Do not reintroduce per-change `update` methods on the toolbar;
 they require it to mirror state it does not own.
 
@@ -291,7 +297,7 @@ compatibility keys and do not need to match current type names.
 
 Menus and toolbar items target the same small `@objc` methods on
 `WindowController`. Back/forward navigation among workspace homes and selected
-PDFs belongs to `TabSession`; page navigation inside the current PDF belongs to
+PDFs belongs to `WorkspaceSession`; page navigation inside the current PDF belongs to
 `PDFReaderController` and PDFKit.
 
 ## Navigator
@@ -299,8 +305,8 @@ PDFs belongs to `TabSession`; page navigation inside the current PDF belongs to
 The navigator separates file data, outline projection, and row drawing:
 
 ```text
-NavigatorTree      model: the node tree for one root, kept in sync with disk
-  NavigatorNode      one directory or PDF; scans lazily, reconciles in place
+FileTree      model: the node tree for one root, kept in sync with disk
+  FileNode      one directory or PDF; scans lazily, reconciles in place
   DirectoryScanner   one directory's PDFs and subdirectories, sorted
   DirectoryWatcher   FSEvents stream over the whole subtree
 NavigatorController  projection: outline data source, selection, commands
@@ -309,7 +315,7 @@ NavigatorController  projection: outline data source, selection, commands
   NavigatorSectionRowView  workspace-root group row
 ```
 
-`NavigatorTree` owns file data and imports no AppKit, so the tree and its
+`FileTree` owns file data and imports no AppKit, so the tree and its
 reconciliation are testable without a view. `NavigatorController` owns no file
 data: it answers outline-view queries from the tree and applies the tree's
 deltas. This is the split the ownership table above already implied but the
@@ -322,16 +328,16 @@ during the data-source query, which is tens of microseconds on a local volume
 and lets `numberOfChildrenOfItem` return a true count on the first ask. Do not
 reintroduce asynchronous loading with a sometimes-async completion handler: that
 shape produced a reveal/load race and an empty-first-expansion artifact.
-`NavigatorNode.children` is the single place to become asynchronous if a network
+`FileNode.children` is the single place to become asynchronous if a network
 volume ever justifies it, and that change needs a placeholder row.
 
-Live updates are delta-based. `NavigatorTree` rescans the directories it has
+Live updates are delta-based. `FileTree` rescans the directories it has
 loaded and publishes per-directory index sets; `NavigatorController` applies them
 with `removeItems(at:inParent:)` and `insertItems(at:inParent:)`. Node identity
 is load-bearing: a path that survives a rescan keeps its existing
-`NavigatorNode`, which is what preserves expansion state and selection.
+`FileNode`, which is what preserves expansion state and selection.
 Rebuilding the tree, or falling back to `reloadData()`, discards both. For the
-same reason `NavigatorTree` publishes deltas through a callback rather than
+same reason `FileTree` publishes deltas through a callback rather than
 `@Observable` — observation reports *that* something changed, which is the wrong
 granularity for an outline view.
 
@@ -355,7 +361,7 @@ reaching into a raw `PDFView`.
 `PDFReaderPreview` is a DEBUG-only `NSViewControllerRepresentable` adapter for
 the canvas. It is not part of production composition.
 
-`WorkspaceSplitController` owns the native inspector split item and hosts
+`WindowLayoutController` owns the native inspector split item and hosts
 `PDFInspectorView` there. The inspector is SwiftUI because PDFKit supplies its
 document data but the app owns this presentation. Its three sections consume
 the current `PDFDocument` directly:
@@ -364,7 +370,7 @@ the current `PDFDocument` directly:
 - `PDFOutlineView` renders the PDF outline and returns outline-selection intent.
 - `PDFInfoView` presents document metadata and current reader status.
 
-`WorkspaceSplitController` owns inspector presentation and exposes it as
+`WindowLayoutController` owns inspector presentation and exposes it as
 `inspectorSection`, which is `nil` while the inspector is collapsed. It signals
 changes with a payload-free callback; `WindowController` then reads the current
 value while building `ToolbarState`. The native reader-panel group selects
@@ -399,16 +405,91 @@ Restored file access will require security-scoped bookmarks before sandboxed
 distribution. Raw URLs are acceptable for current runtime state but are not a
 complete sandbox restoration design.
 
+## Dictionary
+
+These terms have one meaning each. Use them exactly; do not introduce a synonym
+for a term that already exists.
+
+| Term | Means | Does not mean |
+|---|---|---|
+| **Workspace** | a directory being browsed | a window, a tab, or a runtime object |
+| **Session** | live state of browsing one workspace: root, selection, history | anything on screen |
+| **Window** | the AppKit shell. A native tab *is* an `NSWindow` | the state inside it |
+| **Shell** | window furniture: window, toolbar, menus, split layout | the content filling those regions |
+| **Content** | what fills a shell region | the region itself |
+| **Navigator** | the file-tree sidebar | the file tree data (that is `FileTree`) |
+| **Reader** | the PDF viewing surface | the PDF document (that is `PDFSession`) |
+| **Inspector** | the right-hand split region | |
+| **Detail** | the middle split region. Always shows either the reader or the library | a container type — no such class exists |
+| **Library** | the view of a workspace's contents, shown in detail when no PDF is open | the folder itself (that is the workspace) |
+
+Because a native tab is an `NSWindow`, "window" and "tab" would otherwise name
+the same runtime object. The app resolves this by using **window** for the
+AppKit shell and never naming its own types after tabs. `TabActivation` is the
+sole exception: it means foreground or background from the user's point of
+view, where "tab" is the honest word.
+
+**Workspace is a domain word; Library is a UI word.** The folder being browsed
+is a workspace (`WorkspaceSession`, `WorkspaceDocument`, "Recent Workspaces").
+The view showing what is in it is the library. No type should use "Workspace"
+to name a view.
+
+**The library's contents are unsettled.** It currently shows recents; the
+product intent is a folder-scoped grid with thumbnails and reading progress.
+The name is stable, the contents are not.
+
+**The library must never own navigation.** Its scope follows the navigator's
+selection; it gets no breadcrumbs, no drill-down, and no back stack of its own.
+The navigator is the single answer to "where am I". Giving the detail region a
+second notion of location would mean `OpenRequest` grows a third coordinate and
+`NavigationHistory` has to decide whether Back undoes a folder change or a PDF
+open — a question with no right answer.
+
 ## Naming Rules
 
-- `Window` names refer to native window-shell ownership.
-- `Workspace` names refer to one tab's directory-backed browsing context.
-- `Reader` names refer to PDFKit-backed reading behavior.
-- `ContentView` names are SwiftUI regions hosted by an AppKit controller.
-- `Controller` names are AppKit controller objects with lifecycle ownership.
-- `Routing` names are AppKit-only callback installation points.
-- `Actions` names are immutable UI intent contracts with no framework objects.
-- File names match their primary type.
+A type's **suffix** says what kind of object it is:
+
+| Suffix | Means |
+|---|---|
+| `Controller` | owns an AppKit object's lifecycle |
+| `View` | draws |
+| `Session` | mutable state with a lifetime |
+| `Store` | persistence |
+| `State` | an immutable snapshot passed to a renderer |
+| `Actions` | a value carrying closures, no framework objects |
+| `Catalogue` | static declarative data |
+| `Scanner`, `Watcher` | single-purpose worker |
+
+A type's **prefix** says which feature it belongs to: `Navigator`, `Reader`,
+`Inspector`, `Workspace`, `Window`, `Toolbar`, `LaunchPanel`.
+
+From those two, one checkable invariant:
+
+> A file's prefix must match its directory, unless it is a generic worker or
+> carries a domain qualifier.
+
+Three exceptions, each deliberate:
+
+- **Generic workers carry no feature prefix.** `DirectoryScanner`,
+  `DirectoryWatcher`, `NavigationHistory`, and `OpenRequest` describe work or
+  values, not features, and would be equally at home elsewhere.
+- **`PDF` is a domain qualifier, not a feature prefix.** It says which kind of
+  document the type is about. `PDFThumbnailsView` in `Inspector/` and
+  `PDFSession` in `Reader/` are correct; renaming them to `Inspector*` would
+  describe where they live rather than what they handle.
+- **`Sidebar` is the navigator's container region** — the scroll view, the
+  footer, and the split item that holds them. It is part of the navigator's
+  vocabulary, not a separate feature, which is why `SidebarController` lives in
+  `Navigator/`.
+
+`ShellActions` sits in `Window/` because `WindowController` constructs it, even
+though the shell it names is broader than one window. If a second constructor
+ever appears, move it to the source root rather than duplicating it.
+
+Anything else named for one feature while sitting in another feature's
+directory means either the name or the location is wrong.
+
+File names match their primary type.
 
 ## Non-Goals
 

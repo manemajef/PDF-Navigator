@@ -1,13 +1,13 @@
 import SwiftUI
 
 /// SwiftUI content hosted in the AppKit workspace detail pane.
-struct WorkspaceHomeContentView: View {
-    let session: TabSession
-    let actions: WorkspaceActions
+struct LibraryContentView: View {
+    let session: WorkspaceSession
+    let actions: ShellActions
 
     var body: some View {
-        if case .workspaceHome(let root) = session.mode {
-            WorkspaceHomeContainerView(
+        if case .library(let root) = session.mode {
+            LibraryContainerView(
                 rootURL: root,
                 onOpenDifferent: actions.chooseLocation,
                 onSelectPDF: session.select
@@ -16,13 +16,13 @@ struct WorkspaceHomeContentView: View {
     }
 }
 
-private struct WorkspaceHomeContainerView: View {
+private struct LibraryContainerView: View {
     let rootURL: URL
     let onOpenDifferent: () -> Void
     let onSelectPDF: (URL) -> Void
 
     var body: some View {
-        WorkspaceHomeView(
+        LibraryView(
             folderURL: rootURL,
             pdfURLs: RecentLocationsStore.shared.recentPDFs(
                 in: rootURL,

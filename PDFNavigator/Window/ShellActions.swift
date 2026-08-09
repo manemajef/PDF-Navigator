@@ -4,7 +4,7 @@ import Foundation
 ///
 /// AppKit creates this value and SwiftUI receives it through an initializer. The
 /// contract deliberately exposes no `NSWindow`, view, controller, or responder.
-struct WorkspaceActions {
+struct ShellActions {
     let chooseLocation: () -> Void
     let openInNewTab: (URL, TabActivation) -> Void
     let revealInFinder: (URL) -> Void

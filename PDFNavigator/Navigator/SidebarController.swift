@@ -3,8 +3,8 @@ import SwiftUI
 
 /// Native sidebar shell containing the AppKit navigator and SwiftUI footer.
 final class SidebarController: NSViewController {
-    private let session: TabSession
-    private let actions: WorkspaceActions
+    private let session: WorkspaceSession
+    private let actions: ShellActions
     private let footerView: NSHostingView<SidebarFooterView>
     private var itemCount: Int?
     private lazy var navigatorController = NavigatorController(
@@ -15,7 +15,7 @@ final class SidebarController: NSViewController {
         onItemCountChange: { [weak self] in self?.setItemCount($0) }
     )
 
-    init(session: TabSession, actions: WorkspaceActions) {
+    init(session: WorkspaceSession, actions: ShellActions) {
         self.session = session
         self.actions = actions
         footerView = NSHostingView(

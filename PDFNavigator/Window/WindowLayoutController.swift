@@ -3,11 +3,11 @@ import PDFKit
 import SwiftUI
 
 /// Native three-column geometry: Navigator | workspace/reader | Inspector.
-final class WorkspaceSplitController: NSSplitViewController {
-    private let session: TabSession
+final class WindowLayoutController: NSSplitViewController {
+    private let session: WorkspaceSession
     private let readerController: PDFReaderController
     private let workspaceSidebarController: SidebarController
-    private let workspaceController: NSHostingController<WorkspaceHomeContentView>
+    private let libraryController: NSHostingController<LibraryContentView>
     private let inspectorPresentationState = PDFInspectorPresentationState()
 
     /// A bare "something changed" signal. It carries no payload because this
@@ -38,8 +38,8 @@ final class WorkspaceSplitController: NSSplitViewController {
     }
 
     init(
-        session: TabSession,
-        actions: WorkspaceActions,
+        session: WorkspaceSession,
+        actions: ShellActions,
         readerController: PDFReaderController,
         onInspectorChange: @escaping () -> Void
     ) {
@@ -48,8 +48,8 @@ final class WorkspaceSplitController: NSSplitViewController {
         self.onInspectorChange = onInspectorChange
 
         workspaceSidebarController = SidebarController(session: session, actions: actions)
-        workspaceController = NSHostingController(
-            rootView: WorkspaceHomeContentView(
+        libraryController = NSHostingController(
+            rootView: LibraryContentView(
                 session: session,
                 actions: actions
             )
@@ -119,9 +119,9 @@ final class WorkspaceSplitController: NSSplitViewController {
         workspaceSidebarController.update()
 
         switch session.mode {
-        case .workspaceHome:
+        case .library:
             setInspector(visible: false)
-            install(workspaceController, in: detailContainer)
+            install(libraryController, in: detailContainer)
 
         case .reading:
             guard let pdfSession = session.pdfSession else { return }
