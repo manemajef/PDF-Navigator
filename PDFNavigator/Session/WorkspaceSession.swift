@@ -48,9 +48,10 @@ final class WorkspaceSession {
         OpenRequest(workspaceRootURL: root, mode: mode)
     }
 
-    /// The file the titlebar names and its proxy icon points at.
+    /// The file the titlebar proxy icon points at.
     var representedURL: URL {
         switch mode {
+        case .startPage: root
         case .library(let url): url
         case .reading(let url): url
         }
@@ -60,6 +61,8 @@ final class WorkspaceSession {
     /// user's "Show all filename extensions" setting and localized folder
     /// names, rather than always printing the raw `Foo.pdf`.
     var windowTitle: String {
+        if mode == .startPage { return "Start Page" }
+
         let url = representedURL
         guard !url.lastPathComponent.isEmpty else { return url.path }
         return FileManager.default.displayName(atPath: url.path)

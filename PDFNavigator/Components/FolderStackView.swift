@@ -9,7 +9,7 @@ struct FolderStackView: View {
     @State private var previewURLs: [URL] = []
 
     var body: some View {
-        Button(action: action) {
+        GalleryItemButton(action: action) {
             VStack(spacing: 8) {
                 ZStack(alignment: .bottomTrailing) {
                     if previewURLs.isEmpty {
@@ -52,7 +52,6 @@ struct FolderStackView: View {
             .padding(.horizontal, 10)
             .padding(.vertical, 8)
         }
-        .buttonStyle(.plain)
         .task(id: url) {
             previewURLs = folderPreviewPDFs(in: url, limit: 3)
         }

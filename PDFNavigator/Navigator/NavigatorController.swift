@@ -1,8 +1,5 @@
 import AppKit
 
-/// The navigator's virtual Recents row.
-private final class NavigatorRecentsItem {}
-
 /// Projects a `FileTree` into the native source list.
 ///
 /// Owns no file data. It answers outline-view queries from the tree, turns
@@ -11,14 +8,12 @@ private final class NavigatorRecentsItem {}
 final class NavigatorController: NSViewController {
     private let scrollView = NSScrollView()
     private let outlineView = NavigatorOutlineView()
-    private let recentsItem = NavigatorRecentsItem()
 
     private var rootURL: URL
     private var mode: WorkspaceMode
     /// Fixed for the controller's lifetime; only the mode changes per render.
     private let onSelectPDF: (URL) -> Void
     private let onSelectFolder: (URL) -> Void
-    private let onSelectRecents: () -> Void
     private let onOpenInNewTab: (URL, TabActivation) -> Void
     private let onItemCountChange: (Int?) -> Void
 
@@ -33,7 +28,6 @@ final class NavigatorController: NSViewController {
         mode: WorkspaceMode,
         onSelectPDF: @escaping (URL) -> Void,
         onSelectFolder: @escaping (URL) -> Void,
-        onSelectRecents: @escaping () -> Void,
         onOpenInNewTab: @escaping (URL, TabActivation) -> Void,
         onItemCountChange: @escaping (Int?) -> Void
     ) {
@@ -41,7 +35,6 @@ final class NavigatorController: NSViewController {
         self.mode = mode
         self.onSelectPDF = onSelectPDF
         self.onSelectFolder = onSelectFolder
-        self.onSelectRecents = onSelectRecents
         self.onOpenInNewTab = onOpenInNewTab
         self.onItemCountChange = onItemCountChange
         tree = FileTree(root: self.rootURL)
@@ -162,9 +155,8 @@ final class NavigatorController: NSViewController {
     private func rowForCurrentMode() -> Int? {
         let url: URL
         switch mode {
-        case .library(let folderURL) where folderURL == rootURL:
-            let rootLibraryRow = outlineView.row(forItem: recentsItem)
-            return rootLibraryRow >= 0 ? rootLibraryRow : nil
+        case .startPage:
+            return nil
         case .library(let folderURL):
             url = folderURL
         case .reading(let pdfURL):
@@ -172,8 +164,7 @@ final class NavigatorController: NSViewController {
         }
 
         guard url.isDescendantOrSame(of: tree.root.url),
-              let node = node(for: url, from: tree.root),
-              node !== tree.root else {
+              let node = node(for: url, from: tree.root) else {
             return nil
         }
 
@@ -271,11 +262,6 @@ final class NavigatorController: NSViewController {
         finderItem.target = self
         return menu
     }
-
-    private func isRoot(_ item: Any?) -> Bool {
-        guard let node = item as? FileNode else { return false }
-        return node === tree.root
-    }
 }
 
 extension NavigatorController: NSOutlineViewDataSource {
@@ -284,7 +270,7 @@ extension NavigatorController: NSOutlineViewDataSource {
         numberOfChildrenOfItem item: Any?
     ) -> Int {
         switch item {
-        case nil: 2
+        case nil: 1
         case let node as FileNode: node.children.count
         default: 0
         }
@@ -295,9 +281,7 @@ extension NavigatorController: NSOutlineViewDataSource {
         child index: Int,
         ofItem item: Any?
     ) -> Any {
-        guard let node = item as? FileNode else {
-            return index == 0 ? recentsItem : tree.root
-        }
+        guard let node = item as? FileNode else { return tree.root }
         return node.children[index]
     }
 
@@ -312,34 +296,12 @@ extension NavigatorController: NSOutlineViewDataSource {
 }
 
 extension NavigatorController: NSOutlineViewDelegate {
-    func outlineView(_ outlineView: NSOutlineView, isGroupItem item: Any) -> Bool {
-        isRoot(item)
-    }
-
     func outlineView(
         _ outlineView: NSOutlineView,
         viewFor tableColumn: NSTableColumn?,
         item: Any
     ) -> NSView? {
-        if item is NavigatorRecentsItem {
-            let view = outlineView.makeView(
-                withIdentifier: NavigatorRowView.identifier,
-                owner: self
-            ) as? NavigatorRowView ?? NavigatorRowView()
-            view.configureAsRecents()
-            return view
-        }
-
         guard let node = item as? FileNode else { return nil }
-
-        if isRoot(node) {
-            let view = outlineView.makeView(
-                withIdentifier: NavigatorSectionRowView.identifier,
-                owner: self
-            ) as? NavigatorSectionRowView ?? NavigatorSectionRowView()
-            view.configure(with: node)
-            return view
-        }
 
         let view = outlineView.makeView(
             withIdentifier: NavigatorRowView.identifier,
@@ -349,23 +311,13 @@ extension NavigatorController: NSOutlineViewDelegate {
         return view
     }
 
-    func outlineView(_ outlineView: NSOutlineView, shouldSelectItem item: Any) -> Bool {
-        !isRoot(item)
-    }
-
     func outlineViewSelectionDidChange(_ notification: Notification) {
         guard !isRevealingSelection else { return }
 
         let row = outlineView.selectedRow
         guard row >= 0 else { return }
 
-        let item = outlineView.item(atRow: row)
-        if item is NavigatorRecentsItem {
-            onSelectRecents()
-            return
-        }
-
-        guard let node = item as? FileNode else { return }
+        guard let node = outlineView.item(atRow: row) as? FileNode else { return }
         if node.isDirectory {
             onSelectFolder(node.url)
         } else {

@@ -6,19 +6,25 @@ struct LibraryContentView: View {
 
     var body: some View {
         if case .library(let folderURL) = session.mode {
-            let isRoot = folderURL == session.root
             let items = DirectoryScanner.items(in: folderURL)
+            let folderURLs = items.filter(\.isDirectory).map(\.url)
+            let pdfURLs = items.filter { !$0.isDirectory }.map(\.url)
 
-            LibraryView(
-                isRoot: isRoot,
-                recentURLs: isRoot
-                    ? RecentLocationsStore.shared.recentPDFs(in: session.root)
-                    : [],
-                folderURLs: items.filter(\.isDirectory).map(\.url),
-                pdfURLs: items.filter { !$0.isDirectory }.map(\.url),
-                onSelectPDF: session.select,
-                onSelectFolder: session.showFolder
-            )
+            if folderURL == session.root {
+                LibraryView(
+                    folderURLs: folderURLs,
+                    pdfURLs: pdfURLs,
+                    onSelectPDF: session.select,
+                    onSelectFolder: session.showFolder
+                )
+            } else {
+                FolderGalleryView(
+                    folderURLs: folderURLs,
+                    pdfURLs: pdfURLs,
+                    onSelectPDF: session.select,
+                    onSelectFolder: session.showFolder
+                )
+            }
         }
     }
 }

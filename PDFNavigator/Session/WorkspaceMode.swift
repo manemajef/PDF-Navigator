@@ -2,6 +2,7 @@ import Foundation
 
 /// The single location coordinate for a workspace session.
 nonisolated enum WorkspaceMode: Equatable {
+    case startPage
     case library(URL)
     case reading(URL)
 

@@ -57,8 +57,7 @@ final class ToolbarController: NSObject, NSToolbarDelegate, NSSearchFieldDelegat
         searchItem?.searchField.stringValue = ""
     }
 
-    func beginSearch(canSearch: Bool) {
-        guard canSearch else { return }
+    func beginSearch() {
         searchItem?.beginSearchInteraction()
     }
 
@@ -127,7 +126,7 @@ final class ToolbarController: NSObject, NSToolbarDelegate, NSSearchFieldDelegat
             return NSSearchToolbarItem(
                 identifier: identifier,
                 label: "Search",
-                placeholder: "Search Current PDF",
+                placeholder: "Search",
                 target: target,
                 action: #selector(WindowController.searchFieldSubmitted(_:)),
                 delegate: self

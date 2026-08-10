@@ -10,7 +10,7 @@ struct FolderCardView: View {
     @State private var previewURLs: [URL] = []
 
     var body: some View {
-        Button(action: action) {
+        GalleryItemButton(action: action) {
             VStack(spacing: 8) {
                 ZStack {
                     RoundedRectangle(cornerRadius: 20, style: .continuous)
@@ -62,7 +62,6 @@ struct FolderCardView: View {
             .padding(.horizontal, 10)
             .padding(.vertical, 8)
         }
-        .buttonStyle(.plain)
         .task(id: url) {
             previewURLs = folderPreviewPDFs(in: url, limit: 4)
         }

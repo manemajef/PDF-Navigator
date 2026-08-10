@@ -3,40 +3,22 @@ import SwiftUI
 struct LibraryGridView: View {
     private static let minimumCardWidth: CGFloat = 130
     private static let spacing: CGFloat = 14
-    private static let collapsedRowCount = 2
 
-    let recentURLs: [URL]
     let folderURLs: [URL]
     let pdfURLs: [URL]
     let emptyMessage: String
     let onSelectPDF: (URL) -> Void
     let onSelectFolder: (URL) -> Void
 
-    @State private var recentsExpanded = false
-    @State private var columnCount = 1
-
     private var columns: [GridItem] {
         [GridItem(.adaptive(minimum: Self.minimumCardWidth), spacing: Self.spacing)]
     }
 
-    private var collapsedRecentCount: Int {
-        columnCount * Self.collapsedRowCount
-    }
-
-    private var visibleRecentURLs: [URL] {
-        recentsExpanded
-            ? recentURLs
-            : Array(recentURLs.prefix(collapsedRecentCount))
-    }
-
     var body: some View {
         VStack(alignment: .leading, spacing: 28) {
-            if recentURLs.isEmpty && folderURLs.isEmpty && pdfURLs.isEmpty {
+            if folderURLs.isEmpty && pdfURLs.isEmpty {
                 emptyState
             } else {
-                if !recentURLs.isEmpty {
-                    recentsSection
-                }
                 if !folderURLs.isEmpty {
                     foldersSection
                 }
@@ -44,31 +26,6 @@ struct LibraryGridView: View {
                     pdfSection
                 }
             }
-        }
-        .onGeometryChange(for: Int.self) { proxy in
-            max(
-                1,
-                Int((proxy.size.width + Self.spacing)
-                    / (Self.minimumCardWidth + Self.spacing))
-            )
-        } action: { columnCount = $0 }
-    }
-
-    private var recentsSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                sectionTitle("Recents", count: recentURLs.count)
-                Spacer()
-
-                if recentURLs.count > collapsedRecentCount {
-                    Button(recentsExpanded ? "Show Less" : "Show All") {
-                        recentsExpanded.toggle()
-                    }
-                    .buttonStyle(.link)
-                }
-            }
-
-            fileGrid(visibleRecentURLs)
         }
     }
 
@@ -146,7 +103,6 @@ struct LibraryGridView: View {
 #Preview("Library Grid") {
     ScrollView {
         LibraryGridView(
-            recentURLs: DevelopmentConfiguration.loadPDFs(limit: 12),
             folderURLs: DevelopmentConfiguration.demoFolderURLs,
             pdfURLs: DevelopmentConfiguration.loadPDFs(recursive: false),
             emptyMessage: "This workspace is empty",

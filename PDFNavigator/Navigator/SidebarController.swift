@@ -12,7 +12,6 @@ final class SidebarController: NSViewController {
         mode: session.mode,
         onSelectPDF: session.select,
         onSelectFolder: session.showFolder,
-        onSelectRecents: session.showLibrary,
         onOpenInNewTab: actions.openInNewTab,
         onItemCountChange: { [weak self] in self?.setItemCount($0) }
     )

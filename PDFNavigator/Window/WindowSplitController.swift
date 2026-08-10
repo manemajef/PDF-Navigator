@@ -7,6 +7,7 @@ final class WindowSplitController: NSSplitViewController {
     private let session: WorkspaceSession
     private let readerController: PDFReaderController
     private let workspaceSidebarController: SidebarController
+    private let startPageController: NSHostingController<StartPageView>
     private let libraryController: NSHostingController<LibraryContentView>
     private let inspectorPresentationState = PDFInspectorPresentationState()
 
@@ -44,6 +45,12 @@ final class WindowSplitController: NSSplitViewController {
         self.onInspectorChange = onInspectorChange
 
         workspaceSidebarController = SidebarController(session: session, actions: actions)
+        startPageController = NSHostingController(
+            rootView: StartPageView(
+                recentURLs: RecentLocationsStore.shared.recentPDFs(in: session.root),
+                onSelectPDF: session.select
+            )
+        )
         libraryController = NSHostingController(
             rootView: LibraryContentView(session: session)
         )
@@ -112,6 +119,14 @@ final class WindowSplitController: NSSplitViewController {
         workspaceSidebarController.render()
 
         switch session.mode {
+        case .startPage:
+            startPageController.rootView = StartPageView(
+                recentURLs: RecentLocationsStore.shared.recentPDFs(in: session.root),
+                onSelectPDF: session.select
+            )
+            setInspector(visible: false)
+            install(startPageController, in: detailContainer)
+
         case .library:
             setInspector(visible: false)
             install(libraryController, in: detailContainer)

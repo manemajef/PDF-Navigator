@@ -273,7 +273,7 @@ final class WindowController: NSWindowController {
     }
 
     @objc func beginSearch(_ sender: Any?) {
-        toolbar.beginSearch(canSearch: session.pdfSession?.hasDocument == true)
+        toolbar.beginSearch()
     }
 
     @objc func searchFieldChanged(_ sender: NSSearchField) {
@@ -356,7 +356,8 @@ extension WindowController: NSMenuItemValidation, NSToolbarItemValidation {
         case #selector(toggleSidebar(_:)),
              #selector(newTab(_:)),
              #selector(openNewWorkspace(_:)),
-             #selector(customizeToolbar(_:)):
+             #selector(customizeToolbar(_:)),
+             #selector(beginSearch(_:)):
             true
         case #selector(toggleInspector(_:)):
             session.pdfSession?.hasDocument == true
@@ -368,8 +369,7 @@ extension WindowController: NSMenuItemValidation, NSToolbarItemValidation {
             session.pdfSession?.hasDocument == true && !readerController.isActualSizeActive
         case #selector(zoomToFit(_:)):
             session.pdfSession?.hasDocument == true && !readerController.isZoomToFitActive
-        case #selector(beginSearch(_:)),
-             #selector(selectNextSearchMatch(_:)),
+        case #selector(selectNextSearchMatch(_:)),
              #selector(selectPreviousSearchMatch(_:)),
              #selector(goToPreviousPage(_:)),
              #selector(goToNextPage(_:)),

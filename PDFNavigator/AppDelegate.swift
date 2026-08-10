@@ -230,7 +230,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         routing.newTab = { [weak self, weak controller] activation in
             guard let controller, let sourceWindow = controller.window else { return }
             self?.openWindow(
-                .folder(controller.session.root, in: controller.session.root),
+                .startPage(in: controller.session.root),
                 tabbedWith: sourceWindow,
                 activation: activation
             )

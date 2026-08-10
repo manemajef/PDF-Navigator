@@ -9,10 +9,6 @@ final class NavigatorRowView: NSTableCellView {
     /// by content type. Per-path lookups would hit LaunchServices on every row.
     private static let folderIcon = NSWorkspace.shared.icon(for: .folder)
     private static let pdfIcon = NSWorkspace.shared.icon(for: .pdf)
-    private static let recentsIcon = NSImage(
-        systemSymbolName: "clock",
-        accessibilityDescription: nil
-    )
 
     private let icon: NSImageView = {
         let view = NSImageView()
@@ -33,7 +29,7 @@ final class NavigatorRowView: NSTableCellView {
         stack.orientation = .horizontal
         stack.alignment = .centerY
         stack.spacing = 6
-        stack.edgeInsets = NSEdgeInsets(top: 0, left: 2, bottom: 0, right: 0)
+        stack.edgeInsets = NSEdgeInsets(top: 0, left: 0, bottom: 0, right: 0)
         stack.translatesAutoresizingMaskIntoConstraints = false
         return stack
     }()
@@ -65,11 +61,5 @@ final class NavigatorRowView: NSTableCellView {
     func configure(with node: FileNode) {
         title.stringValue = node.name
         icon.image = node.isDirectory ? Self.folderIcon : Self.pdfIcon
-    }
-
-    /// The virtual Recents row: a file row's metrics with no file behind it.
-    func configureAsRecents() {
-        title.stringValue = "Recents"
-        icon.image = Self.recentsIcon
     }
 }

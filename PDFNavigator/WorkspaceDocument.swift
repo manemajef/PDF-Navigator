@@ -4,12 +4,14 @@ import Synchronization
 final class WorkspaceDocument: NSDocument {
     /// Warning: these are persisted keys. Renaming one discards saved state.
     ///
-    /// A selected PDF means reading; otherwise the optional library folder is
-    /// the current library location. Older state without it restores the root.
+    /// A selected PDF means reading; otherwise Start Page or the optional
+    /// library folder identifies the current location. Older state without
+    /// either restores the root.
     private enum RestorationKey {
         static let workspaceRoot = "workspaceRootURL"
         static let selectedPDF = "selectedPDFURL"
         static let libraryFolder = "libraryFolderURL"
+        static let startPage = "startPage"
     }
 
     /// The request this document was created or reopened with. Once a window
@@ -71,6 +73,8 @@ final class WorkspaceDocument: NSDocument {
         guard let request = currentRequest else { return }
         coder.encode(request.workspaceRootURL, forKey: RestorationKey.workspaceRoot)
         switch request.mode {
+        case .startPage:
+            coder.encode(true, forKey: RestorationKey.startPage)
         case .reading(let pdfURL):
             coder.encode(pdfURL, forKey: RestorationKey.selectedPDF)
         case .library(let folderURL):
@@ -90,6 +94,8 @@ final class WorkspaceDocument: NSDocument {
             forKey: RestorationKey.selectedPDF
         ) as URL? {
             open(.pdf(pdfURL, in: rootURL))
+        } else if coder.decodeBool(forKey: RestorationKey.startPage) {
+            open(.startPage(in: rootURL))
         } else if let folderURL = coder.decodeObject(
             of: NSURL.self,
             forKey: RestorationKey.libraryFolder

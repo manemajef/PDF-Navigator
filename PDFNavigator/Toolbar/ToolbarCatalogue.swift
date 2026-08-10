@@ -202,7 +202,7 @@ enum ToolbarCatalogue {
     /// rendered.
     static let pdfOnlyIdentifiers: Set<NSToolbarItem.Identifier> = {
         var identifiers: Set<NSToolbarItem.Identifier> = [
-            .workspaceSearch, .inspectorTrackingSeparator, .toggleInspector,
+            .inspectorTrackingSeparator, .toggleInspector,
         ]
         for (identifier, item) in items where item.requiresPDF {
             identifiers.insert(identifier)

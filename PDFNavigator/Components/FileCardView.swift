@@ -16,7 +16,7 @@ struct FileCardView: View {
     }
 
     var body: some View {
-        Button(action: action) {
+        GalleryItemButton(action: action) {
             VStack(spacing: 2) {
                 ThumbnailView(url: url)
 
@@ -39,7 +39,6 @@ struct FileCardView: View {
             .padding(.vertical, 10)
             .frame(maxWidth: .infinity)
         }
-        .buttonStyle(.plain)
     }
 }
 

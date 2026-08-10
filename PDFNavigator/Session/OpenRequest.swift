@@ -8,6 +8,14 @@ struct OpenRequest: Equatable {
     /// The PDF this request opens, if any.
     var selectedPDFURL: URL? { mode.selectedPDFURL }
 
+    /// Opens the workspace-scoped page shown by a new tab.
+    nonisolated static func startPage(in workspaceRootURL: URL) -> Self {
+        Self(
+            workspaceRootURL: workspaceRootURL.standardizedFileURL,
+            mode: .startPage
+        )
+    }
+
     /// Opens a folder as its own workspace, showing that folder's contents.
     nonisolated static func folder(_ url: URL) -> Self {
         let folderURL = url.standardizedFileURL
