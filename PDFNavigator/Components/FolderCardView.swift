@@ -13,12 +13,7 @@ struct FolderCardView: View {
         GalleryItemButton(action: action) {
             VStack(spacing: 8) {
                 ZStack {
-                    RoundedRectangle(cornerRadius: 20, style: .continuous)
-                        .fill(Color(nsColor: .controlBackgroundColor).opacity(0.45))
-                        .background(
-                            .ultraThinMaterial,
-                            in: RoundedRectangle(cornerRadius: 20, style: .continuous)
-                        )
+                    folderSurface
 
                     if previewURLs.isEmpty {
                         Image(systemName: "folder.fill")
@@ -42,7 +37,7 @@ struct FolderCardView: View {
                             ForEach(previewURLs, id: \.self) { pdfURL in
                                 ThumbnailView(
                                     url: pdfURL,
-                                    size: CGSize(width: 43, height: 57),
+                                    size: CGSize(width: 43, height: 50),
                                     cornerRadius: 4,
                                     showsShadow: true
                                 )
@@ -50,14 +45,9 @@ struct FolderCardView: View {
                         }
                     }
                 }
-                .frame(width: Self.width, height: 138)
+                .frame(width: Self.width, height: Self.width)
 
-                Text(url.lastPathComponent)
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                    .frame(maxWidth: Self.width, alignment: .leading)
+                GalleryItemLabel(title: url.lastPathComponent)
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 8)
@@ -66,21 +56,45 @@ struct FolderCardView: View {
             previewURLs = folderPreviewPDFs(in: url, limit: 4)
         }
     }
+
+    @ViewBuilder
+    private var folderSurface: some View {
+        if #available(macOS 26.0, *) {
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .fill(.clear)
+                .glassEffect(in: .rect(cornerRadius: 20))
+        } else {
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .fill(Color(nsColor: .controlBackgroundColor).opacity(0.45))
+                .background(
+                    .ultraThinMaterial,
+                    in: RoundedRectangle(cornerRadius: 20, style: .continuous)
+                )
+        }
+    }
 }
 
 #if DEBUG
 #Preview("Folder Treatments") {
-    let folderURL = DevelopmentConfiguration.demoFolderURLs.first
+    let shortFolderURL = DevelopmentConfiguration.demoFolderURLs.first
         ?? DevelopmentConfiguration.demoDirURL
 
     HStack(alignment: .top, spacing: 40) {
-        VStack {
-            FolderCardView(url: folderURL, action: {})
+        VStack(spacing: 24) {
+            FolderCardView(url: shortFolderURL, action: {})
+            FolderCardView(
+                url: DevelopmentConfiguration.demoLongNameFolderURL,
+                action: {}
+            )
             Text("Contained grid")
                 .foregroundStyle(.secondary)
         }
-        VStack {
-            FolderStackView(url: folderURL, action: {})
+        VStack(spacing: 24) {
+            FolderStackView(url: shortFolderURL, action: {})
+            FolderStackView(
+                url: DevelopmentConfiguration.demoLongNameFolderURL,
+                action: {}
+            )
             Text("Loose stack")
                 .foregroundStyle(.secondary)
         }

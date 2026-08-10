@@ -61,11 +61,12 @@ final class WorkspaceSession {
     /// user's "Show all filename extensions" setting and localized folder
     /// names, rather than always printing the raw `Foo.pdf`.
     var windowTitle: String {
-        if mode == .startPage { return "Start Page" }
-
         let url = representedURL
-        guard !url.lastPathComponent.isEmpty else { return url.path }
-        return FileManager.default.displayName(atPath: url.path)
+        let displayName = url.lastPathComponent.isEmpty
+            ? url.path
+            : FileManager.default.displayName(atPath: url.path)
+
+        return mode == .startPage ? "\(displayName) Recents" : displayName
     }
 
     // MARK: - Changing workspace

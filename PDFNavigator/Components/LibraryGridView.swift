@@ -39,6 +39,9 @@ struct LibraryGridView: View {
                 spacing: Self.spacing
             ) {
                 ForEach(folderURLs, id: \.self) { url in
+//                    FolderCardView(url: url) {
+//                        onSelectFolder(url)
+//                    }
                     FolderStackView(url: url) {
                         onSelectFolder(url)
                     }
@@ -101,16 +104,32 @@ struct LibraryGridView: View {
 
 #if DEBUG
 #Preview("Library Grid") {
-    ScrollView {
-        LibraryGridView(
-            folderURLs: DevelopmentConfiguration.demoFolderURLs,
-            pdfURLs: DevelopmentConfiguration.loadPDFs(recursive: false),
-            emptyMessage: "This workspace is empty",
-            onSelectPDF: { _ in },
-            onSelectFolder: { _ in }
-        )
-        .padding(28)
+    NavigationSplitView{
+
+
+    } detail: {
+        ScrollView {
+            LibraryGridView(
+                folderURLs: DevelopmentConfiguration.demoFolderURLs,
+                pdfURLs: DevelopmentConfiguration.loadPDFs(recursive: false),
+                emptyMessage: "This workspace is empty",
+                onSelectPDF: { _ in },
+                onSelectFolder: { _ in }
+            )
+            .padding(28)
+        }    /*.frame(width: 700, height: 300)*/
+        .toolbar{
+            ToolbarItem{
+                Button(action: {}){
+                    Label("New", systemImage: "plus")
+                }
+            }
+        }
+        .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
+
+
+
     }
-    .frame(width: 700, height: 620)
+
 }
 #endif

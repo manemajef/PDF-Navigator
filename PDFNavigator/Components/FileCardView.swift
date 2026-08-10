@@ -20,20 +20,10 @@ struct FileCardView: View {
             VStack(spacing: 2) {
                 ThumbnailView(url: url)
 
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(url.lastPathComponent)
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(.primary)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-
-                    if let subtitle {
-                        Text(subtitle)
-                            .font(.system(size: 11))
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                    }
-                }
+                GalleryItemLabel(
+                    title: url.lastPathComponent,
+                    subtitle: subtitle
+                )
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
@@ -43,7 +33,18 @@ struct FileCardView: View {
 }
 
 #if DEBUG
-#Preview("File Card") {
-    FileCardView(url: DevelopmentConfiguration.demoPDFURL)
+#Preview("File Card Names") {
+    HStack(alignment: .top, spacing: 16) {
+        FileCardView(
+            url: DevelopmentConfiguration.demoPDFURL,
+            subtitle: "Course materials"
+        )
+        FileCardView(
+            url: DevelopmentConfiguration.demoLongNamePDFURL,
+            subtitle: "Course materials"
+        )
+    }
+    .frame(width: 300)
+    .padding()
 }
 #endif

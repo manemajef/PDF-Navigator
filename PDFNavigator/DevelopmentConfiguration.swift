@@ -10,6 +10,14 @@ nonisolated enum DevelopmentConfiguration {
         .appendingPathComponent("DEMO_DIR", isDirectory: true)
     static let demoPDFURL = demoDirURL
         .appendingPathComponent("micro3-sylabus.pdf")
+    static let demoLongNamePDFURL = demoDirURL
+        .appendingPathComponent("נספח חישובים עבור שיעור בית.pdf")
+    /// Synthetic path used only to exercise folder-label truncation in previews.
+    static let demoLongNameFolderURL = demoDirURL
+        .appendingPathComponent(
+            "Homework exercises, solutions, and reference material",
+            isDirectory: true
+        )
     static let demoOutlinePDFURL = demoDirURL
         .appendingPathComponent("lecs/micro3-lec-8b.pdf")
 
