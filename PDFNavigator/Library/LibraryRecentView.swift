@@ -2,24 +2,10 @@ import SwiftUI
 
 // MARK: - Library Tab Enum
 
-enum LibraryTab: String, CaseIterable, Identifiable, Sendable {
-    case library = "Library"
-    case recents = "Recents"
-
-    var id: String { rawValue }
-    var title: String { rawValue }
-
-    var systemImage: String {
-        switch self {
-        case .library: return "folder"
-        case .recents: return "clock"
-        }
-    }
-}
 
 // MARK: - Library View
 
-struct LibraryView: View {
+struct LibraryRecentView: View {
     let folderURL: URL
     let folderURLs: [URL]
     let libraryPDFURLs: [URL]
@@ -50,39 +36,39 @@ struct LibraryView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-//            // Header with Title and Tabbed Segmented Switcher
-//            HStack(alignment: .center) {
-////                VStack(alignment: .leading, spacing: 2) {
-////                    Text(folderDisplayName)
-////                        .font(.system(size: 18, weight: .bold))
-////                        .foregroundStyle(.primary)
-////
-////                    Text(folderURL.path)
-////                        .font(.system(size: 11))
-////                        .foregroundStyle(.tertiary)
-////                        .lineLimit(1)
-////                        .truncationMode(.middle)
-////                }
-////
-////                Spacer()
-//
-//                Picker("Library View", selection: $selectedTab) {
-//                    ForEach(LibraryTab.allCases) { tab in
-//                        Label(tab.title, systemImage: tab.systemImage)
-//                            .tag(tab)
-//                    }
-//                }
-//                .pickerStyle(.segmented)
-//                .labelsHidden()
-////                .frame(width: 190)
-//            }
-//            .padding(.horizontal, 28)
-//            .padding(.top, 24)
-//            .padding(.bottom, 16)
+            // Header with Title and Tabbed Segmented Switcher
+            HStack(alignment: .center) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(folderDisplayName)
+                        .font(.system(size: 18, weight: .bold))
+                        .foregroundStyle(.primary)
 
-//            Divider()
-//                .padding(.horizontal, 28)
-//                .padding(.bottom, 8)
+                    Text(folderURL.path)
+                        .font(.system(size: 11))
+                        .foregroundStyle(.tertiary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+
+                Spacer()
+
+                Picker("Library View", selection: $selectedTab) {
+                    ForEach(LibraryTab.allCases) { tab in
+                        Label(tab.title, systemImage: tab.systemImage)
+                            .tag(tab)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+//                .frame(width: 190)
+            }
+            .padding(.horizontal, 28)
+            .padding(.top, 24)
+            .padding(.bottom, 16)
+
+            Divider()
+                .padding(.horizontal, 28)
+                .padding(.bottom, 8)
 
             // Tab Content
             ScrollView {
@@ -139,7 +125,7 @@ struct LibraryView: View {
         NavigationSplitView{
             
         } detail: {
-            LibraryView(
+            LibraryRecentView(
                 folderURL: DevelopmentConfiguration.demoDirURL,
                 folderURLs: DevelopmentConfiguration.demoFolderURLs,
                 pdfURLs: DevelopmentConfiguration.loadPDFs(recursive: false),
@@ -171,7 +157,7 @@ struct LibraryView: View {
         }
         .searchable(text: $searchText)
         .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
-        .scrollEdgeEffectStyle(.soft, for: .all)
+        .scrollEdgeEffectStyle(.soft, for: .top)
         .toolbar(removing: .title)
 
     } else {
@@ -179,3 +165,4 @@ struct LibraryView: View {
     }
 }
 #endif
+
