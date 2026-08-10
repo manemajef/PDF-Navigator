@@ -55,8 +55,8 @@ final class WindowController: NSWindowController {
         sessionChangesSubscription = session.changes.sink { [weak self] change in
             self?.render(change)
         }
-        render(.root)
-        render(.selection)
+        render(.workspace)
+        render(.mode)
         render(.history)
     }
 
@@ -120,25 +120,24 @@ final class WindowController: NSWindowController {
 
     private func render(_ change: WorkspaceSession.Change) {
         switch change {
+        // Everything a *new workspace* implies. The session always follows this
+        // with `.mode`, so the title, content, and restorable state are that
+        // case's job and are deliberately not repeated here.
+        case .workspace:
+            RecentLocationsStore.shared.noteWorkspace(session.root)
+
         // Order matters. The title comes from the session alone, so it is set
         // first — `contentController.render()` loads the document, and the
         // titlebar would show the previous filename for that whole time. The
         // subtitle must follow, since its page count comes from that document.
-        case .root:
-            synchronizeWindowTitleWithDocumentName()
-            contentController.render()
-            updateWindowSubtitle()
-            RecentLocationsStore.shared.noteWorkspace(session.root)
-            invalidateDocumentRestorableState()
-
-        case .selection:
+        case .mode:
             synchronizeWindowTitleWithDocumentName()
             contentController.render()
             updateWindowSubtitle()
             // A query typed against the previous document means nothing here.
             toolbar.resetSearch()
-            if let selection = session.selection {
-                RecentLocationsStore.shared.notePDF(selection)
+            if let selectedPDFURL = session.mode.selectedPDFURL {
+                RecentLocationsStore.shared.notePDF(selectedPDFURL)
             }
             invalidateDocumentRestorableState()
 
@@ -246,7 +245,7 @@ final class WindowController: NSWindowController {
     }
 
     @objc func goToLibrary(_ sender: Any?) {
-        session.goToLibrary()
+        session.showLibrary()
     }
 
     @objc func toggleSidebar(_ sender: Any?) {

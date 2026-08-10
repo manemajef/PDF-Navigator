@@ -45,10 +45,7 @@ final class WindowSplitController: NSSplitViewController {
 
         workspaceSidebarController = SidebarController(session: session, actions: actions)
         libraryController = NSHostingController(
-            rootView: LibraryContentView(
-                session: session,
-                actions: actions
-            )
+            rootView: LibraryContentView(session: session)
         )
 
         super.init(nibName: nil, bundle: nil)

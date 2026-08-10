@@ -6,19 +6,24 @@ import Observation
 @MainActor
 @Observable
 final class WorkspaceSession {
-    enum Mode: Equatable {
-        case library(URL)
-        case reading(URL)
-    }
-
     enum Change: Equatable {
-        case root
-        case selection
+        /// A different workspace is open: the navigator must re-root.
+        case workspace
+        /// Where this session points changed.
+        case mode
         case history
     }
 
+    /// The directory the navigator is rooted at and recents are scoped to.
+    ///
+    /// Changed only by `open(_:)`. Browsing into a subfolder moves `mode`, not
+    /// this: the workspace you chose is not something a click should redefine.
     private(set) var root: URL
-    private(set) var selection: URL?
+
+    private(set) var mode: WorkspaceMode
+
+    /// Non-`nil` exactly while `mode` is `.reading`, which is what lets the
+    /// shell keep asking it whether PDF commands apply.
     private(set) var pdfSession: PDFSession?
 
     @ObservationIgnored
@@ -29,102 +34,95 @@ final class WorkspaceSession {
 
     init(request: OpenRequest) {
         root = request.workspaceRootURL
-        selection = request.selectedPDFURL
-        if let selection {
-            pdfSession = PDFSession(url: selection)
-        } else {
-            pdfSession = nil
-        }
+        mode = request.mode
+        pdfSession = request.mode.selectedPDFURL.map(PDFSession.init(url:))
         history.reset(to: request)
     }
 
     var canGoBack: Bool { history.canGoBack }
     var canGoForward: Bool { history.canGoForward }
-    var canGoToLibrary: Bool { selection != nil }
+    var canGoToLibrary: Bool { mode != .library(root) }
 
-    var mode: Mode {
-        if let selection {
-            return .reading(selection)
+    /// What this session would encode or reopen as.
+    var currentRequest: OpenRequest {
+        OpenRequest(workspaceRootURL: root, mode: mode)
+    }
+
+    /// The file the titlebar names and its proxy icon points at.
+    var representedURL: URL {
+        switch mode {
+        case .library(let url): url
+        case .reading(let url): url
         }
-        return .library(root)
     }
 
     /// `displayName(atPath:)` is what Finder and Preview show: it honours the
     /// user's "Show all filename extensions" setting and localized folder
     /// names, rather than always printing the raw `Foo.pdf`.
     var windowTitle: String {
-        if let selection {
-            return FileManager.default.displayName(atPath: selection.path)
-        }
-        guard !root.lastPathComponent.isEmpty else { return root.path }
-        return FileManager.default.displayName(atPath: root.path)
+        let url = representedURL
+        guard !url.lastPathComponent.isEmpty else { return url.path }
+        return FileManager.default.displayName(atPath: url.path)
     }
 
-    var representedURL: URL? {
-        selection ?? root
-    }
+    // MARK: - Changing workspace
 
+    /// Points this session at a workspace.
+    ///
+    /// Clears history: the previous workspace's locations are not somewhere
+    /// Back should return to. This is the only method that moves `root`.
     func open(_ request: OpenRequest) {
         root = request.workspaceRootURL
-        selection = request.selectedPDFURL
-        if let selection {
-            pdfSession = PDFSession(url: selection)
-        } else {
-            pdfSession = nil
-        }
+        apply(request.mode)
         history.reset(to: request)
 
-        changes.send(.root)
-        changes.send(.selection)
+        changes.send(.workspace)
+        changes.send(.mode)
         changes.send(.history)
     }
 
-    func select(_ url: URL) {
-        let url = url.standardizedFileURL
-        guard selection != url else { return }
+    // MARK: - Moving within the workspace
 
-        selection = url
-        pdfSession = PDFSession(url: url)
-        history.visit(.pdf(url, in: root))
-
-        changes.send(.selection)
-        changes.send(.history)
+    func select(_ pdfURL: URL) {
+        navigate(to: .pdf(pdfURL, in: root))
     }
 
-    func goToLibrary() {
-        navigate(to: .folder(root))
+    func showFolder(_ folderURL: URL) {
+        navigate(to: .folder(folderURL, in: root))
+    }
+
+    func showLibrary() {
+        navigate(to: .folder(root, in: root))
     }
 
     func goBack() {
         guard let request = history.goBack() else { return }
-        apply(request)
+        move(to: request)
     }
 
     func goForward() {
         guard let request = history.goForward() else { return }
-        apply(request)
+        move(to: request)
     }
 
+    /// The one path that records a move. Every caller passes `in: root`, so a
+    /// navigation can never re-root the workspace behind the navigator's back.
     private func navigate(to request: OpenRequest) {
-        let currentRequest = OpenRequest(
-            workspaceRootURL: root,
-            selectedPDFURL: selection
-        )
         guard request != currentRequest else { return }
         history.visit(request)
-        apply(request)
+        move(to: request)
     }
 
-    private func apply(_ request: OpenRequest) {
-        let rootChanged = root != request.workspaceRootURL
-        root = request.workspaceRootURL
-        selection = request.selectedPDFURL
-        pdfSession = selection.map(PDFSession.init(url:))
-
-        if rootChanged {
-            changes.send(.root)
-        }
-        changes.send(.selection)
+    /// Applies a request already in history, which by construction shares this
+    /// session's root — so only `mode` can differ.
+    private func move(to request: OpenRequest) {
+        apply(request.mode)
+        changes.send(.mode)
         changes.send(.history)
+    }
+
+    private func apply(_ mode: WorkspaceMode) {
+        self.mode = mode
+        pdfSession = mode.selectedPDFURL.map(PDFSession.init(url:))
     }
 }

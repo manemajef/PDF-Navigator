@@ -9,8 +9,10 @@ final class SidebarController: NSViewController {
     private var itemCount: Int?
     private lazy var navigatorController = NavigatorController(
         rootURL: session.root,
-        selectedPDFURL: session.selection,
+        mode: session.mode,
         onSelectPDF: session.select,
+        onSelectFolder: session.showFolder,
+        onSelectRecents: session.showLibrary,
         onOpenInNewTab: actions.openInNewTab,
         onItemCountChange: { [weak self] in self?.setItemCount($0) }
     )
@@ -54,7 +56,7 @@ final class SidebarController: NSViewController {
         footerView.rootView = makeFooter()
         navigatorController.render(
             rootURL: session.root,
-            selectedPDFURL: session.selection
+            mode: session.mode
         )
     }
 

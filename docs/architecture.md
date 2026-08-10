@@ -12,7 +12,7 @@ PDF Navigator uses an AppKit-first macOS shell:
 - AppKit owns application and document opening, native windows and tabs, the
   native toolbar, menus, split-view geometry, and command routing.
 - SwiftUI is the default for populated presentation surfaces such as the launch
-  panel, workspace home, cards, and small sidebar accessories.
+  panel, library, cards, and small sidebar accessories.
 - AppKit remains appropriate where the native component is the feature: the
   navigator uses `NSOutlineView`, and the reader uses PDFKit's `PDFView`.
 - PDFKit owns PDF rendering and PDF operations inside the AppKit reader
@@ -35,6 +35,7 @@ PDFNavigator/
 
   Session/
     WorkspaceSession.swift
+    WorkspaceMode.swift
     NavigationHistory.swift
     OpenRequest.swift
 
@@ -119,11 +120,30 @@ window:
 
 ```text
 WorkspaceSession
-  root: URL
-  selection: URL?
+  root: URL              the workspace; only open(_:) moves it
+  mode: WorkspaceMode    where this session points; only navigation moves it
   pdfSession: PDFSession?
   navigation history
 ```
+
+`WorkspaceMode` is the session's single location coordinate:
+
+```swift
+enum WorkspaceMode { case library(URL), reading(URL) }
+```
+
+Its two cases are the two things the detail region can be, which is why
+`WindowSplitController` switches on this and nothing else. `pdfSession` is
+non-`nil` exactly while the mode is `.reading`, so every "does a PDF command
+apply" check keeps asking it.
+
+The root library is the workspace home. It lists the root's folders and PDFs and
+adds a Recents section above them. Nested folder libraries omit that section.
+
+The two properties are not peers, and the method pair says so: `open(_:)` moves
+`root` and resets history, `navigate(to:)` moves `mode` and records it. Every
+`navigate` caller passes `in: root`, so browsing cannot silently re-root the
+workspace behind the navigator.
 
 Multiple `WorkspaceSession` instances may reference the same workspace root. Their
 selection, search, PDF state, and history remain independent. Shared directory
@@ -233,25 +253,25 @@ The workspace shell must not use:
 
 ## Opening
 
-`OpenRequest` is the single normalized input for opening a folder or PDF:
+`OpenRequest` is the single normalized input for pointing a session somewhere:
 
 ```swift
 struct OpenRequest {
     let workspaceRootURL: URL
-    let selectedPDFURL: URL?
+    let mode: WorkspaceMode
 }
 ```
 
-- A folder request uses that folder as the workspace root.
-- A PDF request uses the PDF parent directory as the workspace root and selects
+- A folder request uses that folder as the workspace root and shows it.
+- A PDF request uses the PDF parent directory as the workspace root and reads
   the PDF.
-- The `folder(_:)`, `pdf(_:)`, and `pdf(_:in:)` factories standardize URLs and
-  preserve an existing workspace root when a PDF opens in a new tab.
+- The factories standardize URLs. `folder(_:)` and `pdf(_:)` establish a
+  workspace; `folder(_:in:)` and `pdf(_:in:)` move within an existing one.
 
 `AppDelegate` resolves Finder, menu, recent-item, new-window, and new-tab opens.
 `Cmd-N` presents the location picker and creates an independent window only
-after a selection. `Cmd-T` creates a native tab and inherits the current root
-without inheriting the selected PDF.
+after a selection. `Cmd-T` creates a native tab that inherits the current root
+and lands on its root library.
 
 AppKit creates each destination `NSWindow` before calling
 `addTabbedWindow(_:ordered:)`; it never reparents a SwiftUI-scene window after
@@ -302,8 +322,8 @@ disabled in DEBUG. Persisted toolbar and split-view identifiers are
 compatibility keys and do not need to match current type names.
 
 Menus and toolbar items target the same small `@objc` methods on
-`WindowController`. Back/forward navigation among workspace homes and selected
-PDFs belongs to `WorkspaceSession`; page navigation inside the current PDF belongs to
+`WindowController`. Back/forward navigation over `WorkspaceMode` belongs to
+`WorkspaceSession`; page navigation inside the current PDF belongs to
 `PDFReaderController` and PDFKit.
 
 ## Navigator
@@ -346,6 +366,11 @@ Rebuilding the tree, or falling back to `reloadData()`, discards both. For the
 same reason `FileTree` publishes deltas through a callback rather than
 `@Observable` — observation reports *that* something changed, which is the wrong
 granularity for an outline view.
+
+The outline has two roots: a virtual Recents row and the workspace tree. The
+Recents row currently returns to the root library; selecting a folder shows its
+library, and selecting a PDF opens the reader. Every move goes through
+`WorkspaceSession`, so Back and Forward cover both folder and PDF navigation.
 
 Modifier keys are handled in the event layer. `NavigatorOutlineView` resolves
 command-click in `mouseDown` before selection runs, so the delegate methods never
@@ -392,7 +417,7 @@ so the controller observes its magnification-start notification and leaves
 presentation state, not a second owner of the document or reading position.
 
 On macOS 26 and later, the detail split item allows native sidebars and
-inspectors to overlay it and adjusts its safe area. Workspace-home content uses
+inspectors to overlay it and adjusts its safe area. Library content uses
 that safe area, while `PDFReaderController` is intentionally constrained to the
 full detail bounds so the native materials can sample PDF content underneath.
 Do not replace that geometry with custom blur or opacity layers.
@@ -428,6 +453,8 @@ for a term that already exists.
 | **Inspector** | the right-hand split region | |
 | **Detail** | the middle split region. Always shows either the reader or the library | a container type — no such class exists |
 | **Library** | the view of a workspace's contents, shown in detail when no PDF is open | the folder itself (that is the workspace) |
+| **Mode** | which of those two the detail region is showing, and pointed where | a UI toggle the user flips |
+| **Recents** | recently opened PDFs shown on the root library | a separate library mode |
 
 Because a native tab is an `NSWindow`, "window" and "tab" would otherwise name
 the same runtime object. The app resolves this by using **window** for the
@@ -440,16 +467,10 @@ is a workspace (`WorkspaceSession`, `WorkspaceDocument`, "Recent Workspaces").
 The view showing what is in it is the library. No type should use "Workspace"
 to name a view.
 
-**The library's contents are unsettled.** It currently shows recents; the
-product intent is a folder-scoped grid with thumbnails and reading progress.
-The name is stable, the contents are not.
-
-**The library must never own navigation.** Its scope follows the navigator's
-selection; it gets no breadcrumbs, no drill-down, and no back stack of its own.
-The navigator is the single answer to "where am I". Giving the detail region a
-second notion of location would mean `OpenRequest` grows a third coordinate and
-`NavigationHistory` has to decide whether Back undoes a folder change or a PDF
-open — a question with no right answer.
+**The library must never own navigation.** It gets no breadcrumbs and no back
+stack. A folder card sends intent to `WorkspaceSession`, exactly like the same
+folder in the navigator. `WorkspaceMode` is the single value Back and Forward
+record.
 
 ## Naming Rules
 

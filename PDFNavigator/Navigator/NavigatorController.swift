@@ -1,5 +1,8 @@
 import AppKit
 
+/// The navigator's virtual Recents row.
+private final class NavigatorRecentsItem {}
+
 /// Projects a `FileTree` into the native source list.
 ///
 /// Owns no file data. It answers outline-view queries from the tree, turns
@@ -8,30 +11,37 @@ import AppKit
 final class NavigatorController: NSViewController {
     private let scrollView = NSScrollView()
     private let outlineView = NavigatorOutlineView()
+    private let recentsItem = NavigatorRecentsItem()
 
     private var rootURL: URL
-    private var selectedPDFURL: URL?
-    /// Fixed for the controller's lifetime; only the URLs change per render.
+    private var mode: WorkspaceMode
+    /// Fixed for the controller's lifetime; only the mode changes per render.
     private let onSelectPDF: (URL) -> Void
+    private let onSelectFolder: (URL) -> Void
+    private let onSelectRecents: () -> Void
     private let onOpenInNewTab: (URL, TabActivation) -> Void
     private let onItemCountChange: (Int?) -> Void
 
     private var tree: FileTree
 
     /// Set while the controller drives the selection itself, so revealing the
-    /// session's PDF does not read back as the user choosing it.
+    /// session's location does not read back as the user choosing it.
     private var isRevealingSelection = false
 
     init(
         rootURL: URL,
-        selectedPDFURL: URL?,
+        mode: WorkspaceMode,
         onSelectPDF: @escaping (URL) -> Void,
+        onSelectFolder: @escaping (URL) -> Void,
+        onSelectRecents: @escaping () -> Void,
         onOpenInNewTab: @escaping (URL, TabActivation) -> Void,
         onItemCountChange: @escaping (Int?) -> Void
     ) {
         self.rootURL = rootURL.standardizedFileURL
-        self.selectedPDFURL = selectedPDFURL?.standardizedFileURL
+        self.mode = mode
         self.onSelectPDF = onSelectPDF
+        self.onSelectFolder = onSelectFolder
+        self.onSelectRecents = onSelectRecents
         self.onOpenInNewTab = onOpenInNewTab
         self.onItemCountChange = onItemCountChange
         tree = FileTree(root: self.rootURL)
@@ -75,19 +85,19 @@ final class NavigatorController: NSViewController {
         adoptTree()
     }
 
-    func render(rootURL: URL, selectedPDFURL: URL?) {
+    func render(rootURL: URL, mode: WorkspaceMode) {
         let rootURL = rootURL.standardizedFileURL
         let rootChanged = self.rootURL != rootURL
 
         self.rootURL = rootURL
-        self.selectedPDFURL = selectedPDFURL?.standardizedFileURL
+        self.mode = mode
 
         loadViewIfNeeded()
         if rootChanged {
             tree = FileTree(root: rootURL)
             adoptTree()
         } else {
-            revealSelectedPDF()
+            revealSelection()
         }
     }
 
@@ -104,7 +114,7 @@ final class NavigatorController: NSViewController {
         outlineView.reloadData()
         outlineView.expandItem(tree.root)
         reportItemCount()
-        revealSelectedPDF()
+        revealSelection()
     }
 
     private func apply(_ deltas: [FileNode.Delta]) {
@@ -126,7 +136,7 @@ final class NavigatorController: NSViewController {
         outlineView.endUpdates()
 
         reportItemCount()
-        revealSelectedPDF()
+        revealSelection()
     }
 
     private func reportItemCount() {
@@ -135,21 +145,40 @@ final class NavigatorController: NSViewController {
 
     // MARK: - Selection
 
-    private func revealSelectedPDF() {
-        guard let selectedPDFURL,
-              selectedPDFURL.isDescendantOrSame(of: tree.root.url),
-              let node = node(for: selectedPDFURL, from: tree.root) else {
+    /// Moves the sidebar selection to wherever the session is pointed.
+    private func revealSelection() {
+        guard let row = rowForCurrentMode() else {
             outlineView.deselectAll(nil)
             return
         }
-
-        let row = outlineView.row(forItem: node)
-        guard row >= 0 else { return }
 
         isRevealingSelection = true
         outlineView.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false)
         isRevealingSelection = false
         outlineView.scrollRowToVisible(row)
+    }
+
+    /// The row standing for the current mode, or `nil` when nothing does.
+    private func rowForCurrentMode() -> Int? {
+        let url: URL
+        switch mode {
+        case .library(let folderURL) where folderURL == rootURL:
+            let rootLibraryRow = outlineView.row(forItem: recentsItem)
+            return rootLibraryRow >= 0 ? rootLibraryRow : nil
+        case .library(let folderURL):
+            url = folderURL
+        case .reading(let pdfURL):
+            url = pdfURL
+        }
+
+        guard url.isDescendantOrSame(of: tree.root.url),
+              let node = node(for: url, from: tree.root),
+              node !== tree.root else {
+            return nil
+        }
+
+        let row = outlineView.row(forItem: node)
+        return row >= 0 ? row : nil
     }
 
     /// Walks down to `fileURL`, expanding each directory on the way.
@@ -254,8 +283,11 @@ extension NavigatorController: NSOutlineViewDataSource {
         _ outlineView: NSOutlineView,
         numberOfChildrenOfItem item: Any?
     ) -> Int {
-        guard let node = item as? FileNode else { return 1 }
-        return node.children.count
+        switch item {
+        case nil: 2
+        case let node as FileNode: node.children.count
+        default: 0
+        }
     }
 
     func outlineView(
@@ -263,7 +295,9 @@ extension NavigatorController: NSOutlineViewDataSource {
         child index: Int,
         ofItem item: Any?
     ) -> Any {
-        guard let node = item as? FileNode else { return tree.root }
+        guard let node = item as? FileNode else {
+            return index == 0 ? recentsItem : tree.root
+        }
         return node.children[index]
     }
 
@@ -287,6 +321,15 @@ extension NavigatorController: NSOutlineViewDelegate {
         viewFor tableColumn: NSTableColumn?,
         item: Any
     ) -> NSView? {
+        if item is NavigatorRecentsItem {
+            let view = outlineView.makeView(
+                withIdentifier: NavigatorRowView.identifier,
+                owner: self
+            ) as? NavigatorRowView ?? NavigatorRowView()
+            view.configureAsRecents()
+            return view
+        }
+
         guard let node = item as? FileNode else { return nil }
 
         if isRoot(node) {
@@ -314,12 +357,20 @@ extension NavigatorController: NSOutlineViewDelegate {
         guard !isRevealingSelection else { return }
 
         let row = outlineView.selectedRow
-        guard row >= 0,
-              let node = outlineView.item(atRow: row) as? FileNode,
-              !node.isDirectory else {
+        guard row >= 0 else { return }
+
+        let item = outlineView.item(atRow: row)
+        if item is NavigatorRecentsItem {
+            onSelectRecents()
             return
         }
-        onSelectPDF(node.url)
+
+        guard let node = item as? FileNode else { return }
+        if node.isDirectory {
+            onSelectFolder(node.url)
+        } else {
+            onSelectPDF(node.url)
+        }
     }
 }
 

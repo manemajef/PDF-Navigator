@@ -1,12 +1,24 @@
 import Foundation
 
+/// The normalized input for pointing a workspace session somewhere.
 struct OpenRequest: Equatable {
     let workspaceRootURL: URL
-    let selectedPDFURL: URL?
+    let mode: WorkspaceMode
 
+    /// The PDF this request opens, if any.
+    var selectedPDFURL: URL? { mode.selectedPDFURL }
+
+    /// Opens a folder as its own workspace, showing that folder's contents.
     nonisolated static func folder(_ url: URL) -> Self {
+        let folderURL = url.standardizedFileURL
+        return folder(folderURL, in: folderURL)
+    }
+
+    /// Shows a folder inside an existing workspace, leaving the root alone.
+    nonisolated static func folder(_ url: URL, in workspaceRootURL: URL) -> Self {
         Self(
-            workspaceRootURL: url.standardizedFileURL, selectedPDFURL: nil
+            workspaceRootURL: workspaceRootURL.standardizedFileURL,
+            mode: .library(url.standardizedFileURL)
         )
     }
 
@@ -16,6 +28,9 @@ struct OpenRequest: Equatable {
     }
 
     nonisolated static func pdf(_ url: URL, in workspaceRootURL: URL) -> Self {
-        Self(workspaceRootURL: workspaceRootURL, selectedPDFURL: url.standardizedFileURL)
+        Self(
+            workspaceRootURL: workspaceRootURL.standardizedFileURL,
+            mode: .reading(url.standardizedFileURL)
+        )
     }
 }

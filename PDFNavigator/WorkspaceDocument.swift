@@ -2,9 +2,14 @@ import AppKit
 import Synchronization
 
 final class WorkspaceDocument: NSDocument {
+    /// Warning: these are persisted keys. Renaming one discards saved state.
+    ///
+    /// A selected PDF means reading; otherwise the optional library folder is
+    /// the current library location. Older state without it restores the root.
     private enum RestorationKey {
         static let workspaceRoot = "workspaceRootURL"
         static let selectedPDF = "selectedPDFURL"
+        static let libraryFolder = "libraryFolderURL"
     }
 
     /// The request this document was created or reopened with. Once a window
@@ -19,10 +24,7 @@ final class WorkspaceDocument: NSDocument {
     /// What this document would encode or open right now.
     private var currentRequest: OpenRequest? {
         if let session = windowController?.session {
-            return OpenRequest(
-                workspaceRootURL: session.root,
-                selectedPDFURL: session.selection
-            )
+            return session.currentRequest
         }
         return pendingRequest.withLock { $0 }
     }
@@ -68,8 +70,11 @@ final class WorkspaceDocument: NSDocument {
         super.encodeRestorableState(with: coder)
         guard let request = currentRequest else { return }
         coder.encode(request.workspaceRootURL, forKey: RestorationKey.workspaceRoot)
-        if let selectedPDFURL = request.selectedPDFURL {
-            coder.encode(selectedPDFURL, forKey: RestorationKey.selectedPDF)
+        switch request.mode {
+        case .reading(let pdfURL):
+            coder.encode(pdfURL, forKey: RestorationKey.selectedPDF)
+        case .library(let folderURL):
+            coder.encode(folderURL, forKey: RestorationKey.libraryFolder)
         }
     }
 
@@ -80,11 +85,19 @@ final class WorkspaceDocument: NSDocument {
             forKey: RestorationKey.workspaceRoot
         ) as URL? else { return }
 
-        let pdfURL = coder.decodeObject(
+        if let pdfURL = coder.decodeObject(
             of: NSURL.self,
             forKey: RestorationKey.selectedPDF
-        ) as URL?
-        open(pdfURL.map { .pdf($0, in: rootURL) } ?? .folder(rootURL))
+        ) as URL? {
+            open(.pdf(pdfURL, in: rootURL))
+        } else if let folderURL = coder.decodeObject(
+            of: NSURL.self,
+            forKey: RestorationKey.libraryFolder
+        ) as URL? {
+            open(.folder(folderURL, in: rootURL))
+        } else {
+            open(.folder(rootURL, in: rootURL))
+        }
     }
 
     // MARK: - Reading
