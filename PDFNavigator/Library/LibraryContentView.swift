@@ -9,22 +9,16 @@ struct LibraryContentView: View {
             let items = DirectoryScanner.items(in: folderURL)
             let folderURLs = items.filter(\.isDirectory).map(\.url)
             let pdfURLs = items.filter { !$0.isDirectory }.map(\.url)
-
-            if folderURL == session.root {
-                LibraryView(
-                    folderURLs: folderURLs,
-                    pdfURLs: pdfURLs,
-                    onSelectPDF: session.select,
-                    onSelectFolder: session.showFolder
-                )
-            } else {
-                FolderGalleryView(
-                    folderURLs: folderURLs,
-                    pdfURLs: pdfURLs,
-                    onSelectPDF: session.select,
-                    onSelectFolder: session.showFolder
-                )
-            }
+            
+            LibraryView(
+                folderURLs: folderURLs,
+                pdfURLs: pdfURLs,
+                onOpenPDF: session.show,
+                onOpenFolder: session.showFolder
+            )
+            // A different folder is a different library: this discards the
+            // previous folder's selection instead of carrying it over.
+            .id(folderURL)
         }
     }
 }

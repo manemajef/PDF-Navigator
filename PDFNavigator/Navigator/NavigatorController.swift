@@ -8,7 +8,7 @@ import AppKit
 final class NavigatorController: NSViewController {
     private let scrollView = NSScrollView()
     private let outlineView = NavigatorOutlineView()
-
+    
     private var rootURL: URL
     private var mode: WorkspaceMode
     /// Fixed for the controller's lifetime; only the mode changes per render.
@@ -16,13 +16,13 @@ final class NavigatorController: NSViewController {
     private let onSelectFolder: (URL) -> Void
     private let onOpenInNewTab: (URL, TabActivation) -> Void
     private let onItemCountChange: (Int?) -> Void
-
+    
     private var tree: FileTree
-
+    
     /// Set while the controller drives the selection itself, so revealing the
     /// session's location does not read back as the user choosing it.
     private var isRevealingSelection = false
-
+    
     init(
         rootURL: URL,
         mode: WorkspaceMode,
@@ -40,19 +40,19 @@ final class NavigatorController: NSViewController {
         tree = FileTree(root: self.rootURL)
         super.init(nibName: nil, bundle: nil)
     }
-
+    
     @available(*, unavailable)
     required init?(coder: NSCoder) {
         fatalError("init(coder:) is unavailable")
     }
-
+    
     override func loadView() {
         scrollView.hasVerticalScroller = true
         scrollView.autohidesScrollers = true
         scrollView.borderType = .noBorder
         scrollView.drawsBackground = false
         scrollView.contentView.drawsBackground = false
-
+        
         outlineView.style = .sourceList
         outlineView.backgroundColor = .clear
         outlineView.headerView = nil
@@ -66,25 +66,25 @@ final class NavigatorController: NSViewController {
         outlineView.onCommandClick = { [weak self] row in
             self?.openRowInBackgroundTab(row) ?? false
         }
-
+        
         let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("file"))
         column.isEditable = false
         column.resizingMask = .autoresizingMask
         outlineView.addTableColumn(column)
         outlineView.outlineTableColumn = column
-
+        
         scrollView.documentView = outlineView
         view = scrollView
         adoptTree()
     }
-
+    
     func render(rootURL: URL, mode: WorkspaceMode) {
         let rootURL = rootURL.standardizedFileURL
         let rootChanged = self.rootURL != rootURL
-
+        
         self.rootURL = rootURL
         self.mode = mode
-
+        
         loadViewIfNeeded()
         if rootChanged {
             tree = FileTree(root: rootURL)
@@ -93,7 +93,7 @@ final class NavigatorController: NSViewController {
             revealSelection()
         }
     }
-
+    
     /// Renders the current tree from scratch and starts watching it.
     ///
     /// The only path that calls `reloadData()`. Every later change arrives as a
@@ -103,13 +103,13 @@ final class NavigatorController: NSViewController {
             self?.apply(deltas)
         }
         tree.startWatching()
-
+        
         outlineView.reloadData()
         outlineView.expandItem(tree.root)
         reportItemCount()
         revealSelection()
     }
-
+    
     private func apply(_ deltas: [FileNode.Delta]) {
         // The tree has already reconciled, so the data source answers with the
         // new state. These calls tell the outline view which rows moved.
@@ -127,30 +127,30 @@ final class NavigatorController: NSViewController {
             )
         }
         outlineView.endUpdates()
-
+        
         reportItemCount()
         revealSelection()
     }
-
+    
     private func reportItemCount() {
         onItemCountChange(tree.root.children.count)
     }
-
+    
     // MARK: - Selection
-
+    
     /// Moves the sidebar selection to wherever the session is pointed.
     private func revealSelection() {
         guard let row = rowForCurrentMode() else {
             outlineView.deselectAll(nil)
             return
         }
-
+        
         isRevealingSelection = true
         outlineView.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false)
         isRevealingSelection = false
         outlineView.scrollRowToVisible(row)
     }
-
+    
     /// The row standing for the current mode, or `nil` when nothing does.
     private func rowForCurrentMode() -> Int? {
         let url: URL
@@ -162,16 +162,21 @@ final class NavigatorController: NSViewController {
         case .reading(let pdfURL):
             url = pdfURL
         }
-
+        
         guard url.isDescendantOrSame(of: tree.root.url),
               let node = node(for: url, from: tree.root) else {
             return nil
         }
-
+        
         let row = outlineView.row(forItem: node)
         return row >= 0 ? row : nil
     }
-
+    
+    /// The node at `row` or `nil` for Appkit's -1 "no row" sentinel
+    private func node(atRow row: Int) -> FileNode? {
+        guard row >= 0 else { return nil }
+        return outlineView.item(atRow: row) as? FileNode
+    }
     /// Walks down to `fileURL`, expanding each directory on the way.
     ///
     /// The prefix check runs before any child is touched, so only directories on
@@ -180,7 +185,7 @@ final class NavigatorController: NSViewController {
         guard fileURL.isDescendantOrSame(of: node.url) else { return nil }
         if node.url == fileURL { return node }
         guard node.isDirectory else { return nil }
-
+        
         outlineView.expandItem(node)
         for child in node.children {
             if let match = self.node(for: fileURL, from: child) {
@@ -189,77 +194,55 @@ final class NavigatorController: NSViewController {
         }
         return nil
     }
-
+    
     // MARK: - Commands
-
+    
     /// Command-click on a PDF opens a background tab and leaves selection alone.
     private func openRowInBackgroundTab(_ row: Int) -> Bool {
-        guard let node = outlineView.item(atRow: row) as? FileNode,
-              !node.isDirectory else {
-            return false
-        }
+        guard let node = node(atRow: row), !node.isDirectory else { return false}
         onOpenInNewTab(node.url, .background)
         return true
     }
-
+    
     @objc private func openClickedRowInNewTab(_ sender: Any?) {
         guard let url = contextMenuPDFURL else { return }
         onOpenInNewTab(url, .foreground)
     }
-
+    
     @objc private func openClickedRow(_ sender: Any?) {
         guard let url = contextMenuPDFURL else { return }
         onSelectPDF(url)
     }
-
+    
     @objc private func openClickedRowInDefaultApp(_ sender: Any?) {
         guard let url = contextMenuPDFURL else { return }
         NSWorkspace.shared.open(url)
     }
-
+    
     @objc private func showClickedRowInFinder(_ sender: Any?) {
         guard let url = contextMenuPDFURL else { return }
         NSWorkspace.shared.activateFileViewerSelecting([url])
     }
-
+    
+    // MARK: - context menu
     private var contextMenuPDFURL: URL? {
         let clickedRow = outlineView.clickedRow
         let row = clickedRow >= 0 ? clickedRow : outlineView.selectedRow
-        guard row >= 0,
-              let node = outlineView.item(atRow: row) as? FileNode,
-              !node.isDirectory else {
-            return nil
-        }
+        guard let node = node(atRow: row), !node.isDirectory else { return nil }
         return node.url
     }
-
+    
+    private func addItem(to menu: NSMenu, title: String, action: Selector){
+        menu.addItem(withTitle: title, action: action, keyEquivalent: "").target = self
+    }
+    
     private func makeContextMenu() -> NSMenu {
         let menu = NSMenu()
-        let openItem = menu.addItem(
-            withTitle: "Open",
-            action: #selector(openClickedRow(_:)),
-            keyEquivalent: ""
-        )
-        openItem.target = self
-        let newTabItem = menu.addItem(
-            withTitle: "Open in New Tab",
-            action: #selector(openClickedRowInNewTab(_:)),
-            keyEquivalent: ""
-        )
-        newTabItem.target = self
+        addItem(to: menu, title: "Open", action: #selector(openClickedRow(_:)))
+        addItem(to: menu, title: "Open in New Tab", action: #selector(openClickedRowInNewTab(_:)))
         menu.addItem(.separator())
-        let defaultAppItem = menu.addItem(
-            withTitle: "Open in Default App",
-            action: #selector(openClickedRowInDefaultApp(_:)),
-            keyEquivalent: ""
-        )
-        defaultAppItem.target = self
-        let finderItem = menu.addItem(
-            withTitle: "Show in Finder",
-            action: #selector(showClickedRowInFinder(_:)),
-            keyEquivalent: ""
-        )
-        finderItem.target = self
+        addItem(to: menu, title: "Open in Default App", action: #selector(openClickedRowInDefaultApp(_:)))
+        addItem(to: menu, title: "Show in Finder", action: #selector(showClickedRowInFinder(_:)))
         return menu
     }
 }
@@ -313,23 +296,12 @@ extension NavigatorController: NSOutlineViewDelegate {
 
     func outlineViewSelectionDidChange(_ notification: Notification) {
         guard !isRevealingSelection else { return }
+        guard let node = node(atRow: outlineView.selectedRow) else { return }
 
-        let row = outlineView.selectedRow
-        guard row >= 0 else { return }
-
-        guard let node = outlineView.item(atRow: row) as? FileNode else { return }
         if node.isDirectory {
             onSelectFolder(node.url)
         } else {
             onSelectPDF(node.url)
         }
-    }
-}
-
-private extension URL {
-    func isDescendantOrSame(of other: URL) -> Bool {
-        let mine = standardizedFileURL.path
-        let root = other.standardizedFileURL.path
-        return mine == root || mine.hasPrefix(root + "/")
     }
 }

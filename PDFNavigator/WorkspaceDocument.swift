@@ -110,10 +110,8 @@ final class WorkspaceDocument: NSDocument {
 
     override nonisolated func read(from url: URL, ofType typeName: String) throws {
         let standardized = url.standardizedFileURL
-        var isDirectory: ObjCBool = false
-        FileManager.default.fileExists(atPath: standardized.path, isDirectory: &isDirectory)
         pendingRequest.withLock {
-            $0 = isDirectory.boolValue ? .folder(standardized) : .pdf(standardized)
+            $0 = standardized.isExistingDirectory ? .folder(standardized) : .pdf(standardized)
         }
     }
 

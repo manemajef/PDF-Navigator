@@ -249,9 +249,3 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 }
-
-private extension URL {
-    var isExistingDirectory: Bool {
-        (try? resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true
-    }
-}

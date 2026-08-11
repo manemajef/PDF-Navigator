@@ -48,7 +48,7 @@ final class WindowSplitController: NSSplitViewController {
         startPageController = NSHostingController(
             rootView: StartPageView(
                 recentURLs: RecentLocationsStore.shared.recentPDFs(in: session.root),
-                onSelectPDF: session.select
+                onOpenPDF: session.show
             )
         )
         libraryController = NSHostingController(
@@ -122,7 +122,7 @@ final class WindowSplitController: NSSplitViewController {
         case .startPage:
             startPageController.rootView = StartPageView(
                 recentURLs: RecentLocationsStore.shared.recentPDFs(in: session.root),
-                onSelectPDF: session.select
+                onOpenPDF: session.show
             )
             setInspector(visible: false)
             install(startPageController, in: detailContainer)

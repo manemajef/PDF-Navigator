@@ -64,6 +64,19 @@ nonisolated enum DirectoryScanner {
     /// `FileNode.reload()` depends on this being the only ordering the
     /// navigator ever applies: its diff assumes the surviving nodes appear in
     /// the same relative order before and after a rescan.
+    
+    static func previewPDFs(in directory: URL, limit: Int) -> [URL] {
+        let items = DirectoryScanner.items(in: directory)
+        var pdfs = items.filter { !$0.isDirectory }.map(\.url)
+
+        for folder in items where folder.isDirectory && pdfs.count < limit {
+            pdfs.append(contentsOf: DirectoryScanner.items(in: folder.url)
+                .filter { !$0.isDirectory }
+                .map(\.url)
+                .prefix(limit - pdfs.count))
+        }
+        return Array(pdfs.prefix(limit))
+    }
     private static func isOrderedBefore(_ lhs: Item, _ rhs: Item) -> Bool {
         if lhs.isDirectory != rhs.isDirectory {
             return lhs.isDirectory

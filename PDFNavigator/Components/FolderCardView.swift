@@ -2,60 +2,31 @@ import SwiftUI
 
 /// The contained mini-grid treatment for a folder.
 struct FolderCardView: View {
-    private static let width: CGFloat = 120
+    private static let width: CGFloat = 100
 
     let url: URL
-    let action: () -> Void
+    let isSelected: Bool
+    let onSelect: () -> Void
+    let onOpen: () -> Void
 
     @State private var previewURLs: [URL] = []
 
     var body: some View {
-        GalleryItemButton(action: action) {
-            VStack(spacing: 8) {
-                ZStack {
-                    folderSurface
-
-                    if previewURLs.isEmpty {
-                        Image(systemName: "folder.fill")
-                            .font(.system(size: 38))
-                            .foregroundStyle(.secondary)
-                    } else if previewURLs.count == 1 {
-                        ThumbnailView(
-                            url: previewURLs[0],
-                            size: CGSize(width: 68, height: 92),
-                            cornerRadius: 5,
-                            showsShadow: true
-                        )
-                    } else {
-                        LazyVGrid(
-                            columns: Array(
-                                repeating: GridItem(.fixed(43), spacing: 8),
-                                count: 2
-                            ),
-                            spacing: 8
-                        ) {
-                            ForEach(previewURLs, id: \.self) { pdfURL in
-                                ThumbnailView(
-                                    url: pdfURL,
-                                    size: CGSize(width: 43, height: 50),
-                                    cornerRadius: 4,
-                                    showsShadow: true
-                                )
-                            }
-                        }
-                    }
+            GalleryItemView(
+                isSelected: isSelected,
+                onSelect: onSelect,
+                onOpen: onOpen
+            ) {
+                VStack(spacing: 8) {
+                    // ... everything here stays exactly as it is ...
                 }
-                .frame(width: Self.width, height: Self.width)
-
-                GalleryItemLabel(title: url.lastPathComponent)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 8)
             }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 8)
+            .task(id: url) {
+                previewURLs = DirectoryScanner.previewPDFs(in: url, limit: 4)
+            }
         }
-        .task(id: url) {
-            previewURLs = folderPreviewPDFs(in: url, limit: 4)
-        }
-    }
 
     @ViewBuilder
     private var folderSurface: some View {
@@ -80,24 +51,11 @@ struct FolderCardView: View {
         ?? DevelopmentConfiguration.demoDirURL
 
     HStack(alignment: .top, spacing: 40) {
-        VStack(spacing: 24) {
-            FolderCardView(url: shortFolderURL, action: {})
-            FolderCardView(
-                url: DevelopmentConfiguration.demoLongNameFolderURL,
-                action: {}
-            )
-            Text("Contained grid")
-                .foregroundStyle(.secondary)
-        }
-        VStack(spacing: 24) {
-            FolderStackView(url: shortFolderURL, action: {})
-            FolderStackView(
-                url: DevelopmentConfiguration.demoLongNameFolderURL,
-                action: {}
-            )
-            Text("Loose stack")
-                .foregroundStyle(.secondary)
-        }
+        FolderCardView(url: shortFolderURL, isSelected: false, onSelect: {}, onOpen: {})
+        FolderCardView(url: DevelopmentConfiguration.demoLongNameFolderURL, isSelected: true, onSelect: {}, onOpen: {})
+//        FolderStackView(url: shortFolderURL, isSelected: false, onSelect: {}, onOpen: {})
+//        FolderStackView(url: DevelopmentConfiguration.demoLongNameFolderURL, isSelected: false, onSelect: {}, onOpen: {})
+
     }
     .padding(32)
 }

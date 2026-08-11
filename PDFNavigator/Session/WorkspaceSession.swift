@@ -87,7 +87,7 @@ final class WorkspaceSession {
 
     // MARK: - Moving within the workspace
 
-    func select(_ pdfURL: URL) {
+    func show(_ pdfURL: URL) {
         navigate(to: .pdf(pdfURL, in: root))
     }
 

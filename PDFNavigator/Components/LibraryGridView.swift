@@ -7,8 +7,10 @@ struct LibraryGridView: View {
     let folderURLs: [URL]
     let pdfURLs: [URL]
     let emptyMessage: String
-    let onSelectPDF: (URL) -> Void
-    let onSelectFolder: (URL) -> Void
+    let onOpenPDF: (URL) -> Void
+    let onOpenFolder: (URL) -> Void
+    
+    @State private var selectedURL: URL?
 
     private var columns: [GridItem] {
         [GridItem(.adaptive(minimum: Self.minimumCardWidth), spacing: Self.spacing)]
@@ -27,6 +29,9 @@ struct LibraryGridView: View {
                 }
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(Rectangle())
+        .onTapGesture { selectedURL = nil }
     }
 
     private var foldersSection: some View {
@@ -39,12 +44,12 @@ struct LibraryGridView: View {
                 spacing: Self.spacing
             ) {
                 ForEach(folderURLs, id: \.self) { url in
-//                    FolderCardView(url: url) {
-//                        onSelectFolder(url)
-//                    }
-                    FolderStackView(url: url) {
-                        onSelectFolder(url)
-                    }
+                    FolderCardView(
+                        url: url,
+                        isSelected: selectedURL == url,
+                        onSelect: { selectedURL = url },
+                        onOpen: { onOpenFolder(url) }
+                    )
                 }
             }
         }
@@ -77,10 +82,11 @@ struct LibraryGridView: View {
             ForEach(urls, id: \.self) { url in
                 FileCardView(
                     url: url,
-                    subtitle: url.deletingLastPathComponent().lastPathComponent
-                ) {
-                    onSelectPDF(url)
-                }
+                    subtitle: url.deletingLastPathComponent().lastPathComponent,
+                    isSelected: selectedURL == url,
+                    onSelect: { selectedURL = url },
+                    onOpen: { onOpenPDF(url) }
+                )
             }
         }
     }
@@ -113,8 +119,8 @@ struct LibraryGridView: View {
                 folderURLs: DevelopmentConfiguration.demoFolderURLs,
                 pdfURLs: DevelopmentConfiguration.loadPDFs(recursive: false),
                 emptyMessage: "This workspace is empty",
-                onSelectPDF: { _ in },
-                onSelectFolder: { _ in }
+                onOpenPDF: { _ in },
+                onOpenFolder: { _ in }
             )
             .padding(28)
         }    /*.frame(width: 700, height: 300)*/

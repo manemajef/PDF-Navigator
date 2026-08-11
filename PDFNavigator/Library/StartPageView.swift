@@ -3,13 +3,13 @@ import SwiftUI
 /// The workspace-scoped page shown when the user creates a new tab.
 struct StartPageView: View {
     let recentURLs: [URL]
-    let onSelectPDF: (URL) -> Void
+    let onOpenPDF: (URL) -> Void
 
     var body: some View {
         ScrollView {
             RecentPDFGridView(
                 urls: recentURLs,
-                onSelectPDF: onSelectPDF
+                onOpenPDF: onOpenPDF
             )
             .padding(.horizontal, 28)
             .padding(.vertical, 12)
@@ -21,10 +21,25 @@ struct StartPageView: View {
 
 #if DEBUG
 #Preview("Start Page") {
-    StartPageView(
-        recentURLs: DevelopmentConfiguration.loadPDFs(limit: 12),
-        onSelectPDF: { _ in }
-    )
-    .frame(width: 700, height: 620)
+    @Previewable @State var text = ""
+    NavigationSplitView{}detail: {
+        StartPageView(
+            recentURLs: DevelopmentConfiguration.loadPDFs(limit: 12),
+            onOpenPDF: { _ in }
+        )
+    }
+    .toolbar{
+        ToolbarItem{
+            Button(action: {}){
+                Label("", systemImage: "plus")
+            }
+        }
+        
+    }
+    .searchable(text: $text)
+    .frame(width: 600, height: 620)
+    
+
+
 }
 #endif

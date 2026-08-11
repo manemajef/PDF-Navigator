@@ -15,12 +15,18 @@ struct FolderStackView: View {
     }
 
     let url: URL
-    let action: () -> Void
+    let isSelected: Bool
+    let onSelect: () -> Void
+    let onOpen: () -> Void
 
     @State private var previewURLs: [URL] = []
 
     var body: some View {
-        GalleryItemButton(action: action) {
+        GalleryItemView(
+            isSelected: isSelected,
+            onSelect: onSelect,
+            onOpen: onOpen
+        ) {
             VStack(spacing: 8) {
                 ZStack(alignment: .bottomTrailing) {
                     if previewURLs.isEmpty {
@@ -58,7 +64,7 @@ struct FolderStackView: View {
             .padding(.vertical, 8)
         }
         .task(id: url) {
-            previewURLs = folderPreviewPDFs(in: url, limit: 3)
+            previewURLs = DirectoryScanner.previewPDFs(in: url, limit: 3)
         }
     }
 
@@ -91,18 +97,6 @@ struct FolderStackView: View {
     }
 }
 
-func folderPreviewPDFs(in folderURL: URL, limit: Int) -> [URL] {
-    let items = DirectoryScanner.items(in: folderURL)
-    var pdfs = items.filter { !$0.isDirectory }.map(\.url)
-
-    for folder in items where folder.isDirectory && pdfs.count < limit {
-        pdfs.append(contentsOf: DirectoryScanner.items(in: folder.url)
-            .filter { !$0.isDirectory }
-            .map(\.url)
-            .prefix(limit - pdfs.count))
-    }
-    return Array(pdfs.prefix(limit))
-}
 
 #if DEBUG
 #Preview("Folder Stack Names") {
@@ -110,10 +104,17 @@ func folderPreviewPDFs(in folderURL: URL, limit: Int) -> [URL] {
         ?? DevelopmentConfiguration.demoDirURL
 
     HStack(alignment: .top, spacing: 24) {
-        FolderStackView(url: shortFolderURL, action: {})
+        FolderStackView(
+            url: shortFolderURL,
+            isSelected: false,
+            onSelect: {},
+            onOpen: {}
+        )
         FolderStackView(
             url: DevelopmentConfiguration.demoLongNameFolderURL,
-            action: {}
+            isSelected: true,
+            onSelect: {},
+            onOpen: {}
         )
     }
     .padding()

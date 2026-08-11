@@ -225,7 +225,8 @@ enum ToolbarCatalogue {
     ]
 
     static let defaultIdentifiers: [NSToolbarItem.Identifier] = [
-        .flexibleSpace, .toggleSidebar, .sidebarTrackingSeparator,
+//        .flexibleSpace,
+        .toggleSidebar, .sidebarTrackingSeparator,
         .workspaceNavigation,
         .flexibleSpace,
         .pdfZoomControll,

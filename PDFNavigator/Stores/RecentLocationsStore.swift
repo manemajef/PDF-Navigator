@@ -60,15 +60,11 @@ final class RecentLocationsStore {
     ) -> [URL] {
         guard limit > 0 else { return [] }
 
-        let rootComponents = workspaceRoot
-            .standardizedFileURL
-            .pathComponents
-
         return recentPDFs.lazy
             .map(\.standardizedFileURL)
             .filter { url in
-                url.pathComponents.starts(with: rootComponents)
-                    && FileManager.default.fileExists(atPath: url.path)
+                url.isDescendantOrSame(of: workspaceRoot)
+                && FileManager.default.fileExists(atPath: url.path)
             }
             .prefix(limit)
             .map { $0 }

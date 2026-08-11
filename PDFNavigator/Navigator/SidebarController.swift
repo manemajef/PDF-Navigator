@@ -10,7 +10,7 @@ final class SidebarController: NSViewController {
     private lazy var navigatorController = NavigatorController(
         rootURL: session.root,
         mode: session.mode,
-        onSelectPDF: session.select,
+        onSelectPDF: session.show,
         onSelectFolder: session.showFolder,
         onOpenInNewTab: actions.openInNewTab,
         onItemCountChange: { [weak self] in self?.setItemCount($0) }

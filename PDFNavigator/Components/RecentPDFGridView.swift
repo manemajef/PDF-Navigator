@@ -7,10 +7,11 @@ struct RecentPDFGridView: View {
     private static let collapsedRowCount = 2
 
     let urls: [URL]
-    let onSelectPDF: (URL) -> Void
+    let onOpenPDF: (URL) -> Void
 
     @State private var isExpanded = false
     @State private var columnCount = 1
+    @State private var selectedURL: URL?
 
     private var columns: [GridItem] {
         [GridItem(.adaptive(minimum: Self.minimumCardWidth), spacing: Self.spacing)]
@@ -49,10 +50,11 @@ struct RecentPDFGridView: View {
                     ForEach(visibleURLs, id: \.self) { url in
                         FileCardView(
                             url: url,
-                            subtitle: url.deletingLastPathComponent().lastPathComponent
-                        ) {
-                            onSelectPDF(url)
-                        }
+                            subtitle: url.deletingLastPathComponent().lastPathComponent,
+                            isSelected: selectedURL == url,
+                            onSelect: {selectedURL = url},
+                            onOpen: {onOpenPDF(url)}
+                        )
                     }
                 }
             }
@@ -63,6 +65,11 @@ struct RecentPDFGridView: View {
                         / (Self.minimumCardWidth + Self.spacing))
                 )
             } action: { columnCount = $0 }
+            .contentShape(Rectangle())
+            .onTapGesture {
+                selectedURL = nil
+            }
+                
         }
     }
 
@@ -99,7 +106,7 @@ struct RecentPDFGridView: View {
     ScrollView {
         RecentPDFGridView(
             urls: DevelopmentConfiguration.loadPDFs(limit: 12),
-            onSelectPDF: { _ in }
+            onOpenPDF: { _ in }
         )
         .padding(28)
     }
