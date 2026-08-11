@@ -30,8 +30,11 @@ struct LibraryGridView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .contentShape(Rectangle())
-        .onTapGesture { selectedURL = nil }
+        // Behind the items, so hit-testing sends a press to the item's catcher
+        // when there is one and to this one otherwise. A SwiftUI gesture here
+        // would instead fire *as well as* the item's, clearing the selection
+        // the same click just made.
+        .background(ClickCatcher { _ in selectedURL = nil })
     }
 
     private var foldersSection: some View {
@@ -109,33 +112,56 @@ struct LibraryGridView: View {
 }
 
 #if DEBUG
-#Preview("Library Grid") {
-    NavigationSplitView{
+/// Enough items to see wrapping, row rhythm, and scrolling. The root folder
+/// alone yields four folders and two PDFs, which is too few to judge any of it.
+private enum GridPreviewData {
+    static let folderURLs: [URL] =
+        DevelopmentConfiguration.demoFolderURLs
+        + [DevelopmentConfiguration.demoLongNameFolderURL]
 
+    static let pdfURLs: [URL] =
+        DevelopmentConfiguration.loadPDFs(limit: 40)
+}
 
-    } detail: {
-        ScrollView {
-            LibraryGridView(
-                folderURLs: DevelopmentConfiguration.demoFolderURLs,
-                pdfURLs: DevelopmentConfiguration.loadPDFs(recursive: false),
-                emptyMessage: "This workspace is empty",
-                onOpenPDF: { _ in },
-                onOpenFolder: { _ in }
-            )
-            .padding(28)
-        }    /*.frame(width: 700, height: 300)*/
-        .toolbar{
-            ToolbarItem{
-                Button(action: {}){
-                    Label("New", systemImage: "plus")
-                }
-            }
-        }
-        .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
-
-
-
+#Preview("Library Grid — populated") {
+    ScrollView {
+        LibraryGridView(
+            folderURLs: GridPreviewData.folderURLs,
+            pdfURLs: GridPreviewData.pdfURLs,
+            emptyMessage: "This workspace is empty",
+            onOpenPDF: { _ in },
+            onOpenFolder: { _ in }
+        )
+        .padding(28)
     }
+    .background(Color(nsColor: .windowBackgroundColor))
+    .frame(width: 900, height: 700)
+}
 
+#Preview("Library Grid — narrow") {
+    ScrollView {
+        LibraryGridView(
+            folderURLs: GridPreviewData.folderURLs,
+            pdfURLs: GridPreviewData.pdfURLs,
+            emptyMessage: "This workspace is empty",
+            onOpenPDF: { _ in },
+            onOpenFolder: { _ in }
+        )
+        .padding(28)
+    }
+    .background(Color(nsColor: .windowBackgroundColor))
+    .frame(width: 380, height: 700)
+}
+
+#Preview("Library Grid — empty") {
+    LibraryGridView(
+        folderURLs: [],
+        pdfURLs: [],
+        emptyMessage: "This workspace is empty",
+        onOpenPDF: { _ in },
+        onOpenFolder: { _ in }
+    )
+    .padding(28)
+    .frame(width: 700, height: 300)
 }
 #endif

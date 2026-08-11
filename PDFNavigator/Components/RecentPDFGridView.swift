@@ -65,10 +65,7 @@ struct RecentPDFGridView: View {
                         / (Self.minimumCardWidth + Self.spacing))
                 )
             } action: { columnCount = $0 }
-            .contentShape(Rectangle())
-            .onTapGesture {
-                selectedURL = nil
-            }
+            .background(ClickCatcher { _ in selectedURL = nil })
                 
         }
     }

@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 /// A Gallery item: one pointer click selects it, two open it.
@@ -32,12 +33,11 @@ struct GalleryItemView<Label: View>: View {
         styledLabel
             .background(selectionBackground)
             .contentShape(Rectangle())
-            .onTapGesture(count: 2, perform: onOpen)
-            // Recognised alongside the double click rather than after it. A
-            // plain second `onTapGesture` would have to wait out the system
-            // double-click interval before it could rule a double click out,
-            // which is the delay between pressing and seeing the highlight.
-            .simultaneousGesture(TapGesture().onEnded(onSelect))
+            .overlay(
+                ClickCatcher { clickCount in
+                    if clickCount >= 2 { onOpen() } else { onSelect() }
+                }
+            )
             .accessibilityElement(children: .combine)
             .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
             .accessibilityAction(.default, onOpen)
