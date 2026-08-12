@@ -5,10 +5,11 @@ import SwiftUI
 /// Native three-column geometry: Navigator | workspace/reader | Inspector.
 final class WindowSplitController: NSSplitViewController {
     private let session: WorkspaceSession
+    private let actions: WindowActions
     private let readerController: PDFReaderController
     private let workspaceSidebarController: SidebarController
     private let startPageController: NSHostingController<StartPageView>
-    private let galleryController: GalleryController
+    private let libraryController: NSHostingController<LibraryGridView>
     private let inspectorPresentationState = PDFInspectorPresentationState()
 
     /// Carries no payload: this controller owns inspector presentation, so
@@ -41,6 +42,7 @@ final class WindowSplitController: NSSplitViewController {
         onInspectorChange: @escaping () -> Void
     ) {
         self.session = session
+        self.actions = actions
         self.readerController = readerController
         self.onInspectorChange = onInspectorChange
 
@@ -48,12 +50,21 @@ final class WindowSplitController: NSSplitViewController {
         startPageController = NSHostingController(
             rootView: StartPageView(
                 recentURLs: RecentLocationsStore.shared.recentPDFs(in: session.root),
-                onOpenPDF: session.show
+                onOpenPDF: session.show,
+                onOpenPDFInNewTab: { actions.openInNewTab($0, .foreground) },
+                onRevealInFinder: actions.revealInFinder
             )
         )
-        galleryController = GalleryController(
-            onOpenPDF: session.show,
-            onOpenFolder: session.showFolder
+        libraryController = NSHostingController(
+            rootView: LibraryGridView(
+                folderURLs: [],
+                pdfURLs: [],
+                emptyMessage: "",
+                onOpenPDF: session.show,
+                onOpenFolder: session.showFolder,
+                onOpenPDFInNewTab: { actions.openInNewTab($0, .foreground) },
+                onRevealInFinder: actions.revealInFinder
+            )
         )
 
         super.init(nibName: nil, bundle: nil)
@@ -123,22 +134,28 @@ final class WindowSplitController: NSSplitViewController {
         case .startPage:
             startPageController.rootView = StartPageView(
                 recentURLs: RecentLocationsStore.shared.recentPDFs(in: session.root),
-                onOpenPDF: session.show
+                onOpenPDF: session.show,
+                onOpenPDFInNewTab: { self.actions.openInNewTab($0, .foreground) },
+                onRevealInFinder: self.actions.revealInFinder
             )
             setInspector(visible: false)
             install(startPageController, in: detailContainer)
 
         case .library(let folderURL):
             let items = DirectoryScanner.items(in: folderURL)
-            galleryController.render(
+            libraryController.rootView = LibraryGridView(
                 folderURLs: items.filter(\.isDirectory).map(\.url),
                 pdfURLs: items.filter { !$0.isDirectory }.map(\.url),
                 emptyMessage: folderURL == session.root
                     ? "This workspace has no PDFs yet"
-                    : "No folders or PDFs here"
+                    : "No folders or PDFs here",
+                onOpenPDF: session.show,
+                onOpenFolder: session.showFolder,
+                onOpenPDFInNewTab: { self.actions.openInNewTab($0, .foreground) },
+                onRevealInFinder: self.actions.revealInFinder
             )
             setInspector(visible: false)
-            install(galleryController, in: detailContainer)
+            install(libraryController, in: detailContainer)
 
         case .reading:
             guard let pdfSession = session.pdfSession else { return }

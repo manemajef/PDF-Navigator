@@ -4,7 +4,7 @@ import SwiftUI
 ///
 /// A modifier rather than a wrapper view: it adds a background and inverts the
 /// label, so it contributes no structure of its own. It also carries no
-/// behavior — clicks belong to the collection view that owns the items.
+/// behavior — clicks and focus belong to the shared gallery that owns the items.
 private struct GallerySelectionModifier: ViewModifier {
     /// Selection draws emphasized only while this window is the key one, which
     /// is what makes an inactive window's selection recede the way every other

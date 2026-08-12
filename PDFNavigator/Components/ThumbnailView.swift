@@ -1,10 +1,14 @@
 import AppKit
-import QuickLookThumbnailing
 import SwiftUI
 
 struct ThumbnailView: View {
+    private struct LoadedThumbnail {
+        let requestID: String
+        let image: NSImage
+    }
+
     @Environment(\.displayScale) private var displayScale
-    @State private var image: NSImage?
+    @State private var loadedThumbnail: LoadedThumbnail?
 
     let url: URL
     let size: CGSize
@@ -25,7 +29,7 @@ struct ThumbnailView: View {
 
     var body: some View {
         Group {
-            if let image {
+            if let image = displayedImage {
                 Image(nsImage: image)
                     .resizable()
                     .scaledToFit()
@@ -42,18 +46,29 @@ struct ThumbnailView: View {
             radius: 4,
             y: 2
         )
-        .task(id: url) {
-            let request = QLThumbnailGenerator.Request(
-                fileAt: url,
+        .task(id: requestID) {
+            guard let image = await ThumbnailCache.shared.image(
+                for: url,
                 size: size,
-                scale: displayScale,
-                representationTypes: .thumbnail
-            )
-            request.iconMode = true
-            image = try? await QLThumbnailGenerator.shared
-                .generateBestRepresentation(for: request)
-                .nsImage
+                scale: displayScale
+            ) else { return }
+            loadedThumbnail = LoadedThumbnail(requestID: requestID, image: image)
         }
+    }
+
+    private var displayedImage: NSImage? {
+        if loadedThumbnail?.requestID == requestID {
+            return loadedThumbnail?.image
+        }
+        return ThumbnailCache.shared.cachedImage(
+            for: url,
+            size: size,
+            scale: displayScale
+        )
+    }
+
+    private var requestID: String {
+        "\(url.path)|\(size.width)x\(size.height)@\(displayScale)"
     }
 }
 

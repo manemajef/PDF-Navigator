@@ -4,18 +4,16 @@ import SwiftUI
 struct StartPageView: View {
     let recentURLs: [URL]
     let onOpenPDF: (URL) -> Void
+    let onOpenPDFInNewTab: (URL) -> Void
+    let onRevealInFinder: (URL) -> Void
 
     var body: some View {
-        ScrollView {
-            RecentPDFGridView(
-                urls: recentURLs,
-                onOpenPDF: onOpenPDF
-            )
-            .padding(.horizontal, 28)
-            .padding(.vertical, 12)
-        }
-        .background(Color(nsColor: .windowBackgroundColor))
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        RecentPDFGridView(
+            urls: recentURLs,
+            onOpenPDF: onOpenPDF,
+            onOpenPDFInNewTab: onOpenPDFInNewTab,
+            onRevealInFinder: onRevealInFinder
+        )
     }
 }
 
@@ -25,7 +23,9 @@ struct StartPageView: View {
     NavigationSplitView{}detail: {
         StartPageView(
             recentURLs: DevelopmentConfiguration.loadPDFs(limit: 12),
-            onOpenPDF: { _ in }
+            onOpenPDF: { _ in },
+            onOpenPDFInNewTab: { _ in },
+            onRevealInFinder: { _ in }
         )
     }
     .toolbar{
