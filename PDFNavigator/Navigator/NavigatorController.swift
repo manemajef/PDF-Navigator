@@ -279,12 +279,25 @@ extension NavigatorController: NSOutlineViewDataSource {
 }
 
 extension NavigatorController: NSOutlineViewDelegate {
+    func outlineView(_ outlineView: NSOutlineView, isGroupItem item: Any) -> Bool {
+        (item as? FileNode) === tree.root
+    }
+
     func outlineView(
         _ outlineView: NSOutlineView,
         viewFor tableColumn: NSTableColumn?,
         item: Any
     ) -> NSView? {
         guard let node = item as? FileNode else { return nil }
+
+        if node === tree.root {
+            let view = outlineView.makeView(
+                withIdentifier: NavigatorSectionRowView.identifier,
+                owner: self
+            ) as? NavigatorSectionRowView ?? NavigatorSectionRowView()
+            view.configure(with: node)
+            return view
+        }
 
         let view = outlineView.makeView(
             withIdentifier: NavigatorRowView.identifier,
