@@ -8,7 +8,7 @@ final class WindowSplitController: NSSplitViewController {
     private let readerController: PDFReaderController
     private let workspaceSidebarController: SidebarController
     private let startPageController: NSHostingController<StartPageView>
-    private let libraryController: NSHostingController<LibraryContentView>
+    private let galleryController: GalleryController
     private let inspectorPresentationState = PDFInspectorPresentationState()
 
     /// Carries no payload: this controller owns inspector presentation, so
@@ -51,8 +51,9 @@ final class WindowSplitController: NSSplitViewController {
                 onOpenPDF: session.show
             )
         )
-        libraryController = NSHostingController(
-            rootView: LibraryContentView(session: session)
+        galleryController = GalleryController(
+            onOpenPDF: session.show,
+            onOpenFolder: session.showFolder
         )
 
         super.init(nibName: nil, bundle: nil)
@@ -127,9 +128,17 @@ final class WindowSplitController: NSSplitViewController {
             setInspector(visible: false)
             install(startPageController, in: detailContainer)
 
-        case .library:
+        case .library(let folderURL):
+            let items = DirectoryScanner.items(in: folderURL)
+            galleryController.render(
+                folderURLs: items.filter(\.isDirectory).map(\.url),
+                pdfURLs: items.filter { !$0.isDirectory }.map(\.url),
+                emptyMessage: folderURL == session.root
+                    ? "This workspace has no PDFs yet"
+                    : "No folders or PDFs here"
+            )
             setInspector(visible: false)
-            install(libraryController, in: detailContainer)
+            install(galleryController, in: detailContainer)
 
         case .reading:
             guard let pdfSession = session.pdfSession else { return }

@@ -1,6 +1,11 @@
 import SwiftUI
 
 /// The workspace-scoped Recents section shown on a new tab's Start Page.
+///
+/// Still a `LazyVGrid`, so it has no selection — a grid is a layout, not a
+/// control, and selection here would mean re-implementing one. The library
+/// moved to `GalleryController` for that reason; this surface is the next
+/// candidate, once the Show All affordance has a home in a collection view.
 struct RecentPDFGridView: View {
     private static let minimumCardWidth: CGFloat = 130
     private static let spacing: CGFloat = 14
@@ -11,7 +16,6 @@ struct RecentPDFGridView: View {
 
     @State private var isExpanded = false
     @State private var columnCount = 1
-    @State private var selectedURL: URL?
 
     private var columns: [GridItem] {
         [GridItem(.adaptive(minimum: Self.minimumCardWidth), spacing: Self.spacing)]
@@ -27,12 +31,19 @@ struct RecentPDFGridView: View {
 
     var body: some View {
         if urls.isEmpty {
-            emptyState
+            GalleryEmptyState(
+                symbolName: "clock",
+                message: "No recent PDFs in this workspace"
+            )
+            .frame(minHeight: 140)
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(Color(nsColor: .controlBackgroundColor).opacity(0.4))
+            )
         } else {
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
-                    sectionTitle
-                    Spacer()
+                    GallerySectionHeader(title: "Recents", count: urls.count)
 
                     if urls.count > collapsedCount {
                         Button(isExpanded ? "Show Less" : "Show All") {
@@ -51,10 +62,10 @@ struct RecentPDFGridView: View {
                         FileCardView(
                             url: url,
                             subtitle: url.deletingLastPathComponent().lastPathComponent,
-                            isSelected: selectedURL == url,
-                            onSelect: {selectedURL = url},
-                            onOpen: {onOpenPDF(url)}
+                            isSelected: false
                         )
+                        .contentShape(Rectangle())
+                        .onTapGesture(count: 2) { onOpenPDF(url) }
                     }
                 }
             }
@@ -65,36 +76,7 @@ struct RecentPDFGridView: View {
                         / (Self.minimumCardWidth + Self.spacing))
                 )
             } action: { columnCount = $0 }
-            .background(ClickCatcher { _ in selectedURL = nil })
-                
         }
-    }
-
-    private var sectionTitle: some View {
-        HStack(spacing: 6) {
-            Text("Recents")
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(.secondary)
-            Text("(\(urls.count))")
-                .font(.system(size: 12))
-                .foregroundStyle(.tertiary)
-        }
-    }
-
-    private var emptyState: some View {
-        VStack(spacing: 10) {
-            Image(systemName: "clock")
-                .font(.system(size: 36))
-                .foregroundStyle(.tertiary)
-            Text("No recent PDFs in this workspace")
-                .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity, minHeight: 140)
-        .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(Color(nsColor: .controlBackgroundColor).opacity(0.4))
-        )
     }
 }
 

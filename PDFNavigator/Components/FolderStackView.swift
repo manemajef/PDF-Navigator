@@ -16,18 +16,11 @@ struct FolderStackView: View {
 
     let url: URL
     let isSelected: Bool
-    let onSelect: () -> Void
-    let onOpen: () -> Void
 
     @State private var previewURLs: [URL] = []
 
     var body: some View {
-        GalleryItemView(
-            isSelected: isSelected,
-            onSelect: onSelect,
-            onOpen: onOpen
-        ) {
-            VStack(spacing: 8) {
+        VStack(spacing: 8) {
                 ZStack(alignment: .bottomTrailing) {
                     if previewURLs.isEmpty {
                         emptyThumbnail
@@ -59,10 +52,11 @@ struct FolderStackView: View {
                 )
 
                 GalleryItemLabel(title: url.lastPathComponent)
-            }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 8)
         }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity)
+        .gallerySelection(isSelected)
         .task(id: url) {
             previewURLs = DirectoryScanner.previewPDFs(in: url, limit: 3)
         }
@@ -104,17 +98,10 @@ struct FolderStackView: View {
         ?? DevelopmentConfiguration.demoDirURL
 
     HStack(alignment: .top, spacing: 24) {
-        FolderStackView(
-            url: shortFolderURL,
-            isSelected: false,
-            onSelect: {},
-            onOpen: {}
-        )
+        FolderStackView(url: shortFolderURL, isSelected: false)
         FolderStackView(
             url: DevelopmentConfiguration.demoLongNameFolderURL,
-            isSelected: true,
-            onSelect: {},
-            onOpen: {}
+            isSelected: true
         )
     }
     .padding()

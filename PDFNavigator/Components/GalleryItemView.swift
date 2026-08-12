@@ -1,46 +1,21 @@
-import AppKit
 import SwiftUI
 
-/// A Gallery item: one pointer click selects it, two open it.
+/// The selected appearance shared by every gallery item.
 ///
-/// Holds no state of its own — the grid decides what is selected, and what
-/// opening means. Assistive technologies invoke opening through the default
-/// action; they should not need to reproduce a mouse-specific click count.
-struct GalleryItemView<Label: View>: View {
+/// A modifier rather than a wrapper view: it adds a background and inverts the
+/// label, so it contributes no structure of its own. It also carries no
+/// behavior — clicks belong to the collection view that owns the items.
+private struct GallerySelectionModifier: ViewModifier {
     /// Selection draws emphasized only while this window is the key one, which
     /// is what makes an inactive window's selection recede the way every other
     /// macOS list does.
     @Environment(\.controlActiveState) private var controlActiveState
 
     let isSelected: Bool
-    let onSelect: () -> Void
-    let onOpen: () -> Void
-    private let label: Label
 
-    init(
-        isSelected: Bool,
-        onSelect: @escaping () -> Void,
-        onOpen: @escaping () -> Void,
-        @ViewBuilder label: () -> Label
-    ) {
-        self.isSelected = isSelected
-        self.onSelect = onSelect
-        self.onOpen = onOpen
-        self.label = label()
-    }
-
-    var body: some View {
-        styledLabel
-            .background(selectionBackground)
-            .contentShape(Rectangle())
-            .overlay(
-                ClickCatcher { clickCount in
-                    if clickCount >= 2 { onOpen() } else { onSelect() }
-                }
-            )
-            .accessibilityElement(children: .combine)
-            .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
-            .accessibilityAction(.default, onOpen)
+    func body(content: Content) -> some View {
+        styled(content)
+            .background(background)
     }
 
     private var isEmphasized: Bool {
@@ -51,16 +26,16 @@ struct GalleryItemView<Label: View>: View {
     /// Supplying both levels here is what lets its text invert over the
     /// emphasized fill without knowing anything about selection.
     @ViewBuilder
-    private var styledLabel: some View {
+    private func styled(_ content: Content) -> some View {
         if isEmphasized {
-            label.foregroundStyle(.white, .white.opacity(0.75))
+            content.foregroundStyle(.white, .white.opacity(0.75))
         } else {
-            label
+            content
         }
     }
 
     @ViewBuilder
-    private var selectionBackground: some View {
+    private var background: some View {
         if isSelected {
             RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .fill(
@@ -71,5 +46,12 @@ struct GalleryItemView<Label: View>: View {
                     )
                 )
         }
+    }
+}
+
+extension View {
+    /// Applies the gallery's selected appearance.
+    func gallerySelection(_ isSelected: Bool) -> some View {
+        modifier(GallerySelectionModifier(isSelected: isSelected))
     }
 }
