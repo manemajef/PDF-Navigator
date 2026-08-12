@@ -40,14 +40,16 @@ final class SidebarController: NSViewController {
         // Outline on top, footer beneath.
         let column = NSStackView(views: [navigatorController.view, footerView])
         column.orientation = .vertical
-        column.alignment = .width
+        column.alignment = .leading
         column.spacing = 0
         column.distribution = .fill
 
         // The footer is content-sized and the outline takes whatever is left.
         footerView.setContentHuggingPriority(.required, for: .vertical)
         navigatorController.view.setContentHuggingPriority(.defaultLow, for: .vertical)
-
+        footerView.widthAnchor
+            .constraint(equalTo: column.widthAnchor)
+            .isActive = true
         view = column
     }
 
