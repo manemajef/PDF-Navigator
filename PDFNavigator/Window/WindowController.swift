@@ -93,7 +93,9 @@ final class WindowController: NSWindowController {
         window.tabbingMode = .automatic
         window.toolbarStyle = .unified
         window.autorecalculatesKeyViewLoop = true
-        window.toolbar = toolbar.makeToolbar()
+        // No toolbar yet: which one belongs here is a function of the session's
+        // mode, so the first `renderToolbar()` installs it. The window is not on
+        // screen until after that runs.
         window.contentViewController = contentController
         window.titlebarSeparatorStyle = .shadow
         NotificationCenter.default.addObserver(
@@ -148,7 +150,8 @@ final class WindowController: NSWindowController {
     /// is cached, so nothing can be stale.
     private var toolbarState: ToolbarState {
         ToolbarState(
-            hasPDF: session.pdfSession?.hasDocument == true,
+//            hasPDF: session.pdfSession?.hasDocument == true,
+            mode: session.pdfSession?.hasDocument == true ? .reading : .browsing,
             canGoBack: session.canGoBack,
             canGoForward: session.canGoForward,
             isActualSizeActive: readerController.isActualSizeActive,
@@ -156,8 +159,14 @@ final class WindowController: NSWindowController {
         )
     }
 
+    /// Installing comes first: the mode decides *which* toolbar is on the
+    /// window, and rendering then makes that one match the rest of the state.
     private func renderToolbar() {
-        toolbar.render(toolbarState)
+        let state = toolbarState
+        if let window {
+            toolbar.install(for: state.mode, in: window)
+        }
+        toolbar.render(state)
     }
 
     /// The document encodes the session's location, so it is the object whose

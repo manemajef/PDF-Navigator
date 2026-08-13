@@ -276,29 +276,54 @@ struct GalleryView: View {
         self.selectedItem = visibleItems[destination]
     }
 }
-
+struct MockHeader: View {
+    var body: some View {
+        HStack{
+            HStack{
+                VStack{
+                    Text("Folder Name").font(.headline)
+                    Text("n items").font(.subheadline)
+                }
+            }
+            
+            
+            Spacer()
+            Button(action: {}){
+                Label("Go to parent", systemImage: "arrow.up")
+            }
+            
+        }
+//        .frame(maxWidth: 700, alignment: .center)
+    }
+}
 #if DEBUG
 #Preview("Shared Gallery") {
-    GalleryView(
-        sections: [
-            GallerySection(
-                id: .folders,
-                title: "Folders",
-                items: DevelopmentConfiguration.demoFolderURLs.map(GalleryItem.folder)
-            ),
-            GallerySection(
-                id: .pdfs,
-                title: "PDFs",
-                items: DevelopmentConfiguration.loadPDFs(limit: 20).map(GalleryItem.pdf)
-            ),
-        ],
-        emptySymbolName: "doc.text.magnifyingglass",
-        emptyMessage: "This workspace has no PDFs yet",
-        onOpenPDF: { _ in },
-        onOpenFolder: { _ in },
-        onOpenPDFInNewTab: { _ in },
-        onRevealInFinder: { _ in }
-    )
+    NavigationSplitView{} detail: {
+        ScrollView{
+//            MockHeader()
+
+            GalleryView(
+                sections: [
+                    GallerySection(
+                        id: .folders,
+                        title: "Folders",
+                        items: DevelopmentConfiguration.demoFolderURLs.map(GalleryItem.folder)
+                    ),
+                    GallerySection(
+                        id: .pdfs,
+                        title: "PDFs",
+                        items: DevelopmentConfiguration.loadPDFs(limit: 20).map(GalleryItem.pdf)
+                    ),
+                ],
+                emptySymbolName: "doc.text.magnifyingglass",
+                emptyMessage: "This workspace has no PDFs yet",
+                onOpenPDF: { _ in },
+                onOpenFolder: { _ in },
+                onOpenPDFInNewTab: { _ in },
+                onRevealInFinder: { _ in }
+            )
+        }
+    }
     .frame(width: 800, height: 650)
 }
 #endif

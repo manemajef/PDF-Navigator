@@ -5,8 +5,14 @@ import Foundation
 /// `WindowController` derives a fresh value from the session and the reader on
 /// every change and hands it to `ToolbarController.render(_:)`. The toolbar
 /// stores none of it.
+
+enum ToolbarMode {
+    case browsing
+    case reading
+}
+
 struct ToolbarState {
-    let hasPDF: Bool
+    let mode: ToolbarMode
     let canGoBack: Bool
     let canGoForward: Bool
     let isActualSizeActive: Bool

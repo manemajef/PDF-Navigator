@@ -1,29 +1,63 @@
 import AppKit
 
-/// Builds the window's toolbar from `ToolbarCatalogue` and renders
-/// `ToolbarState` onto it. Stores no application state.
+/// Builds the window's toolbars from `ToolbarCatalogue` and renders
+/// `ToolbarState` onto whichever one is installed. Stores no application state.
+///
+/// One toolbar per `ToolbarSchema`, swapped as the window changes mode. Both
+/// are built from the same inventory of items; only their arrangement and the
+/// set they offer for customization differ.
 ///
 /// Enabled state is not part of the render pass. Top-level items self-validate
 /// through `WindowController.canPerform(_:)`, which AppKit calls before
 /// displaying them. This type renders only what validation has no hook for:
-/// visibility, and the subitem and selection state of groups.
+/// the subitem and selection state of groups.
 final class ToolbarController: NSObject, NSToolbarDelegate, NSSearchFieldDelegate {
     private weak var target: WindowController?
-    private weak var toolbar: NSToolbar?
+    private weak var window: NSWindow?
+
+    /// Built once per schema and kept, so returning to a mode restores the
+    /// arrangement left there instead of rebuilding it from defaults.
+    private var toolbars: [String: NSToolbar] = [:]
+
+    /// Whichever schema's toolbar is on the window right now. Read from the
+    /// window rather than cached, so it cannot disagree with what is on screen.
+    private var toolbar: NSToolbar? { window?.toolbar }
 
     init(target: WindowController) {
         self.target = target
     }
 
-    func makeToolbar() -> NSToolbar {
-        let toolbar = NSToolbar(identifier: "WorkspaceToolbarV8")
+    // MARK: - Installing
+
+    /// Puts the schema for `mode` on `window`, unless it is already there.
+    ///
+    /// The identifier comparison is what makes this safe to call from the
+    /// render pass, which runs on every session change.
+    func install(for mode: ToolbarMode, in window: NSWindow) {
+        self.window = window
+
+        let schema = ToolbarCatalogue.schema(for: mode)
+        guard window.toolbar?.identifier != schema.identifier else { return }
+
+        // A hidden toolbar must stay hidden across the swap: `isVisible` lives
+        // on the toolbar, not the window, so the incoming one knows nothing
+        // about the user having pressed Hide Toolbar.
+        let wasVisible = window.toolbar?.isVisible ?? true
+        window.toolbar = makeToolbar(for: schema)
+        window.toolbar?.isVisible = wasVisible
+    }
+
+    private func makeToolbar(for schema: ToolbarSchema) -> NSToolbar {
+        if let existing = toolbars[schema.identifier] { return existing }
+
+        let toolbar = NSToolbar(identifier: schema.identifier)
         toolbar.delegate = self
         toolbar.displayMode = .iconOnly
         toolbar.allowsUserCustomization = true
         #if !DEBUG
         toolbar.autosavesConfiguration = true
         #endif
-        self.toolbar = toolbar
+        toolbars[schema.identifier] = toolbar
         return toolbar
     }
 
@@ -35,9 +69,6 @@ final class ToolbarController: NSObject, NSToolbarDelegate, NSSearchFieldDelegat
         guard let toolbar else { return }
 
         for item in toolbar.items {
-            if ToolbarCatalogue.pdfOnlyIdentifiers.contains(item.itemIdentifier) {
-                setHidden(!state.hasPDF, on: item)
-            }
             if let group = item as? NSToolbarItemGroup,
                let spec = ToolbarCatalogue.groups[item.itemIdentifier] {
                 group.render(spec, in: state, target: target)
@@ -65,11 +96,6 @@ final class ToolbarController: NSObject, NSToolbarDelegate, NSSearchFieldDelegat
         searchItem?.endSearchInteraction()
     }
 
-    private func setHidden(_ isHidden: Bool, on item: NSToolbarItem) {
-        guard item.isHidden != isHidden else { return }
-        item.isHidden = isHidden
-    }
-
     private var searchItem: NSSearchToolbarItem? {
         toolbar?.items.first { $0.itemIdentifier == .workspaceSearch }
             as? NSSearchToolbarItem
@@ -77,12 +103,15 @@ final class ToolbarController: NSObject, NSToolbarDelegate, NSSearchFieldDelegat
 
     // MARK: - NSToolbarDelegate
 
+    /// Both of these answer for the toolbar that is asking, not for "the"
+    /// toolbar: one delegate serves every schema, and AppKit asks each of them
+    /// separately.
     func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        ToolbarCatalogue.allowedIdentifiers
+        ToolbarCatalogue.schema(matching: toolbar)?.allowed ?? []
     }
 
     func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        ToolbarCatalogue.defaultIdentifiers
+        ToolbarCatalogue.schema(matching: toolbar)?.defaults ?? []
     }
 
     /// The sidebar toggle is supplied by AppKit, so it is relabelled on
@@ -225,14 +254,15 @@ private extension NSToolbarItemGroup {
         in state: ToolbarState,
         target: AnyObject?
     ) {
-        let isAvailable = !spec.requiresPDF || state.hasPDF
+//        let isAvailable = !spec.requiresPDF || state.hasPDF
 
         for (subitem, subspec) in zip(subitems, spec.subitems) {
             subitem.target = target
             subitem.action = subspec.action
             subitem.toolTip = subspec.tooltip
             subitem.autovalidates = false
-            subitem.isEnabled = isAvailable && subspec.isEnabled(state)
+//            subitem.isEnabled = isAvailable && subspec.isEnabled(state)
+            subitem.isEnabled = subspec.isEnabled(state)
         }
 
         let selection = spec.selectedIndex?(state) ?? ToolbarCatalogue.noSelection

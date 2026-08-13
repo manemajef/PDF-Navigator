@@ -20,14 +20,14 @@ enum ToolbarCatalogue {
         let label: String
         let symbol: String
         let action: Selector
-        var requiresPDF = false
+        var modes: Set<ToolbarMode> = [.browsing, .reading]
     }
 
     /// A segmented cluster such as back/forward or the zoom controls.
     struct Group {
         let label: String
         var isNavigational = false
-        var requiresPDF = false
+        var modes: Set<ToolbarMode> = [.browsing, .reading]
         /// Which segment reads as selected, or `nil` for a momentary group.
         var selectedIndex: ((ToolbarState) -> Int)? = nil
         let subitems: [Subitem]
@@ -80,37 +80,43 @@ enum ToolbarCatalogue {
             label: "Zoom In",
             symbol: "plus.magnifyingglass",
             action: #selector(WindowController.zoomIn(_:)),
-            requiresPDF: true
+//            requiresPDF: true
+            modes: [.reading]
         ),
         .pdfZoomOut: Item(
             label: "Zoom Out",
             symbol: "minus.magnifyingglass",
             action: #selector(WindowController.zoomOut(_:)),
-            requiresPDF: true
+            modes: [.reading]
+
         ),
         .pdfActualSize: Item(
             label: "Actual Size",
             symbol: "1.magnifyingglass",
             action: #selector(WindowController.showActualSize(_:)),
-            requiresPDF: true
+            modes: [.reading]
+
         ),
         .pdfZoomToFit: Item(
             label: "Scale to Fit",
             symbol: "arrow.down.left.and.arrow.up.right",
             action: #selector(WindowController.zoomToFit(_:)),
-            requiresPDF: true
+            modes: [.reading]
+
         ),
         .pdfOpenExternally: Item(
             label: "Open in Default App",
             symbol: "arrow.up.forward.app",
             action: #selector(WindowController.openCurrentPDFInDefaultApp(_:)),
-            requiresPDF: true
+            modes: [.reading]
+
         ),
         .pdfShare: Item(
             label: "Share",
             symbol: "square.and.arrow.up",
             action: #selector(WindowController.shareCurrentPDF(_:)),
-            requiresPDF: true
+            modes: [.reading]
+
         ),
         
     ]
@@ -137,7 +143,7 @@ enum ToolbarCatalogue {
 
         .pdfPageNavigation: Group(
             label: "Page Navigation",
-            requiresPDF: true,
+            modes: [.reading],
             subitems: [
                 Subitem(
                     symbol: "chevron.up",
@@ -154,7 +160,7 @@ enum ToolbarCatalogue {
 
         .pdfZoomControll: Group(
             label: "Zoom",
-            requiresPDF: true,
+            modes: [.reading],
             subitems: [
                 Subitem(
                     symbol: "minus.magnifyingglass",
@@ -177,7 +183,8 @@ enum ToolbarCatalogue {
 
         .readerPanels: Group(
             label: "Reader Panels",
-            requiresPDF: true,
+//            requiresPDF: true,
+            modes: [.reading],
             selectedIndex: { state in
                 switch state.inspectorSection {
                 case .thumbnails: 0
@@ -209,27 +216,30 @@ enum ToolbarCatalogue {
     /// AppKit's own value for "no segment is selected".
     static let noSelection = -1
 
-    /// Items that only make sense while a PDF is open, including ones AppKit
-    /// supplies itself.
-    ///
-    /// AppKit offers no validation hook for visibility, so it must be
-    /// rendered.
-    static let pdfOnlyIdentifiers: Set<NSToolbarItem.Identifier> = {
-        var identifiers: Set<NSToolbarItem.Identifier> = [
-            .inspectorTrackingSeparator, .toggleInspector,
-        ]
-        for (identifier, item) in items where item.requiresPDF {
-            identifiers.insert(identifier)
-        }
-        for (identifier, group) in groups where group.requiresPDF {
-            identifiers.insert(identifier)
-        }
-        return identifiers
-    }()
+    static let systemItemModes: [NSToolbarItem.Identifier: Set<ToolbarMode>] = [
+        .inspectorTrackingSeparator: [.reading],
+        .toggleInspector: [.reading],
+    ]
+
+    static func isVisible(
+        _ identifier: NSToolbarItem.Identifier,
+        in mode: ToolbarMode
+    ) -> Bool {
+        if let item = items[identifier] { return item.modes.contains(mode)}
+        if let group = groups[identifier] {return group.modes.contains(mode)}
+        if let modes = systemItemModes[identifier] { return modes.contains(mode)}
+        return true
+    }
+    
 
     // MARK: - Layout
 
-    static let allowedIdentifiers: [NSToolbarItem.Identifier] = [
+    /// The pool every schema draws from. The order here is palette order.
+    ///
+    /// No schema uses this list directly: each filters it through `isVisible`,
+    /// so a reading-only tool cannot reach the browsing palette by being
+    /// listed in the wrong place.
+    static let allIdentifiers: [NSToolbarItem.Identifier] = [
         .toggleSidebar, .sidebarTrackingSeparator, .workspaceNavigation,
         .workspaceNewTab, .openNewWorkspace, .workspaceSearch,
         .goTolibrary, .goToEnclosingFolder, .goToStartPage,
@@ -239,18 +249,52 @@ enum ToolbarCatalogue {
         .inspectorTrackingSeparator, .readerPanels, .toggleInspector,
     ]
 
-    static let defaultIdentifiers: [NSToolbarItem.Identifier] = [
-//        .flexibleSpace,
-        .toggleSidebar, .sidebarTrackingSeparator,
-        .workspaceNavigation,
-        .flexibleSpace,
-        .pdfZoomControll,
-        .space,
-        .pdfZoomToFit,
-        .workspaceNewTab,
-        .workspaceSearch,
-        .toggleInspector,
-    ]
+    /// Browsing the library or recents.
+    static let browsingSchema = ToolbarSchema(
+        identifier: "BrowsingToolbarV1",
+        allowed: allIdentifiers.filter { isVisible($0, in: .browsing) },
+        defaults: [
+            .toggleSidebar, .sidebarTrackingSeparator,
+            .workspaceNavigation,
+            .goToEnclosingFolder,
+            .flexibleSpace,
+            .goTolibrary,
+            .goToStartPage,
+            .flexibleSpace,
+            .workspaceNewTab,
+        ]
+    )
+
+    /// Reading a PDF.
+    static let readingSchema = ToolbarSchema(
+        identifier: "ReadingToolbarV1",
+        allowed: allIdentifiers.filter { isVisible($0, in: .reading) },
+        defaults: [
+            .toggleSidebar, .sidebarTrackingSeparator,
+            .workspaceNavigation,
+            .flexibleSpace,
+            .pdfZoomControll,
+            .space,
+            .pdfZoomToFit,
+            .workspaceNewTab,
+            .workspaceSearch,
+            .toggleInspector,
+        ]
+    )
+
+    static func schema(for mode: ToolbarMode) -> ToolbarSchema {
+        switch mode {
+        case .browsing: browsingSchema
+        case .reading: readingSchema
+        }
+    }
+
+    /// The schema a live toolbar was built from, matched on the identifier the
+    /// two share. `nil` for any toolbar this catalogue did not build.
+    static func schema(matching toolbar: NSToolbar) -> ToolbarSchema? {
+        [browsingSchema, readingSchema]
+            .first { $0.identifier == toolbar.identifier }
+    }
 }
 
 extension NSToolbarItem.Identifier {
