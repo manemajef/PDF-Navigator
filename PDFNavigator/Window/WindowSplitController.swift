@@ -110,7 +110,8 @@ final class WindowSplitController: NSSplitViewController {
         inspectorSidebarItem.maximumThickness = 300
         inspectorSidebarItem.canCollapse = true
         inspectorSidebarItem.canCollapseFromWindowResize = true
-        inspectorSidebarItem.allowsFullHeightLayout = false
+        
+//        inspectorSidebarItem.allowsFullHeightLayout = false
 //        inspectorSidebarItem.titlebarSeparatorStyle = .none
         inspectorSidebarItem.isCollapsed = true
         inspectorSidebarItem.collapseBehavior = .preferResizingSiblingsWithFixedSplitView

@@ -61,6 +61,7 @@ enum ToolbarCatalogue {
         .goTolibrary: Item(
             label: "Library",
 //            symbol: "house",
+
             symbol: "square.grid.4x3.fill",
             action: #selector(WindowController.goToLibrary(_:))
         ),
@@ -219,6 +220,10 @@ enum ToolbarCatalogue {
     static let systemItemModes: [NSToolbarItem.Identifier: Set<ToolbarMode>] = [
         .inspectorTrackingSeparator: [.reading],
         .toggleInspector: [.reading],
+        // The field searches the open PDF, so while browsing it would be a
+        // control that accepts typing and does nothing. Drop this line to offer
+        // it in both palettes again.
+        .workspaceSearch: [.reading],
     ]
 
     static func isVisible(
@@ -249,37 +254,47 @@ enum ToolbarCatalogue {
         .inspectorTrackingSeparator, .readerPanels, .toggleInspector,
     ]
 
+    /// The run every schema opens with.
+    ///
+    /// Shared by identity rather than by convention: both schemas splice in the
+    /// same array, so these land on the same indices in every mode and a user's
+    /// muscle memory survives the swap. Keeping two hand-written lists in step
+    /// would be a rule someone has to remember; this is a rule that cannot be
+    /// broken.
+    private static let leadingDefaults: [NSToolbarItem.Identifier] = [
+        .toggleSidebar, .sidebarTrackingSeparator, .workspaceNavigation,
+    ]
+
+    /// The run that follows whatever the mode puts in the middle.
+    private static let trailingDefaults: [NSToolbarItem.Identifier] = [
+        .workspaceNewTab,
+    ]
+
     /// Browsing the library or recents.
+    ///
+    /// Nothing in the middle: browsing is currently a strict subset of reading,
+    /// and navigation between locations belongs in the sidebar and the library
+    /// header, not up here. The empty middle is where Sort and view-style go
+    /// when they arrive.
     static let browsingSchema = ToolbarSchema(
         identifier: "BrowsingToolbarV1",
         allowed: allIdentifiers.filter { isVisible($0, in: .browsing) },
-        defaults: [
-            .toggleSidebar, .sidebarTrackingSeparator,
-            .workspaceNavigation,
-            .goToEnclosingFolder,
-            .flexibleSpace,
-            .goTolibrary,
-            .goToStartPage,
-            .flexibleSpace,
-            .workspaceNewTab,
-        ]
+        defaults: leadingDefaults
+            + [.flexibleSpace]
+            + trailingDefaults
     )
 
     /// Reading a PDF.
+    ///
+    /// The reader's own tools trail the shared run because the inspector toggle
+    /// belongs against the right edge, over the inspector it opens.
     static let readingSchema = ToolbarSchema(
         identifier: "ReadingToolbarV1",
         allowed: allIdentifiers.filter { isVisible($0, in: .reading) },
-        defaults: [
-            .toggleSidebar, .sidebarTrackingSeparator,
-            .workspaceNavigation,
-            .flexibleSpace,
-            .pdfZoomControll,
-            .space,
-            .pdfZoomToFit,
-            .workspaceNewTab,
-            .workspaceSearch,
-            .toggleInspector,
-        ]
+        defaults: leadingDefaults
+            + [.flexibleSpace, .pdfZoomControll, .space, .goTolibrary]
+            + trailingDefaults
+            + [.workspaceSearch, .toggleInspector]
     )
 
     static func schema(for mode: ToolbarMode) -> ToolbarSchema {
