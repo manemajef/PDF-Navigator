@@ -3,9 +3,10 @@ import AppKit
 /// Builds the window's toolbars from `ToolbarCatalogue` and renders
 /// `ToolbarState` onto whichever one is installed. Stores no application state.
 ///
-/// One toolbar per `ToolbarSchema`, swapped as the window changes mode. Both
-/// are built from the same inventory of items; only their arrangement and the
-/// set they offer for customization differ.
+/// One toolbar, installed once and never replaced. A mode change rewrites its
+/// contents rather than exchanging the toolbar, which is what keeps the
+/// titlebar from crossfading; the arrangement each mode is left in survives in
+/// `ToolbarArrangements`.
 ///
 /// Enabled state is not part of the render pass. Top-level items self-validate
 /// through `WindowController.canPerform(_:)`, which AppKit calls before
@@ -15,12 +16,26 @@ final class ToolbarController: NSObject, NSToolbarDelegate, NSSearchFieldDelegat
     private weak var target: WindowController?
     private weak var window: NSWindow?
 
-    /// Built once per schema and kept, so returning to a mode restores the
-    /// arrangement left there instead of rebuilding it from defaults.
-    private var toolbars: [String: NSToolbar] = [:]
+    /// This window's toolbar, told apart from the palette's own by the
+    /// identifier it was built with.
+    ///
+    /// Unique per window, and never persisted — which is why it is minted here
+    /// rather than named in the catalogue. AppKit keeps toolbars that share an
+    /// identifier at the same item order, live: setting `itemIdentifiers` on
+    /// one rewrites every other, and a window opened later inherits the result.
+    /// Two windows in different modes hold different orders, so they cannot
+    /// share. What the *user* arranges is still shared, through
+    /// `ToolbarArrangements`, which each window reads on its next mode change.
+    private let identifier = NSToolbar.Identifier(
+        "WorkspaceToolbar.\(UUID().uuidString)"
+    )
 
-    /// Whichever schema's toolbar is on the window right now. Read from the
-    /// window rather than cached, so it cannot disagree with what is on screen.
+    /// The mode whose arrangement is on the toolbar, or `nil` until the first
+    /// render puts one there.
+    private var appliedMode: ToolbarMode?
+
+    /// The toolbar on the window. Read from the window rather than cached, so
+    /// it cannot disagree with what is on screen.
     private var toolbar: NSToolbar? { window?.toolbar }
 
     init(target: WindowController) {
@@ -29,36 +44,56 @@ final class ToolbarController: NSObject, NSToolbarDelegate, NSSearchFieldDelegat
 
     // MARK: - Installing
 
-    /// Puts the schema for `mode` on `window`, unless it is already there.
+    /// Puts the toolbar on `window`, once.
     ///
-    /// The identifier comparison is what makes this safe to call from the
-    /// render pass, which runs on every session change.
-    func install(for mode: ToolbarMode, in window: NSWindow) {
+    /// The comparison is what makes this safe to call more than once. Assigning
+    /// a second toolbar is what this design exists to avoid: AppKit rebuilds
+    /// the titlebar's toolbar view for a new one and crossfades the exchange.
+    func install(in window: NSWindow) {
         self.window = window
+        guard window.toolbar?.identifier != identifier else { return }
 
-        let schema = ToolbarCatalogue.schema(for: mode)
-        guard window.toolbar?.identifier != schema.identifier else { return }
+        #if DEBUG
+        ToolbarCatalogue.validate()
+        #endif
 
-        // A hidden toolbar must stay hidden across the swap: `isVisible` lives
-        // on the toolbar, not the window, so the incoming one knows nothing
-        // about the user having pressed Hide Toolbar.
-        let wasVisible = window.toolbar?.isVisible ?? true
-        window.toolbar = makeToolbar(for: schema)
-        window.toolbar?.isVisible = wasVisible
-    }
-
-    private func makeToolbar(for schema: ToolbarSchema) -> NSToolbar {
-        if let existing = toolbars[schema.identifier] { return existing }
-
-        let toolbar = NSToolbar(identifier: schema.identifier)
+        let toolbar = NSToolbar(identifier: identifier)
         toolbar.delegate = self
         toolbar.displayMode = .iconOnly
         toolbar.allowsUserCustomization = true
-        #if !DEBUG
-        toolbar.autosavesConfiguration = true
-        #endif
-        toolbars[schema.identifier] = toolbar
-        return toolbar
+        // Deliberately not autosaving: one saved arrangement per identifier
+        // cannot hold two modes, and the identifier above is per window anyway.
+        window.toolbar = toolbar
+    }
+
+    // MARK: - Arrangements
+
+    /// Swaps the toolbar's contents to `mode`'s arrangement, keeping whatever
+    /// the user made of the one being left.
+    ///
+    /// `itemIdentifiers` diffs against what is already there, so the items in
+    /// both arrangements stay put and only the difference animates.
+    private func apply(_ mode: ToolbarMode) {
+        guard let toolbar, appliedMode != mode else { return }
+
+        captureArrangement()
+        appliedMode = mode
+        toolbar.itemIdentifiers = ToolbarArrangements.shared.arrangement(for: mode)
+    }
+
+    /// Records what the toolbar currently holds as the arrangement for the mode
+    /// it is showing.
+    ///
+    /// The window calls this on every pass of the event loop, because AppKit
+    /// posts nothing when the customization palette closes and an arrangement
+    /// made there is otherwise lost at the next mode change. Unchanged lists
+    /// are not written.
+    func captureArrangement() {
+        guard let toolbar, let appliedMode else { return }
+        ToolbarArrangements.shared.setArrangement(
+            toolbar.itemIdentifiers,
+            for: appliedMode
+        )
     }
 
     // MARK: - Rendering
@@ -66,6 +101,7 @@ final class ToolbarController: NSObject, NSToolbarDelegate, NSSearchFieldDelegat
     /// Makes the toolbar match `state`. Safe to call as often as needed: every
     /// write below is either cheap and idempotent or guarded by a comparison.
     func render(_ state: ToolbarState) {
+        apply(state.mode)
         guard let toolbar else { return }
 
         for item in toolbar.items {
@@ -103,15 +139,18 @@ final class ToolbarController: NSObject, NSToolbarDelegate, NSSearchFieldDelegat
 
     // MARK: - NSToolbarDelegate
 
-    /// Both of these answer for the toolbar that is asking, not for "the"
-    /// toolbar: one delegate serves every schema, and AppKit asks each of them
-    /// separately.
+    /// Every item, in both modes: the palette is a place to find tools, and one
+    /// that offered only the current mode's would hide half of them behind a
+    /// mode change. Which of them a mode *starts* with is `defaults`, below.
     func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        ToolbarCatalogue.schema(matching: toolbar)?.allowed ?? []
+        toolbar.identifier == identifier ? ToolbarCatalogue.allIdentifiers : []
     }
 
+    /// Answers for the mode on screen, so Restore Defaults restores the
+    /// arrangement that mode began with rather than a union of both.
     func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        ToolbarCatalogue.schema(matching: toolbar)?.defaults ?? []
+        guard toolbar.identifier == identifier else { return [] }
+        return ToolbarCatalogue.defaultIdentifiers(for: appliedMode ?? .browsing)
     }
 
     /// The sidebar toggle is supplied by AppKit, so it is relabelled on

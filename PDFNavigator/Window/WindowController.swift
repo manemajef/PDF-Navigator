@@ -93,14 +93,15 @@ final class WindowController: NSWindowController {
         window.tabbingMode = .automatic
         window.toolbarStyle = .unified
         window.autorecalculatesKeyViewLoop = true
-        // No toolbar yet: which one belongs here is a function of the session's
-        // mode, so the first `renderToolbar()` installs it. The window is not on
-        // screen until after that runs.
+        // Before the window is on screen, and never again: the mode decides
+        // which of this toolbar's items are drawn, not which toolbar is
+        // installed.
+        toolbar.install(in: window)
         window.contentViewController = contentController
         window.titlebarSeparatorStyle = .shadow
         NotificationCenter.default.addObserver(
             self,
-            selector: #selector(updateTitlebarTransparencyAndBlur(_:)),
+            selector: #selector(windowDidUpdate(_:)),
             name: NSWindow.didUpdateNotification,
             object: window
         )
@@ -159,14 +160,8 @@ final class WindowController: NSWindowController {
         )
     }
 
-    /// Installing comes first: the mode decides *which* toolbar is on the
-    /// window, and rendering then makes that one match the rest of the state.
     private func renderToolbar() {
-        let state = toolbarState
-        if let window {
-            toolbar.install(for: state.mode, in: window)
-        }
-        toolbar.render(state)
+        toolbar.render(toolbarState)
     }
 
     /// The document encodes the session's location, so it is the object whose
@@ -208,12 +203,20 @@ final class WindowController: NSWindowController {
         }
     }
 
+    /// Fires on every pass of the event loop, which is what recommends it for
+    /// the two things below: neither has a notification of its own, and both
+    /// are guarded comparisons that write nothing when nothing has changed.
+    @objc private func windowDidUpdate(_ notification: Notification) {
+        updateTitlebarTransparencyAndBlur()
+        // AppKit posts nothing when the customization palette closes, so this
+        // is where an arrangement made there is noticed.
+        toolbar.captureArrangement()
+    }
+
     /// Transparency and the blur are one decision: the titlebar only goes
     /// transparent where content shows through it, and that is exactly where the
     /// content needs a material of its own.
-    @objc private func updateTitlebarTransparencyAndBlur(
-        _ notification: Notification? = nil
-    ) {
+    private func updateTitlebarTransparencyAndBlur() {
         guard let window else { return }
 
         let hasTabBar = window.tabGroup?.isTabBarVisible == true
