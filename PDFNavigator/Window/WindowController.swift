@@ -103,11 +103,11 @@ final class WindowController: NSWindowController {
         window.titlebarSeparatorStyle = .shadow
         NotificationCenter.default.addObserver(
             self,
-            selector: #selector(updateTitlebarAppearance(_:)),
+            selector: #selector(updateTitlebarTransparencyAndBlur(_:)),
             name: NSWindow.didUpdateNotification,
             object: window
         )
-        updateTitlebarAppearance()
+        updateTitlebarTransparencyAndBlur()
 
         let visibleWidth = NSScreen.main?.visibleFrame.width ?? 1_050
         let documentWidth = min(
@@ -188,7 +188,7 @@ final class WindowController: NSWindowController {
         if window.representedURL != session.representedURL {
             window.representedURL = session.representedURL
         }
-        updateTitlebarAppearance()
+        updateTitlebarTransparencyAndBlur()
     }
 
     /// Separate from the title because it changes on every scroll; reassigning
@@ -204,26 +204,27 @@ final class WindowController: NSWindowController {
         }
     }
 
-    @objc private func updateTitlebarAppearance(
+    /// Transparency and the blur are one decision: the titlebar only goes
+    /// transparent where content shows through it, and that is exactly where the
+    /// content needs a material of its own.
+    @objc private func updateTitlebarTransparencyAndBlur(
         _ notification: Notification? = nil
     ) {
         guard let window else { return }
 
         let hasTabBar = window.tabGroup?.isTabBarVisible == true
         let hasToolbar = window.toolbar?.isVisible == true
-        let isTitlebarOnly = !hasTabBar && !hasToolbar
         let hasPDF = session.pdfSession?.hasDocument == true
 
-        let shouldBeTransparent = !hasPDF && isTitlebarOnly
+        // The tab bar always fills the strip itself. A PDF only stays behind an
+        // opaque titlebar while the toolbar is up; hide the toolbar and the page
+        // runs the full height of the window.
+        let shouldBeTransparent = !hasTabBar && !(hasPDF && hasToolbar)
         if window.titlebarAppearsTransparent != shouldBeTransparent {
             window.titlebarAppearsTransparent = shouldBeTransparent
         }
 
-        let titleVisibility: NSWindow.TitleVisibility =
-            (!hasPDF && isTitlebarOnly) ? .hidden : .visible
-        if window.titleVisibility != titleVisibility {
-            window.titleVisibility = titleVisibility
-        }
+        contentController.setTitlebarBlur(visible: shouldBeTransparent)
     }
 
     // MARK: - Commands

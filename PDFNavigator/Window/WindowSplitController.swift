@@ -35,6 +35,11 @@ final class WindowSplitController: NSSplitViewController {
         isInspectorVisible ? inspectorPresentationState.section : nil
     }
 
+    /// The only column that runs under the titlebar: the sidebar is laid out
+    /// beside it, and the inspector opts out of full-height layout. `TitlebarBlur`
+    /// draws here so neither of those picks up a second material.
+    var detailColumnView: NSView { detailContainer.view }
+
     init(
         session: WorkspaceSession,
         actions: WindowActions,
@@ -239,7 +244,9 @@ final class WindowSplitController: NSSplitViewController {
 
         container.addChild(controller)
         controller.view.translatesAutoresizingMaskIntoConstraints = false
-        container.view.addSubview(controller.view)
+        // Under every sibling: the titlebar blur is not a child controller, so
+        // it survives the swap above and has to stay on top of what replaces it.
+        container.view.addSubview(controller.view, positioned: .below, relativeTo: nil)
 
         let usesDetailSafeArea = container === detailContainer && !underlapsSidebars
         let leadingAnchor = usesDetailSafeArea
