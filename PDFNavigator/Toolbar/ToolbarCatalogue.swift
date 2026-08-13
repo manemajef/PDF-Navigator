@@ -58,10 +58,23 @@ enum ToolbarCatalogue {
             symbol: "folder.badge.plus",
             action: #selector(WindowController.openNewWorkspace(_:))
         ),
-        .library: Item(
+        .goTolibrary: Item(
             label: "Library",
-            symbol: "house",
+//            symbol: "house",
+            symbol: "square.grid.4x3.fill",
             action: #selector(WindowController.goToLibrary(_:))
+        ),
+        .goToEnclosingFolder: Item(
+            label: "Go to enclosing folder",
+            symbol: "arrow.uturn.up",
+            action: #selector(WindowController.goToEnclosingFolder(_:)),
+            
+        ),
+        .goToStartPage: Item(
+            label: "Go to Recents",
+            //            symbol:"square.grid.4x3.fill",
+            symbol: "clock",
+            action: #selector(WindowController.goToStartPage(_: )),
         ),
         .pdfZoomIn: Item(
             label: "Zoom In",
@@ -99,6 +112,7 @@ enum ToolbarCatalogue {
             action: #selector(WindowController.shareCurrentPDF(_:)),
             requiresPDF: true
         ),
+        
     ]
 
     static let groups: [NSToolbarItem.Identifier: Group] = [
@@ -217,7 +231,8 @@ enum ToolbarCatalogue {
 
     static let allowedIdentifiers: [NSToolbarItem.Identifier] = [
         .toggleSidebar, .sidebarTrackingSeparator, .workspaceNavigation,
-        .library, .workspaceNewTab, .openNewWorkspace, .workspaceSearch,
+        .workspaceNewTab, .openNewWorkspace, .workspaceSearch,
+        .goTolibrary, .goToEnclosingFolder, .goToStartPage,
         .pdfPageNavigation, .pdfZoomControll,
         .pdfZoomIn, .pdfZoomOut, .pdfActualSize, .pdfZoomToFit,
         .pdfOpenExternally, .pdfShare, .space, .flexibleSpace,
@@ -242,7 +257,9 @@ extension NSToolbarItem.Identifier {
     static let workspaceNavigation = Self("WorkspaceNavigation")
     // Warning: the raw string is a persisted key. AppKit saves the user's
     // toolbar arrangement under it, so changing it discards their layout.
-    static let library = Self("WorkspaceHome")
+    static let goTolibrary = Self("GoToLibrary")
+    static let goToEnclosingFolder = Self("GoToEnclosingFolder")
+    static let goToStartPage = Self("GoToStartPage")
     static let workspaceNewTab = Self("WorkspaceNewTab")
     static let openNewWorkspace = Self("OpenNewWorkspace")
     static let workspaceSearch = Self("WorkspaceSearch")

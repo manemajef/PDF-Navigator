@@ -143,9 +143,21 @@ final class MainMenu: NSObject, NSMenuDelegate {
             keyEquivalent: "]"
         )
         goMenu.addItem(.separator())
+        // ⌘↑ is Finder's shortcut for the same move. An arrow key is spelled as
+        // the character AppKit reserves for it, not as a name.
+        goMenu.addItem(
+            withTitle: "Enclosing Folder",
+            action: #selector(WindowController.goToEnclosingFolder(_:)),
+            keyEquivalent: String(UnicodeScalar(NSUpArrowFunctionKey)!)
+        ).keyEquivalentModifierMask = [.command]
         goMenu.addItem(
             withTitle: "Library",
             action: #selector(WindowController.goToLibrary(_:)),
+            keyEquivalent: ""
+        )
+        goMenu.addItem(
+            withTitle: "Recents",
+            action: #selector(WindowController.goToStartPage(_:)),
             keyEquivalent: ""
         )
         goMenu.addItem(.separator())

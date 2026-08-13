@@ -84,14 +84,9 @@ final class WindowController: NSWindowController {
 
     private func configureWindow() {
         guard let window else { return }
-        // Runs before the content view controller is installed: loading it
-        // renders the document and publishes a subtitle, which would otherwise
-        // appear under the placeholder title.
+        /// Runs before the content view controller is installed: loading it renders the document and publishes a subtitle
         synchronizeWindowTitleWithDocumentName()
-        // Every restorable window needs its own identifier: AppKit keys saved
-        // window state by it, so a shared value collapses all tabs into one
-        // entry. The restoration class is left to `NSWindowController`, which
-        // points document windows at `NSDocumentController`.
+        /// Every restorable window needs its own identifier
         window.isRestorable = true
         window.identifier = NSUserInterfaceItemIdentifier(UUID().uuidString)
         window.tabbingIdentifier = "WorkspaceWindow"
@@ -249,6 +244,14 @@ final class WindowController: NSWindowController {
         session.showLibrary()
     }
 
+    @objc func goToStartPage(_ sender: Any?) {
+        session.showStartPage()
+    }
+
+    @objc func goToEnclosingFolder(_ sender: Any?) {
+        session.showEnclosingFolder()
+    }
+
     @objc func toggleSidebar(_ sender: Any?) {
         contentController.toggleWorkspaceSidebar(sender)
     }
@@ -354,6 +357,10 @@ extension WindowController: NSMenuItemValidation, NSToolbarItemValidation {
             session.canGoForward
         case #selector(goToLibrary(_:)):
             session.canGoToLibrary
+        case #selector(goToStartPage(_:)):
+            session.canGoToStartPage
+        case #selector(goToEnclosingFolder(_:)):
+            session.canGoToEnclosingFolder
         case #selector(toggleSidebar(_:)),
              #selector(newTab(_:)),
              #selector(openNewWorkspace(_:)),

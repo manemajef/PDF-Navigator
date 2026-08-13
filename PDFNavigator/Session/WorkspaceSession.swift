@@ -42,6 +42,32 @@ final class WorkspaceSession {
     var canGoBack: Bool { history.canGoBack }
     var canGoForward: Bool { history.canGoForward }
     var canGoToLibrary: Bool { mode != .library(root) }
+    var canGoToStartPage: Bool { mode != .startPage }
+    var canGoToEnclosingFolder: Bool { enclosingFolderURL != nil }
+
+    /// The folder one level up from where this session points, or `nil` when there is nowhere above to go.
+    /// The command's availability is this being non-`nil`, so the rule is stated once and both the menu item and the move read it from here.
+    /// `root` is the ceiling. Browsing must not be able to walk a session out of the workspace the user chose, and `deletingLastPathComponent()` will happily do exactly that.
+    var enclosingFolderURL: URL? {
+        let candidate: URL
+
+        switch mode {
+        // Recents is scoped to the whole workspace, so no one folder encloses it.
+        case .startPage:
+            return nil
+
+        /// Showing the root already: there is nothing left to go up to. This is the only case where being at the root disables the command.
+        case .library(let folderURL):
+            guard folderURL != root else { return nil }
+            candidate = folderURL.deletingLastPathComponent()
+
+        case .reading(let pdfURL):
+            candidate = pdfURL.deletingLastPathComponent()
+        }
+
+        guard candidate.isDescendantOrSame(of: root) else { return nil }
+        return candidate
+    }
 
     /// What this session would encode or reopen as.
     var currentRequest: OpenRequest {
@@ -57,9 +83,7 @@ final class WorkspaceSession {
         }
     }
 
-    /// `displayName(atPath:)` is what Finder and Preview show: it honours the
-    /// user's "Show all filename extensions" setting and localized folder
-    /// names, rather than always printing the raw `Foo.pdf`.
+    ///`displayName(atPath:)` honours the user's "Show all filename extensions" setting and localized folder
     var windowTitle: String {
         let url = representedURL
         let displayName = url.lastPathComponent.isEmpty
@@ -68,7 +92,7 @@ final class WorkspaceSession {
 
         return mode == .startPage ? "\(displayName) Recents" : displayName
     }
-
+    
     // MARK: - Changing workspace
 
     /// Points this session at a workspace.
@@ -97,6 +121,18 @@ final class WorkspaceSession {
 
     func showLibrary() {
         navigate(to: .folder(root, in: root))
+    }
+
+    /// The workspace's recents, which `WorkspaceMode` calls the start page.
+    func showStartPage() {
+        navigate(to: .startPage(in: root))
+    }
+
+    /// Routed through `showFolder(_:)` rather than `navigate(to:)`, so going up
+    /// is recorded in history exactly like any other folder click.
+    func showEnclosingFolder() {
+        guard let enclosingFolderURL else { return }
+        showFolder(enclosingFolderURL)
     }
 
     func goBack() {
