@@ -252,8 +252,9 @@ enum ToolbarCatalogue {
         // view-style go when they arrive.
         case .browsing:
             leadingDefaults
-                + [.flexibleSpace]
+            + [.flexibleSpace]
                 + trailingDefaults
+            + [.workspaceSearch]
 
         // The reader's own tools trail the shared run because the inspector
         // toggle belongs against the right edge, over the inspector it opens.

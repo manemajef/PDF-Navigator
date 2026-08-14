@@ -40,6 +40,7 @@ struct LibraryHeaderView: View {
 
             Button("Open Different…", action: onOpenDifferent)
                 .controlSize(.large)
+            Button("Go to Enclosing folder", action: {}).buttonStyle(.borderedProminent).controlSize(.large)
         }
     }
 }
@@ -52,3 +53,27 @@ struct LibraryHeaderView: View {
     .padding(24)
     .frame(width: 600)
 }
+
+
+#if DEBUG
+#Preview("Library") {
+    ScrollView{
+        LibraryHeaderView(
+            folderName: "Micro 3",
+            folderPath: "~/University/Semester 4/Micro 3"
+        )
+        .padding(24)
+        .frame(width: 600)
+        LibraryGridView(
+            folderURLs: DevelopmentConfiguration.demoFolderURLs,
+            pdfURLs: DevelopmentConfiguration.loadPDFs(limit: 20),
+            emptyMessage: "This workspace has no PDFs yet",
+            onOpenPDF: { _ in },
+            onOpenFolder: { _ in },
+            onOpenPDFInNewTab: { _ in },
+            onRevealInFinder: { _ in }
+        )
+        .frame(width: 800, height: 650)
+    }
+}
+#endif
